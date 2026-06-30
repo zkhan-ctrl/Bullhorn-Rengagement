@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Re-Engagement Tool — CGR Team</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #1e2a3a; font-size: 13px; }
+
+/* HEADER */
+.header { background: #1a2744; color: white; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.25); }
+.header-left { display: flex; align-items: center; gap: 12px; }
+.header-logo { width: 32px; height: 32px; background: #f97316; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; flex-shrink: 0; }
+.header-title { font-size: 15px; font-weight: 700; }
+.header-subtitle { font-size: 11px; color: #94a3b8; margin-top: 1px; }
+.header-stats { display: flex; gap: 20px; }
+.stat { text-align: center; }
+.stat-num { font-size: 20px; font-weight: 700; color: #f97316; line-height: 1; }
+.stat-label { font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+.header-right { display: flex; align-items: center; gap: 8px; }
+.btn-scan { background: #f97316; color: white; border: none; padding: 7px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+.btn-scan:hover { background: #ea6c05; }
+.btn-scan:disabled { background: #475569; cursor: default; }
+.btn-settings { background: transparent; border: 1px solid #334155; color: #94a3b8; padding: 6px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; }
+.btn-settings:hover { border-color: #94a3b8; color: white; }
+.ai-badge { background: #7c3aed; color: white; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; }
+
+/* SCAN BAR */
+.scan-bar { height: 3px; background: linear-gradient(90deg,#6366f1,#f97316,#6366f1); background-size: 200% 100%; display: none; }
+.scan-bar.active { display: block; animation: scanAnim 1.2s linear infinite; }
+@keyframes scanAnim { 0%{background-position:0% 0%} 100%{background-position:200% 0%} }
+
+/* FILTERS */
+.filters { background: white; padding: 10px 20px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #e2e8f0; flex-wrap: wrap; }
+.filter-label { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+.filter-select, .filter-search { border: 1px solid #e2e8f0; border-radius: 6px; padding: 5px 10px; font-size: 12px; color: #1e2a3a; background: white; outline: none; }
+.filter-select:focus, .filter-search:focus { border-color: #6366f1; }
+.filter-search { width: 180px; }
+.filter-spacer { flex: 1; }
+.result-count { font-size: 11px; color: #94a3b8; }
+
+/* SETUP SCREEN */
+.setup-screen { max-width: 540px; margin: 60px auto; background: white; border-radius: 12px; padding: 36px; border: 1px solid #e2e8f0; box-shadow: 0 4px 24px rgba(0,0,0,0.07); }
+.setup-logo { width: 48px; height: 48px; background: #f97316; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; color: white; margin-bottom: 20px; }
+.setup-title { font-size: 20px; font-weight: 700; color: #0f172a; margin-bottom: 8px; }
+.setup-desc { color: #64748b; font-size: 13px; line-height: 1.6; margin-bottom: 24px; }
+.setup-step { display: flex; gap: 12px; margin-bottom: 16px; align-items: flex-start; }
+.step-num { width: 24px; height: 24px; background: #6366f1; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+.step-text { font-size: 12px; color: #334155; line-height: 1.6; }
+.step-text code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 11px; }
+.setup-error { background: #fee2e2; border: 1px solid #fca5a5; border-radius: 8px; padding: 12px 16px; color: #991b1b; font-size: 12px; margin-top: 20px; }
+
+/* COMPANY LIST */
+.company-list { padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; }
+
+/* SKELETON LOADER */
+.skeleton { background: white; border-radius: 10px; border: 1px solid #e2e8f0; padding: 14px 16px; }
+.skel-line { background: #f1f5f9; border-radius: 4px; height: 12px; margin-bottom: 8px; animation: shimmer 1.4s ease-in-out infinite; }
+@keyframes shimmer { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.skel-wide { width: 60%; }
+.skel-medium { width: 40%; }
+.skel-short { width: 25%; }
+
+/* CARD */
+.card { background: white; border-radius: 10px; border: 1px solid #e2e8f0; overflow: hidden; transition: box-shadow 0.15s; }
+.card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+.card.expanded { box-shadow: 0 4px 16px rgba(0,0,0,0.1); border-color: #c7d2fe; }
+
+.card-header { padding: 14px 16px; display: flex; align-items: center; gap: 14px; cursor: pointer; user-select: none; }
+.card-header:hover { background: #fafbfc; }
+
+.score-badge { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; flex-shrink: 0; }
+.score-1 { background: #fef3c7; color: #92400e; }
+.score-2 { background: #dbeafe; color: #1e40af; }
+.score-3 { background: #d1fae5; color: #065f46; }
+.score-4 { background: #f1f5f9; color: #475569; }
+.score-null { background: #f8fafc; color: #94a3b8; }
+
+.score-pip { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+.pip-1 { background: #fef3c7; color: #92400e; }
+.pip-2 { background: #dbeafe; color: #1e40af; }
+.pip-3 { background: #d1fae5; color: #065f46; }
+.pip-4 { background: #f1f5f9; color: #475569; }
+.pip-null { background: #f1f5f9; color: #94a3b8; }
+
+.card-info { flex: 1; min-width: 0; }
+.card-company-name { font-size: 14px; font-weight: 700; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-meta-row { display: flex; align-items: center; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
+.card-industry { font-size: 11px; color: #64748b; }
+.card-jobs-count { font-size: 11px; color: #6366f1; font-weight: 600; }
+.stale-badge { padding: 2px 7px; border-radius: 10px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.stale-critical { background: #fee2e2; color: #991b1b; }
+.stale-high { background: #ffedd5; color: #9a3412; }
+.stale-medium { background: #fef9c3; color: #854d0e; }
+.stale-low { background: #f0fdf4; color: #166534; }
+
+.card-actions-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.btn-notify { background: transparent; border: 1px solid #e2e8f0; color: #64748b; padding: 5px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+.btn-notify:hover { border-color: #f97316; color: #f97316; }
+.btn-notify.notified { background: #fff7ed; border-color: #f97316; color: #f97316; }
+.expand-icon { width: 28px; height: 28px; background: #f1f5f9; border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: transform 0.2s, background 0.15s; font-size: 11px; flex-shrink: 0; }
+.card.expanded .expand-icon { transform: rotate(180deg); background: #e0e7ff; }
+
+/* CARD BODY */
+.card-body { display: none; border-top: 1px solid #f1f5f9; }
+.card.expanded .card-body { display: block; }
+.card-body-inner { padding: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 760px) { .card-body-inner { grid-template-columns: 1fr; } }
+
+/* LOADING INSIDE CARD */
+.card-loading { padding: 24px; text-align: center; color: #94a3b8; font-size: 12px; }
+.spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid #e2e8f0; border-top-color: #6366f1; border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 8px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* SECTION TITLES */
+.section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: #64748b; margin-bottom: 10px; }
+
+/* JOB ITEMS */
+.job-item { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; background: #f8fafc; border-radius: 7px; margin-bottom: 6px; border: 1px solid #e2e8f0; }
+.job-dot { width: 8px; height: 8px; background: #6366f1; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+.job-title { font-size: 12px; font-weight: 600; color: #0f172a; }
+.job-detail { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+.no-jobs { font-size: 12px; color: #94a3b8; padding: 8px 0; font-style: italic; }
+.job-src-badge { display: inline-block; padding: 1px 5px; border-radius: 3px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; vertical-align: middle; }
+.src-bh { background: #eef2ff; color: #4338ca; }
+.src-ext { background: #fff7ed; color: #c2410c; }
+.job-ext-link { color: #6366f1; text-decoration: none; font-size: 11px; font-weight: 600; }
+.job-ext-link:hover { text-decoration: underline; }
+.job-ext-loading { padding: 6px 10px; color: #94a3b8; font-size: 11px; display: flex; align-items: center; gap: 6px; }
+.card-website { font-size: 11px; color: #6366f1; text-decoration: none; font-weight: 600; }
+.card-website:hover { text-decoration: underline; }
+
+/* BD OWNER */
+.bd-owner { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 8px 10px; background: #fff7ed; border-radius: 7px; border: 1px solid #fed7aa; }
+.bd-avatar { width: 28px; height: 28px; background: #f97316; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; font-weight: 700; flex-shrink: 0; }
+.bd-label { font-size: 10px; color: #9a3412; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+.bd-name { font-size: 12px; font-weight: 600; color: #7c2d12; }
+
+/* CONTACT TABS */
+.contact-tabs { display: flex; gap: 4px; margin-bottom: 12px; flex-wrap: wrap; }
+.tab-btn { padding: 5px 10px; border-radius: 6px; border: 1px solid #e2e8f0; background: white; font-size: 11px; font-weight: 600; color: #64748b; cursor: pointer; transition: all 0.15s; }
+.tab-btn:hover { border-color: #6366f1; color: #6366f1; }
+.tab-btn.active { background: #6366f1; border-color: #6366f1; color: white; }
+.tab-btn.sent { background: #f0fdf4; border-color: #86efac; color: #166534; }
+
+.contact-panel { display: none; }
+.contact-panel.active { display: block; }
+
+.contact-info { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.contact-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+.av-Recruiting { background: #6366f1; }
+.av-Sales { background: #f97316; }
+.av-HR { background: #ec4899; }
+.av-Ops { background: #14b8a6; }
+.av-Other { background: #94a3b8; }
+.contact-name { font-size: 13px; font-weight: 600; color: #0f172a; }
+.contact-role { font-size: 11px; color: #64748b; }
+.contact-email { font-size: 11px; color: #6366f1; }
+.no-contact { font-size: 12px; color: #94a3b8; font-style: italic; padding: 4px 0; }
+
+/* EMAIL DRAFT */
+.email-draft-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; }
+.email-draft-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+.email-draft-text { font-size: 12px; color: #334155; line-height: 1.6; outline: none; min-height: 42px; }
+.email-draft-text:focus { background: white; border-radius: 4px; padding: 4px; margin: -4px; }
+.draft-loading { font-size: 11px; color: #94a3b8; font-style: italic; }
+.email-draft-actions { display: flex; gap: 6px; margin-top: 10px; align-items: center; }
+.btn-send { background: #6366f1; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+.btn-send:hover { background: #4f46e5; }
+.btn-send.sent-ok { background: #22c55e; pointer-events: none; }
+.btn-copy { background: white; border: 1px solid #e2e8f0; color: #64748b; padding: 6px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; }
+.btn-copy:hover { border-color: #6366f1; color: #6366f1; }
+.btn-skip { background: transparent; border: none; color: #94a3b8; padding: 6px 8px; font-size: 12px; cursor: pointer; margin-left: auto; }
+.btn-skip:hover { color: #ef4444; }
+
+/* SETTINGS MODAL */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; display: none; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal { background: white; border-radius: 12px; padding: 28px; width: 420px; max-width: 95vw; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+.modal-title { font-size: 16px; font-weight: 700; margin-bottom: 20px; color: #0f172a; }
+.modal-field { margin-bottom: 16px; }
+.modal-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; margin-bottom: 6px; }
+.modal-input { width: 100%; border: 1px solid #e2e8f0; border-radius: 7px; padding: 8px 10px; font-size: 13px; outline: none; }
+.modal-input:focus { border-color: #6366f1; }
+.modal-hint { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+.btn-save { background: #6366f1; color: white; border: none; padding: 8px 20px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.btn-cancel { background: white; border: 1px solid #e2e8f0; color: #64748b; padding: 8px 16px; border-radius: 7px; font-size: 13px; cursor: pointer; }
+.modal-fields-list { max-height: 180px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 7px; margin-top: 6px; }
+.field-option { padding: 7px 12px; cursor: pointer; font-size: 12px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; }
+.field-option:hover { background: #f8fafc; }
+.field-option.selected { background: #eef2ff; color: #4f46e5; font-weight: 600; }
+.field-type { font-size: 10px; color: #94a3b8; }
+
+/* ERROR BANNER */
+.error-banner { background: #fee2e2; border-bottom: 1px solid #fca5a5; padding: 10px 20px; color: #991b1b; font-size: 12px; display: flex; align-items: center; gap: 8px; }
+
+/* TOAST */
+.toast { position: fixed; bottom: 20px; right: 20px; background: #0f172a; color: white; padding: 10px 16px; border-radius: 8px; font-size: 12px; font-weight: 500; z-index: 9999; opacity: 0; transform: translateY(10px); transition: opacity 0.2s, transform 0.2s; pointer-events: none; }
+.toast.show { opacity: 1; transform: translateY(0); }
+
+/* EMPTY STATE */
+.empty-state { text-align: center; padding: 48px 20px; color: #94a3b8; }
+.empty-icon { font-size: 32px; margin-bottom: 12px; }
+.empty-title { font-size: 16px; font-weight: 600; color: #475569; margin-bottom: 6px; }
+.empty-desc { font-size: 13px; }
+</style>
+</head>
+<body>
+
+<!-- SETUP SCREEN (shown when not connected) -->
+<div id="setupScreen" style="display:none; padding: 20px;">
+  <div class="setup-screen">
+    <div class="setup-logo">CGR</div>
+    <div class="setup-title">Setup Required</div>
+    <div class="setup-desc">The Re-Engagement Tool needs your Bullhorn credentials to connect. Follow these steps:</div>
+    <div class="setup-step">
+      <div class="step-num">1</div>
+      <div class="step-text">In the project folder on your Desktop, find <code>.env.example</code> and copy it to a new file named <code>.env</code></div>
+    </div>
+    <div class="setup-step">
+      <div class="step-num">2</div>
+      <div class="step-text">Open <code>.env</code> in Notepad and fill in your <code>BULLHORN_CLIENT_ID</code>, <code>BULLHORN_CLIENT_SECRET</code>, <code>BULLHORN_USERNAME</code>, and <code>BULLHORN_PASSWORD</code></div>
+    </div>
+    <div class="setup-step">
+      <div class="step-num">3</div>
+      <div class="step-text">Save the file, then restart the server: open a terminal in the project folder and run <code>node server.js</code></div>
+    </div>
+    <div class="setup-step">
+      <div class="step-num">4</div>
+      <div class="step-text">Refresh this page — the tool will connect automatically</div>
+    </div>
+    <div id="setupError" class="setup-error" style="display:none;"></div>
+    <div style="margin-top:20px; text-align:right;">
+      <button class="btn-scan" onclick="init()">Retry Connection</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP (shown when connected) -->
+<div id="mainApp" style="display:none;">
+  <div class="scan-bar" id="scanBar"></div>
+  <div class="header">
+    <div class="header-left">
+      <div class="header-logo">CGR</div>
+      <div>
+        <div class="header-title">Re-Engagement Tool</div>
+        <div class="header-subtitle">Live Bullhorn data &mdash; stale client detection &amp; outreach</div>
+      </div>
+    </div>
+    <div class="header-stats">
+      <div class="stat"><div class="stat-num" id="statCompanies">—</div><div class="stat-label">Stale Co's</div></div>
+      <div class="stat"><div class="stat-num" id="statEmails">—</div><div class="stat-label">Emails Ready</div></div>
+      <div class="stat"><div class="stat-num" id="statNotified">0</div><div class="stat-label">BD Notified</div></div>
+    </div>
+    <div class="header-right">
+      <span id="aiBadge" class="ai-badge" style="display:none;">✦ AI Drafts</span>
+      <button class="btn-settings" onclick="openSettings()">⚙ Settings</button>
+      <button class="btn-scan" id="btnScan" onclick="loadCompanies()">&#9654; Refresh</button>
+    </div>
+  </div>
+
+  <div id="errorBanner" class="error-banner" style="display:none;"></div>
+
+  <div class="filters">
+    <span class="filter-label">Filter:</span>
+    <select class="filter-select" id="filterScore" onchange="applyFilters()">
+      <option value="">All Scores</option>
+      <option value="1">Score 1 (Priority)</option>
+      <option value="2">Score 2</option>
+      <option value="3">Score 3</option>
+      <option value="4">Score 4</option>
+    </select>
+    <select class="filter-select" id="filterStale" onchange="applyFilters()">
+      <option value="">All Staleness</option>
+      <option value="60">60+ Days</option>
+      <option value="90">90+ Days</option>
+      <option value="150">150+ Days</option>
+    </select>
+    <input class="filter-search" id="filterSearch" type="text" placeholder="Search company..." oninput="applyFilters()">
+    <div class="filter-spacer"></div>
+    <span class="result-count" id="resultCount"></span>
+  </div>
+
+  <div class="company-list" id="companyList"></div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay" id="settingsModal" onclick="if(event.target===this)closeSettings()">
+  <div class="modal">
+    <div class="modal-title">⚙ Tool Settings</div>
+    <div class="modal-field">
+      <div class="modal-label">Staleness Threshold (days)</div>
+      <input class="modal-input" id="settingDays" type="number" min="30" max="365" value="90">
+      <div class="modal-hint">Companies with no activity beyond this many days are flagged as stale.</div>
+    </div>
+    <div class="modal-field">
+      <div class="modal-label">Client Score Field</div>
+      <input class="modal-input" id="settingScoreField" type="text" placeholder="e.g. customInt1">
+      <div class="modal-hint">The Bullhorn API field name that stores your 1–4 client score. Click below to browse available fields.</div>
+      <div id="fieldsList" class="modal-fields-list" style="display:none;"></div>
+      <div style="margin-top:8px;">
+        <button class="btn-cancel" onclick="loadFieldOptions()" style="font-size:11px;padding:5px 10px;">Browse Company Fields</button>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeSettings()">Cancel</button>
+      <button class="btn-save" onclick="saveSettings()">Save &amp; Refresh</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── State ────────────────────────────────────────────────────────────────────
+const cfg = {
+  days:       parseInt(localStorage.getItem('bh_days'))        || 90,
+  scoreField: localStorage.getItem('bh_score_field')           || 'customInt2'
+};
+
+let companies    = [];
+let cardData     = {};   // { id: { contacts, jobs, drafts, activeTab, notified, loaded } }
+let expandedIds  = new Set();
+let notifiedCount = 0;
+let aiEnabled      = false;
+let adzunaEnabled  = false;
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+async function init() {
+  const res = await fetch('/api/status').then(r => r.json()).catch(() => ({ ok: false, error: 'Server not reachable' }));
+  if (!res.ok) {
+    document.getElementById('setupScreen').style.display = 'block';
+    const errEl = document.getElementById('setupError');
+    if (res.error) { errEl.style.display = 'block'; errEl.textContent = 'Error: ' + (res.error || JSON.stringify(res.missing)); }
+    return;
+  }
+  aiEnabled     = !!res.aiEnabled;
+  adzunaEnabled = !!res.adzunaEnabled;
+  if (aiEnabled) document.getElementById('aiBadge').style.display = 'inline';
+  document.getElementById('mainApp').style.display = 'block';
+  loadCompanies();
+}
+
+// ─── Load companies ───────────────────────────────────────────────────────────
+async function loadCompanies() {
+  setScanState(true);
+  showError(null);
+
+  try {
+    const res = await fetch(`/api/stale-companies?days=${cfg.days}&scoreField=${cfg.scoreField}`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    companies = data.data || [];
+    cardData  = {};
+    expandedIds.clear();
+
+    document.getElementById('statCompanies').textContent = companies.length;
+    document.getElementById('statEmails').textContent = companies.length * 4;
+
+    renderList();
+
+    // If launched from a specific Company record inside Bullhorn, auto-expand it
+    const params     = new URLSearchParams(window.location.search);
+    const entityType = params.get('EntityType');
+    const entityId   = parseInt(params.get('EntityID'));
+    if (entityType === 'ClientCorporation' && entityId) {
+      setTimeout(() => {
+        const card = document.getElementById(`card-${entityId}`);
+        if (card) { card.scrollIntoView({ behavior: 'smooth', block: 'center' }); toggleCard(entityId); }
+        else showToast('This company has recent activity and is not currently stale');
+      }, 400);
+    }
+  } catch (e) {
+    showError(e.message);
+    renderList();
+  } finally {
+    setScanState(false);
+  }
+}
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+function renderList() {
+  const list = document.getElementById('companyList');
+
+  if (!companies.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">🎉</div><div class="empty-title">No Stale Companies Found</div><div class="empty-desc">All companies have been active within the last ${cfg.days} days.</div></div>`;
+    document.getElementById('resultCount').textContent = '';
+    return;
+  }
+
+  list.innerHTML = companies.map(c => renderCard(c)).join('');
+  applyFilters();
+}
+
+function renderCard(c) {
+  const scoreClass = c.score != null ? `score-${Math.min(c.score, 4)}` : 'score-null';
+  const pipClass   = c.score != null ? `pip-${Math.min(c.score, 4)}`   : 'pip-null';
+  const scoreLabel = c.score != null ? c.score : '?';
+
+  let staleHtml = '';
+  if (c.daysStale != null) {
+    const cls = c.daysStale >= 150 ? 'stale-critical' : c.daysStale >= 90 ? 'stale-high' : c.daysStale >= 60 ? 'stale-medium' : 'stale-low';
+    staleHtml = `<span class="stale-badge ${cls}">${c.daysStale} days stale</span>`;
+  }
+
+  const data     = cardData[c.id];
+  const expanded = expandedIds.has(c.id);
+  const notified = data?.notified;
+
+  let bodyHtml = '';
+  if (expanded) {
+    if (!data || !data.loaded) {
+      bodyHtml = `<div class="card-loading"><span class="spinner"></span>Loading contacts &amp; jobs…</div>`;
+    } else {
+      bodyHtml = renderCardBody(c, data);
+    }
+  }
+
+  return `
+  <div class="card${expanded ? ' expanded' : ''}" id="card-${c.id}">
+    <div class="card-header" onclick="toggleCard(${c.id})">
+      <div class="score-badge ${scoreClass}">${scoreLabel}</div>
+      <div class="card-info">
+        <div class="card-company-name">${esc(c.name)}</div>
+        <div class="card-meta-row">
+          <span class="score-pip ${pipClass}">Score ${scoreLabel}</span>
+          <span class="card-industry">${esc(c.industry)}</span>
+          ${staleHtml}
+          ${c.website ? `<a class="card-website" href="${esc(c.website)}" target="_blank" onclick="event.stopPropagation()">↗ Website</a>` : ''}
+        </div>
+      </div>
+      <div class="card-actions-right">
+        <button class="btn-notify${notified ? ' notified' : ''}" onclick="notifyBD(event,${c.id})">${notified ? '✓ BD Notified' : '🔔 Notify BD'}</button>
+        <div class="expand-icon">&#8964;</div>
+      </div>
+    </div>
+    <div class="card-body">${bodyHtml}</div>
+  </div>`;
+}
+
+function renderCardBody(c, data) {
+  // Internal Bullhorn jobs
+  const internalHtml = data.jobs.map(j => `
+    <div class="job-item">
+      <div class="job-dot" style="background:#6366f1"></div>
+      <div>
+        <div class="job-title">${esc(j.title)} <span class="job-src-badge src-bh">Bullhorn</span></div>
+        <div class="job-detail">${esc(j.type)}${j.daysPosted != null ? ` · ${j.daysPosted}d ago` : ''} · ${j.openings} opening${j.openings !== 1 ? 's' : ''}</div>
+      </div>
+    </div>`).join('');
+
+  // External job board jobs (Adzuna)
+  let externalHtml = '';
+  if (data.externalJobsLoading) {
+    externalHtml = `<div class="job-ext-loading"><span class="spinner"></span>Searching job boards…</div>`;
+  } else if ((data.externalJobs || []).length > 0) {
+    externalHtml = data.externalJobs.map(j => `
+    <div class="job-item">
+      <div class="job-dot" style="background:#f97316"></div>
+      <div>
+        <div class="job-title">${esc(j.title)} <span class="job-src-badge src-ext">Job Boards</span>${j.url ? ` <a class="job-ext-link" href="${esc(j.url)}" target="_blank" onclick="event.stopPropagation()">↗</a>` : ''}</div>
+        <div class="job-detail">${esc(j.location)}${j.daysPosted != null ? ` · ${j.daysPosted}d ago` : ''}</div>
+      </div>
+    </div>`).join('');
+  } else if (adzunaEnabled && !data.externalJobsLoading) {
+    externalHtml = `<div class="no-jobs" style="color:#94a3b8;font-style:italic;">No external postings found on job boards</div>`;
+  }
+
+  const jobsHtml = (internalHtml + externalHtml) || '<div class="no-jobs">No open roles found in Bullhorn or job boards</div>';
+
+  const tabs = ['Recruiting','Sales','HR','Ops'];
+  const activeTab = data.activeTab || 'Recruiting';
+
+  const tabsHtml = tabs.map(t => {
+    const sent = data.sent?.[t];
+    return `<button class="tab-btn${t === activeTab ? ' active' : ''}${sent ? ' sent' : ''}" id="tab-${c.id}-${t}" onclick="switchTab(${c.id},'${t}')">${t}${sent ? ' ✓' : ''}</button>`;
+  }).join('');
+
+  const panelsHtml = tabs.map(t => {
+    const contacts    = (data.contacts[t] || []);
+    const contact     = contacts[0];
+    const draft       = data.drafts[t];
+    const sent        = data.sent?.[t];
+    const isActive    = t === activeTab;
+
+    const contactHtml = contact
+      ? `<div class="contact-info">
+           <div class="contact-avatar av-${t}">${esc(contact.initials)}</div>
+           <div>
+             <div class="contact-name">${esc(contact.name)}</div>
+             <div class="contact-role">${esc(contact.title)}</div>
+             <div class="contact-email">${esc(contact.email)}</div>
+           </div>
+         </div>`
+      : `<div class="no-contact">No ${t} contact found for this company</div>`;
+
+    const draftBody = draft
+      ? `<div class="email-draft-text" contenteditable="true" id="draft-${c.id}-${t}">${esc(draft)}</div>`
+      : `<div class="draft-loading"><span class="spinner"></span>Generating draft…</div>`;
+
+    const actionsHtml = draft
+      ? `<div class="email-draft-actions">
+           <button class="btn-send${sent ? ' sent-ok' : ''}" id="sendbtn-${c.id}-${t}" onclick="sendEmail(${c.id},'${t}')">${sent ? '✓ Sent' : '✉ Send'}</button>
+           <button class="btn-copy" onclick="copyEmail(${c.id},'${t}')">⎘ Copy</button>
+           <button class="btn-skip" onclick="skipContact(${c.id},'${t}')">✕ Skip</button>
+         </div>`
+      : '';
+
+    return `
+    <div class="contact-panel${isActive ? ' active' : ''}" id="panel-${c.id}-${t}">
+      ${contactHtml}
+      <div class="email-draft-box">
+        <div class="email-draft-label">Draft email${aiEnabled ? ' <span class="ai-badge" style="font-size:9px;">AI</span>' : ''}</div>
+        ${draftBody}
+        ${actionsHtml}
+      </div>
+    </div>`;
+  }).join('');
+
+  return `<div class="card-body-inner">
+    <div>
+      <div class="section-title">Open Job Listings</div>
+      ${jobsHtml}
+      <div class="bd-owner">
+        <div class="bd-avatar">${esc(c.bdOwnerInitials)}</div>
+        <div><div class="bd-label">BD Owner</div><div class="bd-name">${esc(c.bdOwner)}</div></div>
+      </div>
+    </div>
+    <div>
+      <div class="section-title">Outreach Drafts</div>
+      <div class="contact-tabs">${tabsHtml}</div>
+      ${panelsHtml}
+    </div>
+  </div>`;
+}
+
+// ─── Card interactions ────────────────────────────────────────────────────────
+async function toggleCard(id) {
+  if (expandedIds.has(id)) {
+    expandedIds.delete(id);
+    refreshCard(id);
+    return;
+  }
+  expandedIds.add(id);
+  refreshCard(id);
+
+  if (cardData[id]?.loaded) return;
+
+  const company = companies.find(c => c.id === id);
+
+  // Show external jobs loading state immediately
+  cardData[id] = { contacts: {}, jobs: [], externalJobs: [], externalJobsLoading: adzunaEnabled, drafts: {}, sent: {}, activeTab: 'Recruiting', notified: false, loaded: false };
+
+  // Fetch contacts + internal jobs + external jobs all in parallel
+  const [contactsRes, jobsRes, extJobsRes] = await Promise.all([
+    fetch(`/api/company/${id}/contacts`).then(r => r.json()).catch(() => ({})),
+    fetch(`/api/company/${id}/jobs`).then(r => r.json()).catch(() => ({ data: [] })),
+    adzunaEnabled
+      ? fetch(`/api/company/${id}/external-jobs?name=${encodeURIComponent(company?.name || '')}`).then(r => r.json()).catch(() => ({ data: [] }))
+      : Promise.resolve({ data: [] })
+  ]);
+
+  cardData[id] = {
+    contacts:            contactsRes,
+    jobs:                jobsRes.data || [],
+    externalJobs:        extJobsRes.data || [],
+    externalJobsLoading: false,
+    drafts:              {},
+    sent:                {},
+    activeTab:           'Recruiting',
+    notified:            cardData[id]?.notified || false,
+    loaded:              true
+  };
+  refreshCard(id);
+
+  // Generate draft emails for all 4 roles asynchronously
+  const firstJob = cardData[id].jobs[0] || cardData[id].externalJobs[0];
+  const roles    = ['Recruiting','Sales','HR','Ops'];
+
+  for (const role of roles) {
+    const contact = (contactsRes[role] || [])[0];
+    fetch('/api/draft-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        companyName:  company?.name,
+        contactName:  contact?.name || `${role} Contact`,
+        contactRole:  role,
+        jobTitle:     firstJob?.title || null
+      })
+    })
+    .then(r => r.json())
+    .then(({ draft }) => {
+      if (cardData[id]) {
+        cardData[id].drafts[role] = draft;
+        if (expandedIds.has(id)) refreshCard(id);
+      }
+    })
+    .catch(() => {
+      if (cardData[id]) {
+        cardData[id].drafts[role] = `Hi, I wanted to reconnect regarding opportunities at ${company?.name}.`;
+        if (expandedIds.has(id)) refreshCard(id);
+      }
+    });
+  }
+}
+
+function refreshCard(id) {
+  const c    = companies.find(x => x.id === id);
+  const el   = document.getElementById(`card-${id}`);
+  if (!c || !el) return;
+  const tmp  = document.createElement('div');
+  tmp.innerHTML = renderCard(c);
+  el.replaceWith(tmp.firstElementChild);
+}
+
+function switchTab(cId, type) {
+  if (cardData[cId]) cardData[cId].activeTab = type;
+  refreshCard(cId);
+}
+
+function sendEmail(cId, type) {
+  if (!cardData[cId]) return;
+  cardData[cId].sent = cardData[cId].sent || {};
+  cardData[cId].sent[type] = true;
+  refreshCard(cId);
+  const c = companies.find(x => x.id === cId);
+  showToast(`Email to ${type} contact at ${c?.name} queued`);
+}
+
+function copyEmail(cId, type) {
+  const el = document.getElementById(`draft-${cId}-${type}`);
+  if (el) navigator.clipboard.writeText(el.innerText).catch(() => {});
+  showToast('Draft copied to clipboard');
+}
+
+function skipContact(cId, type) {
+  const el = document.getElementById(`panel-${cId}-${type}`);
+  if (el) el.style.opacity = '0.4';
+  showToast(`${type} contact skipped`);
+}
+
+function notifyBD(e, id) {
+  e.stopPropagation();
+  if (cardData[id]?.notified) return;
+  if (!cardData[id]) cardData[id] = {};
+  cardData[id].notified = true;
+  notifiedCount++;
+  document.getElementById('statNotified').textContent = notifiedCount;
+  const c = companies.find(x => x.id === id);
+  refreshCard(id);
+  showToast(`${c?.bdOwner || 'BD Owner'} notified about ${c?.name}`);
+}
+
+// ─── Filters ──────────────────────────────────────────────────────────────────
+function applyFilters() {
+  const score  = document.getElementById('filterScore').value;
+  const stale  = parseInt(document.getElementById('filterStale').value) || 0;
+  const search = document.getElementById('filterSearch').value.toLowerCase();
+  let visible  = 0;
+
+  companies.forEach(c => {
+    const el   = document.getElementById(`card-${c.id}`);
+    if (!el) return;
+    const show = (!score  || String(c.score) === score)
+              && (!stale  || (c.daysStale || 0) >= stale)
+              && (!search || c.name.toLowerCase().includes(search) || c.industry.toLowerCase().includes(search));
+    el.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+
+  document.getElementById('resultCount').textContent = `Showing ${visible} of ${companies.length}`;
+}
+
+// ─── Settings ─────────────────────────────────────────────────────────────────
+function openSettings() {
+  document.getElementById('settingDays').value       = cfg.days;
+  document.getElementById('settingScoreField').value = cfg.scoreField || 'customInt2';
+  document.getElementById('fieldsList').style.display = 'none';
+  document.getElementById('settingsModal').classList.add('open');
+}
+function closeSettings() { document.getElementById('settingsModal').classList.remove('open'); }
+
+async function loadFieldOptions() {
+  const list = document.getElementById('fieldsList');
+  list.style.display = 'block';
+  list.innerHTML = '<div class="field-option">Loading fields…</div>';
+  const fields = await fetch('/api/meta/company-fields').then(r => r.json()).catch(() => []);
+  if (!fields.length) { list.innerHTML = '<div class="field-option">Could not load fields</div>'; return; }
+  list.innerHTML = fields.map(f =>
+    `<div class="field-option${f.name === cfg.scoreField ? ' selected' : ''}" onclick="selectField('${f.name}')">
+       <span>${esc(f.label)} <small>(${esc(f.name)})</small></span>
+       <span class="field-type">${esc(f.type)}</span>
+     </div>`
+  ).join('');
+}
+
+function selectField(name) {
+  document.getElementById('settingScoreField').value = name;
+  document.querySelectorAll('.field-option').forEach(el => el.classList.remove('selected'));
+  event.currentTarget.classList.add('selected');
+}
+
+function saveSettings() {
+  cfg.days       = parseInt(document.getElementById('settingDays').value) || 90;
+  cfg.scoreField = document.getElementById('settingScoreField').value.trim() || 'customInt1';
+  localStorage.setItem('bh_days', cfg.days);
+  localStorage.setItem('bh_score_field', cfg.scoreField);
+  closeSettings();
+  loadCompanies();
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function setScanState(active) {
+  document.getElementById('scanBar').classList.toggle('active', active);
+  const btn = document.getElementById('btnScan');
+  btn.textContent = active ? '⟳ Scanning…' : '▶ Refresh';
+  btn.disabled = active;
+}
+
+function showError(msg) {
+  const el = document.getElementById('errorBanner');
+  if (msg) { el.style.display = 'flex'; el.textContent = '⚠ ' + msg; }
+  else      { el.style.display = 'none'; }
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+function esc(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ─── Start ────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
