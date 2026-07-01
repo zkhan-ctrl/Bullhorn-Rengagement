@@ -75,6 +75,22 @@ async function cdataGet(table, params = {}) {
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
+// Temporary debug endpoint — shows raw CData response to diagnose field names
+app.get('/api/debug', async (req, res) => {
+  const auth  = Buffer.from(`${process.env.CDATA_USER}:${process.env.CDATA_PAT}`).toString('base64');
+  const query = req.query.q || 'SELECT TOP 3 * FROM BullhornCRM.ClientCorporation';
+  try {
+    const r = await axios.post(
+      'https://cloud.cdata.com/api/query',
+      { query, connection: 'BullhornCRM1' },
+      { headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/json', Accept: 'application/json' } }
+    );
+    res.json({ sql: query, httpStatus: r.status, rawResponse: r.data });
+  } catch (e) {
+    res.json({ sql: query, error: e.message, httpStatus: e.response?.status, rawResponse: e.response?.data });
+  }
+});
+
 // Health check — verifies CData credentials and connection
 app.get('/api/status', async (req, res) => {
   const needed  = ['CDATA_USER', 'CDATA_PAT'];
