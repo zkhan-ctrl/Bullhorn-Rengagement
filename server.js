@@ -251,11 +251,17 @@ app.post('/api/draft-email', async (req, res) => {
   res.json({ draft: templates[contactRole] || templates.Sales, ai: false });
 });
 
+// Prefer the venv Python (Railway/Nix), fall back to system python3 (local dev)
+const fs         = require('fs');
+const PYTHON_BIN = fs.existsSync(path.join(__dirname, '.venv', 'bin', 'python3'))
+  ? path.join(__dirname, '.venv', 'bin', 'python3')
+  : 'python3';
+
 // Run JobSpy Python script as subprocess, returns parsed JSON
 function runJobSpy(companyName) {
   return new Promise(resolve => {
     const script = path.join(__dirname, 'scrape_jobs.py');
-    const py     = spawn('python3', [script, companyName]);
+    const py     = spawn(PYTHON_BIN, [script, companyName]);
     let out = '', err = '';
 
     const timer = setTimeout(() => {

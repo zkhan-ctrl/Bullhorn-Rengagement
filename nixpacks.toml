@@ -1,8 +1,12 @@
 [phases.setup]
-nixPkgs = ['nodejs_20', 'python311', 'python311Packages.pip']
+nixPkgs = ['nodejs_20', 'python311']
 
 [phases.install]
-cmds = ['npm install', 'pip install -r requirements.txt']
+cmds = [
+  'npm install',
+  'python3 -m venv .venv',
+  '.venv/bin/pip install -r requirements.txt'
+]
 
 [start]
 cmd = 'node server.js'
