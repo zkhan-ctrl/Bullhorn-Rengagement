@@ -17,24 +17,58 @@ app.use((req, res, next) => {
 
 const externalJobCache = new Map();
 
-// ─── CData Connect Cloud client ───────────────────────────────────────────────
-function cdataHeaders() {
-  const cred = Buffer.from(`${process.env.CDATA_USER}:${process.env.CDATA_PAT}`).toString('base64');
-  return { Authorization: `Basic ${cred}`, Accept: 'application/json' };
+// ─── CData Connect AI — SQL Query API ────────────────────────────────────────
+// Uses POST /api/query with plain SQL. No workspace required — works directly
+// with the BullhornCRM1 connection and BullhornCRM schema.
+
+const CDATA_API        = 'https://cloud.cdata.com/api/query';
+const CDATA_CONNECTION = 'BullhornCRM1';
+const CDATA_SCHEMA     = 'BullhornCRM';
+
+function odataToSQL(table, p = {}) {
+  const select = p['$select'] || '*';
+  let sql = `SELECT ${select} FROM ${CDATA_SCHEMA}.${table}`;
+
+  if (p['$filter']) {
+    let w = p['$filter']
+      .replace(/ eq null\b/g,  ' IS NULL')
+      .replace(/ ne null\b/g,  ' IS NOT NULL')
+      .replace(/ eq true\b/g,  " = TRUE")
+      .replace(/ eq false\b/g, " = FALSE")
+      .replace(/ eq /g,  ' = ')
+      .replace(/ ne /g,  ' <> ')
+      .replace(/ gt /g,  ' > ')
+      .replace(/ lt /g,  ' < ')
+      .replace(/ ge /g,  ' >= ')
+      .replace(/ le /g,  ' <= ')
+      .replace(/ and /gi, ' AND ')
+      .replace(/ or /gi,  ' OR ');
+    // Wrap bare ISO date strings in quotes
+    w = w.replace(/([><=!]+\s*)(\d{4}-\d{2}-\d{2}T[\d:.Z]+)/g, "$1'$2'");
+    sql += ` WHERE ${w}`;
+  }
+
+  if (p['$orderby']) {
+    sql += ` ORDER BY ${p['$orderby'].replace(/ desc$/i, ' DESC').replace(/ asc$/i, ' ASC')}`;
+  }
+
+  if (p['$top']) sql += ` LIMIT ${p['$top']}`;
+
+  return sql;
 }
 
-async function cdataGet(table, odata = {}) {
-  const base = (process.env.CDATA_URL || '').replace(/\/$/, '');
-  const qs   = Object.entries(odata)
-    .filter(([, v]) => v != null)
-    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
-    .join('&');
-  const url = `${base}/${table}${qs ? '?' + qs : ''}`;
+async function cdataGet(table, params = {}) {
+  const auth = Buffer.from(`${process.env.CDATA_USER}:${process.env.CDATA_PAT}`).toString('base64');
+  const sql  = odataToSQL(table, params);
   try {
-    const r = await axios.get(url, { headers: cdataHeaders() });
-    return r.data.value || [];
+    const r = await axios.post(
+      CDATA_API,
+      { query: sql, connection: CDATA_CONNECTION },
+      { headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/json', Accept: 'application/json' } }
+    );
+    return r.data.results || r.data.value || [];
   } catch (e) {
-    const msg = e.response?.data?.error?.message || e.message;
+    const msg = e.response?.data?.error?.message || e.response?.data?.message || e.message;
     throw new Error(`CData [${table}]: ${msg}`);
   }
 }
@@ -43,7 +77,7 @@ async function cdataGet(table, odata = {}) {
 
 // Health check — verifies CData credentials and connection
 app.get('/api/status', async (req, res) => {
-  const needed  = ['CDATA_URL', 'CDATA_USER', 'CDATA_PAT'];
+  const needed  = ['CDATA_USER', 'CDATA_PAT'];
   const missing = needed.filter(k => !process.env[k]);
   if (missing.length) return res.json({ ok: false, missing });
   try {
