@@ -32,51 +32,42 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 @keyframes scanAnim { 0%{background-position:0% 0%} 100%{background-position:200% 0%} }
 
 /* FILTERS */
-.filters { background: white; padding: 10px 20px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #e2e8f0; flex-wrap: wrap; }
-.filter-label { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+.filters { background: white; padding: 10px 20px; display: flex; gap: 8px; align-items: center; border-bottom: 1px solid #e2e8f0; flex-wrap: wrap; }
+.filter-label { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
 .filter-select, .filter-search { border: 1px solid #e2e8f0; border-radius: 6px; padding: 5px 10px; font-size: 12px; color: #1e2a3a; background: white; outline: none; }
 .filter-select:focus, .filter-search:focus { border-color: #6366f1; }
-.filter-search { width: 180px; }
+.filter-search { width: 160px; }
+.filter-toggle { border: 1px solid #e2e8f0; border-radius: 6px; padding: 5px 10px; font-size: 12px; font-weight: 600; color: #64748b; background: white; cursor: pointer; white-space: nowrap; transition: all 0.15s; }
+.filter-toggle:hover { border-color: #6366f1; color: #6366f1; }
+.filter-toggle.active { background: #eef2ff; border-color: #6366f1; color: #4f46e5; }
 .filter-spacer { flex: 1; }
-.result-count { font-size: 11px; color: #94a3b8; }
+.result-count { font-size: 11px; color: #94a3b8; white-space: nowrap; }
 
 /* SETUP SCREEN */
 .setup-screen { max-width: 540px; margin: 60px auto; background: white; border-radius: 12px; padding: 36px; border: 1px solid #e2e8f0; box-shadow: 0 4px 24px rgba(0,0,0,0.07); }
 .setup-logo { width: 48px; height: 48px; background: #f97316; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; color: white; margin-bottom: 20px; }
 .setup-title { font-size: 20px; font-weight: 700; color: #0f172a; margin-bottom: 8px; }
 .setup-desc { color: #64748b; font-size: 13px; line-height: 1.6; margin-bottom: 24px; }
-.setup-step { display: flex; gap: 12px; margin-bottom: 16px; align-items: flex-start; }
-.step-num { width: 24px; height: 24px; background: #6366f1; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
-.step-text { font-size: 12px; color: #334155; line-height: 1.6; }
-.step-text code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 11px; }
 .setup-error { background: #fee2e2; border: 1px solid #fca5a5; border-radius: 8px; padding: 12px 16px; color: #991b1b; font-size: 12px; margin-top: 20px; }
 
 /* COMPANY LIST */
 .company-list { padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; }
-
-/* SKELETON LOADER */
-.skeleton { background: white; border-radius: 10px; border: 1px solid #e2e8f0; padding: 14px 16px; }
-.skel-line { background: #f1f5f9; border-radius: 4px; height: 12px; margin-bottom: 8px; animation: shimmer 1.4s ease-in-out infinite; }
-@keyframes shimmer { 0%,100%{opacity:1} 50%{opacity:0.4} }
-.skel-wide { width: 60%; }
-.skel-medium { width: 40%; }
-.skel-short { width: 25%; }
 
 /* CARD */
 .card { background: white; border-radius: 10px; border: 1px solid #e2e8f0; overflow: hidden; transition: box-shadow 0.15s; }
 .card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
 .card.expanded { box-shadow: 0 4px 16px rgba(0,0,0,0.1); border-color: #c7d2fe; }
 
-.card-header { padding: 14px 16px; display: flex; align-items: center; gap: 14px; cursor: pointer; user-select: none; }
+.card-header { padding: 12px 16px; display: flex; align-items: flex-start; gap: 12px; cursor: pointer; user-select: none; }
 .card-header:hover { background: #fafbfc; }
 
-.score-badge { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; flex-shrink: 0; }
+/* SCORE BADGE */
+.score-badge { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; flex-shrink: 0; margin-top: 2px; }
 .score-1 { background: #fef3c7; color: #92400e; }
 .score-2 { background: #dbeafe; color: #1e40af; }
 .score-3 { background: #d1fae5; color: #065f46; }
 .score-4 { background: #f1f5f9; color: #475569; }
 .score-null { background: #f8fafc; color: #94a3b8; }
-
 .score-pip { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
 .pip-1 { background: #fef3c7; color: #92400e; }
 .pip-2 { background: #dbeafe; color: #1e40af; }
@@ -84,31 +75,47 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .pip-4 { background: #f1f5f9; color: #475569; }
 .pip-null { background: #f1f5f9; color: #94a3b8; }
 
+/* CARD INFO */
 .card-info { flex: 1; min-width: 0; }
 .card-company-name { font-size: 14px; font-weight: 700; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.card-meta-row { display: flex; align-items: center; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
+.card-meta-row { display: flex; align-items: center; gap: 7px; margin-top: 4px; flex-wrap: wrap; }
 .card-industry { font-size: 11px; color: #64748b; }
-.card-jobs-count { font-size: 11px; color: #6366f1; font-weight: 600; }
-.stale-badge { padding: 2px 7px; border-radius: 10px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.stale-badge { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; white-space: nowrap; }
 .stale-critical { background: #fee2e2; color: #991b1b; }
 .stale-high { background: #ffedd5; color: #9a3412; }
 .stale-medium { background: #fef9c3; color: #854d0e; }
 .stale-low { background: #f0fdf4; color: #166534; }
+.card-website { font-size: 11px; color: #6366f1; text-decoration: none; font-weight: 600; }
+.card-website:hover { text-decoration: underline; }
 
-.card-actions-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.btn-notify { background: transparent; border: 1px solid #e2e8f0; color: #64748b; padding: 5px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+/* OWNER ROW IN HEADER */
+.owner-row { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.owner-chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px 2px 4px; border-radius: 12px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.chip-bd { background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; }
+.chip-am { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+.chip-av { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; color: white; flex-shrink: 0; }
+.chip-bd .chip-av { background: #f97316; }
+.chip-am .chip-av { background: #3b82f6; }
+
+/* CARD ACTIONS RIGHT */
+.card-actions-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; padding-top: 2px; }
+.btn-notify { background: transparent; border: 1px solid #e2e8f0; color: #64748b; padding: 5px 9px; border-radius: 6px; font-size: 11px; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
 .btn-notify:hover { border-color: #f97316; color: #f97316; }
 .btn-notify.notified { background: #fff7ed; border-color: #f97316; color: #f97316; }
-.expand-icon { width: 28px; height: 28px; background: #f1f5f9; border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: transform 0.2s, background 0.15s; font-size: 11px; flex-shrink: 0; }
+.expand-icon { width: 26px; height: 26px; background: #f1f5f9; border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: transform 0.2s, background 0.15s; font-size: 11px; flex-shrink: 0; }
 .card.expanded .expand-icon { transform: rotate(180deg); background: #e0e7ff; }
+
+/* JOB COUNT BADGE */
+.jobs-count-badge { padding: 3px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.jobs-loading { background: #f1f5f9; color: #94a3b8; letter-spacing: 2px; }
+.has-jobs { background: #d1fae5; color: #065f46; }
+.no-jobs { background: #f1f5f9; color: #94a3b8; }
 
 /* CARD BODY */
 .card-body { display: none; border-top: 1px solid #f1f5f9; }
 .card.expanded .card-body { display: block; }
 .card-body-inner { padding: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 @media (max-width: 760px) { .card-body-inner { grid-template-columns: 1fr; } }
-
-/* LOADING INSIDE CARD */
 .card-loading { padding: 24px; text-align: center; color: #94a3b8; font-size: 12px; }
 .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid #e2e8f0; border-top-color: #6366f1; border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 8px; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -118,8 +125,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 
 /* JOB ITEMS */
 .job-item { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; background: #f8fafc; border-radius: 7px; margin-bottom: 6px; border: 1px solid #e2e8f0; }
-.job-dot { width: 8px; height: 8px; background: #6366f1; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+.job-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
 .job-title { font-size: 12px; font-weight: 600; color: #0f172a; }
+.job-status-tag { font-size: 10px; color: #94a3b8; margin-left: 4px; }
 .job-detail { font-size: 11px; color: #94a3b8; margin-top: 2px; }
 .no-jobs { font-size: 12px; color: #94a3b8; padding: 8px 0; font-style: italic; }
 .job-src-badge { display: inline-block; padding: 1px 5px; border-radius: 3px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; vertical-align: middle; }
@@ -128,26 +136,24 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .job-ext-link { color: #6366f1; text-decoration: none; font-size: 11px; font-weight: 600; }
 .job-ext-link:hover { text-decoration: underline; }
 .job-ext-loading { padding: 6px 10px; color: #94a3b8; font-size: 11px; display: flex; align-items: center; gap: 6px; }
-.card-website { font-size: 11px; color: #6366f1; text-decoration: none; font-weight: 600; }
-.card-website:hover { text-decoration: underline; }
 
-/* BD OWNER */
+/* BD / AM OWNER IN CARD BODY */
 .bd-owner { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 8px 10px; background: #fff7ed; border-radius: 7px; border: 1px solid #fed7aa; }
+.bd-owner.am { background: #eff6ff; border-color: #bfdbfe; margin-top: 6px; }
 .bd-avatar { width: 28px; height: 28px; background: #f97316; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; font-weight: 700; flex-shrink: 0; }
+.bd-avatar.am { background: #3b82f6; }
 .bd-label { font-size: 10px; color: #9a3412; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+.bd-label.am { color: #1e40af; }
 .bd-name { font-size: 12px; font-weight: 600; color: #7c2d12; }
+.bd-name.am { color: #1e3a8a; }
 
-/* CONTACT TABS */
-.contact-tabs { display: flex; gap: 4px; margin-bottom: 12px; flex-wrap: wrap; }
-.tab-btn { padding: 5px 10px; border-radius: 6px; border: 1px solid #e2e8f0; background: white; font-size: 11px; font-weight: 600; color: #64748b; cursor: pointer; transition: all 0.15s; }
-.tab-btn:hover { border-color: #6366f1; color: #6366f1; }
-.tab-btn.active { background: #6366f1; border-color: #6366f1; color: white; }
-.tab-btn.sent { background: #f0fdf4; border-color: #86efac; color: #166534; }
+/* CONTACT SELECT DROPDOWN */
+.contact-label { font-size: 11px; color: #64748b; margin-bottom: 5px; }
+.contact-select { width: 100%; border: 1px solid #e2e8f0; border-radius: 7px; padding: 7px 10px; font-size: 12px; color: #0f172a; background: white; outline: none; margin-bottom: 10px; }
+.contact-select:focus { border-color: #6366f1; }
 
-.contact-panel { display: none; }
-.contact-panel.active { display: block; }
-
-.contact-info { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+/* CONTACT CARD */
+.contact-info { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 8px 10px; background: #f8fafc; border-radius: 7px; border: 1px solid #e2e8f0; }
 .contact-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: 700; flex-shrink: 0; }
 .av-Recruiting { background: #6366f1; }
 .av-Sales { background: #f97316; }
@@ -157,22 +163,42 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .contact-name { font-size: 13px; font-weight: 600; color: #0f172a; }
 .contact-role { font-size: 11px; color: #64748b; }
 .contact-email { font-size: 11px; color: #6366f1; }
-.no-contact { font-size: 12px; color: #94a3b8; font-style: italic; padding: 4px 0; }
+.no-contact { font-size: 12px; color: #94a3b8; font-style: italic; padding: 6px 0; }
 
 /* EMAIL DRAFT */
 .email-draft-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; }
 .email-draft-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
 .email-draft-text { font-size: 12px; color: #334155; line-height: 1.6; outline: none; min-height: 42px; }
 .email-draft-text:focus { background: white; border-radius: 4px; padding: 4px; margin: -4px; }
-.draft-loading { font-size: 11px; color: #94a3b8; font-style: italic; }
-.email-draft-actions { display: flex; gap: 6px; margin-top: 10px; align-items: center; }
+.draft-loading { font-size: 11px; color: #94a3b8; font-style: italic; padding: 4px 0; }
+.email-draft-actions { display: flex; gap: 6px; margin-top: 10px; align-items: center; flex-wrap: wrap; }
 .btn-send { background: #6366f1; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
 .btn-send:hover { background: #4f46e5; }
 .btn-send.sent-ok { background: #22c55e; pointer-events: none; }
 .btn-copy { background: white; border: 1px solid #e2e8f0; color: #64748b; padding: 6px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; }
 .btn-copy:hover { border-color: #6366f1; color: #6366f1; }
-.btn-skip { background: transparent; border: none; color: #94a3b8; padding: 6px 8px; font-size: 12px; cursor: pointer; margin-left: auto; }
-.btn-skip:hover { color: #ef4444; }
+.btn-regen { background: transparent; border: none; color: #94a3b8; padding: 6px 8px; font-size: 12px; cursor: pointer; }
+.btn-regen:hover { color: #6366f1; }
+
+/* NOTE SECTION */
+.note-section { margin-top: 14px; padding-top: 12px; border-top: 1px solid #f1f5f9; }
+.note-textarea { width: 100%; min-height: 80px; border: 1px solid #e2e8f0; border-radius: 7px; padding: 8px 10px; font-size: 12px; font-family: inherit; color: #334155; resize: vertical; outline: none; line-height: 1.6; }
+.note-textarea:focus { border-color: #6366f1; }
+.note-actions { display: flex; align-items: center; gap: 8px; margin-top: 7px; flex-wrap: wrap; }
+.note-hint { font-size: 11px; color: #94a3b8; font-style: italic; }
+
+/* ERROR BANNER */
+.error-banner { background: #fee2e2; border-bottom: 1px solid #fca5a5; padding: 10px 20px; color: #991b1b; font-size: 12px; display: flex; align-items: center; gap: 8px; }
+
+/* TOAST */
+.toast { position: fixed; bottom: 20px; right: 20px; background: #0f172a; color: white; padding: 10px 16px; border-radius: 8px; font-size: 12px; font-weight: 500; z-index: 9999; opacity: 0; transform: translateY(10px); transition: opacity 0.2s, transform 0.2s; pointer-events: none; }
+.toast.show { opacity: 1; transform: translateY(0); }
+
+/* EMPTY STATE */
+.empty-state { text-align: center; padding: 48px 20px; color: #94a3b8; }
+.empty-icon { font-size: 32px; margin-bottom: 12px; }
+.empty-title { font-size: 16px; font-weight: 600; color: #475569; margin-bottom: 6px; }
+.empty-desc { font-size: 13px; }
 
 /* SETTINGS MODAL */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; display: none; align-items: center; justify-content: center; }
@@ -187,58 +213,24 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
 .btn-save { background: #6366f1; color: white; border: none; padding: 8px 20px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; }
 .btn-cancel { background: white; border: 1px solid #e2e8f0; color: #64748b; padding: 8px 16px; border-radius: 7px; font-size: 13px; cursor: pointer; }
-.modal-fields-list { max-height: 180px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 7px; margin-top: 6px; }
-.field-option { padding: 7px 12px; cursor: pointer; font-size: 12px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; }
-.field-option:hover { background: #f8fafc; }
-.field-option.selected { background: #eef2ff; color: #4f46e5; font-weight: 600; }
-.field-type { font-size: 10px; color: #94a3b8; }
-
-/* ERROR BANNER */
-.error-banner { background: #fee2e2; border-bottom: 1px solid #fca5a5; padding: 10px 20px; color: #991b1b; font-size: 12px; display: flex; align-items: center; gap: 8px; }
-
-/* TOAST */
-.toast { position: fixed; bottom: 20px; right: 20px; background: #0f172a; color: white; padding: 10px 16px; border-radius: 8px; font-size: 12px; font-weight: 500; z-index: 9999; opacity: 0; transform: translateY(10px); transition: opacity 0.2s, transform 0.2s; pointer-events: none; }
-.toast.show { opacity: 1; transform: translateY(0); }
-
-/* EMPTY STATE */
-.empty-state { text-align: center; padding: 48px 20px; color: #94a3b8; }
-.empty-icon { font-size: 32px; margin-bottom: 12px; }
-.empty-title { font-size: 16px; font-weight: 600; color: #475569; margin-bottom: 6px; }
-.empty-desc { font-size: 13px; }
 </style>
 </head>
 <body>
 
-<!-- SETUP SCREEN (shown when not connected) -->
-<div id="setupScreen" style="display:none; padding: 20px;">
+<!-- SETUP SCREEN -->
+<div id="setupScreen" style="display:none; padding:20px;">
   <div class="setup-screen">
     <div class="setup-logo">CGR</div>
     <div class="setup-title">Setup Required</div>
-    <div class="setup-desc">The Re-Engagement Tool needs your Bullhorn credentials to connect. Follow these steps:</div>
-    <div class="setup-step">
-      <div class="step-num">1</div>
-      <div class="step-text">In the project folder on your Desktop, find <code>.env.example</code> and copy it to a new file named <code>.env</code></div>
-    </div>
-    <div class="setup-step">
-      <div class="step-num">2</div>
-      <div class="step-text">Open <code>.env</code> in Notepad and fill in your <code>BULLHORN_CLIENT_ID</code>, <code>BULLHORN_CLIENT_SECRET</code>, <code>BULLHORN_USERNAME</code>, and <code>BULLHORN_PASSWORD</code></div>
-    </div>
-    <div class="setup-step">
-      <div class="step-num">3</div>
-      <div class="step-text">Save the file, then restart the server: open a terminal in the project folder and run <code>node server.js</code></div>
-    </div>
-    <div class="setup-step">
-      <div class="step-num">4</div>
-      <div class="step-text">Refresh this page — the tool will connect automatically</div>
-    </div>
+    <div class="setup-desc">The Re-Engagement Tool needs credentials to connect. Check Railway Variables: CDATA_USER and CDATA_PAT must be set.</div>
     <div id="setupError" class="setup-error" style="display:none;"></div>
-    <div style="margin-top:20px; text-align:right;">
+    <div style="margin-top:20px;text-align:right;">
       <button class="btn-scan" onclick="init()">Retry Connection</button>
     </div>
   </div>
 </div>
 
-<!-- MAIN APP (shown when connected) -->
+<!-- MAIN APP -->
 <div id="mainApp" style="display:none;">
   <div class="scan-bar" id="scanBar"></div>
   <div class="header">
@@ -246,12 +238,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       <div class="header-logo">CGR</div>
       <div>
         <div class="header-title">Re-Engagement Tool</div>
-        <div class="header-subtitle">Live Bullhorn data &mdash; stale client detection &amp; outreach</div>
+        <div class="header-subtitle">Active Account clients without a placement in 90+ days</div>
       </div>
     </div>
     <div class="header-stats">
       <div class="stat"><div class="stat-num" id="statCompanies">—</div><div class="stat-label">Stale Co's</div></div>
-      <div class="stat"><div class="stat-num" id="statEmails">—</div><div class="stat-label">Emails Ready</div></div>
       <div class="stat"><div class="stat-num" id="statNotified">0</div><div class="stat-label">BD Notified</div></div>
     </div>
     <div class="header-right">
@@ -277,10 +268,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       <option value="60">60+ Days</option>
       <option value="90">90+ Days</option>
       <option value="150">150+ Days</option>
+      <option value="365">365+ Days</option>
     </select>
     <select class="filter-select" id="filterBD" onchange="applyFilters()">
       <option value="">All BD Owners</option>
     </select>
+    <button class="filter-toggle" id="btnHasJobs" onclick="toggleHasJobs(this)">&#9679; Has Open Jobs</button>
     <input class="filter-search" id="filterSearch" type="text" placeholder="Search company..." oninput="applyFilters()">
     <div class="filter-spacer"></div>
     <span class="result-count" id="resultCount"></span>
@@ -292,20 +285,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 <!-- SETTINGS MODAL -->
 <div class="modal-overlay" id="settingsModal" onclick="if(event.target===this)closeSettings()">
   <div class="modal">
-    <div class="modal-title">⚙ Tool Settings</div>
+    <div class="modal-title">⚙ Settings</div>
     <div class="modal-field">
       <div class="modal-label">Staleness Threshold (days)</div>
-      <input class="modal-input" id="settingDays" type="number" min="30" max="365" value="90">
-      <div class="modal-hint">Companies with no activity beyond this many days are flagged as stale.</div>
-    </div>
-    <div class="modal-field">
-      <div class="modal-label">Client Score Field</div>
-      <input class="modal-input" id="settingScoreField" type="text" placeholder="e.g. customInt1">
-      <div class="modal-hint">The Bullhorn API field name that stores your 1–4 client score. Click below to browse available fields.</div>
-      <div id="fieldsList" class="modal-fields-list" style="display:none;"></div>
-      <div style="margin-top:8px;">
-        <button class="btn-cancel" onclick="loadFieldOptions()" style="font-size:11px;padding:5px 10px;">Browse Company Fields</button>
-      </div>
+      <input class="modal-input" id="settingDays" type="number" min="30" max="730" value="90">
+      <div class="modal-hint">Companies with no placement beyond this many days are flagged stale.</div>
     </div>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeSettings()">Cancel</button>
@@ -318,17 +302,16 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 
 <script>
 // ─── State ────────────────────────────────────────────────────────────────────
-const cfg = {
-  days:       parseInt(localStorage.getItem('bh_days'))        || 90,
-  scoreField: localStorage.getItem('bh_score_field')           || 'customInt2'
-};
+const cfg = { days: parseInt(localStorage.getItem('bh_days')) || 90 };
 
 let companies    = [];
-let cardData     = {};   // { id: { contacts, jobs, drafts, activeTab, notified, loaded } }
+let cardData     = {};
 let expandedIds  = new Set();
 let notifiedCount = 0;
-let aiEnabled      = false;
-let adzunaEnabled  = false;
+let aiEnabled    = false;
+let adzunaEnabled = false;
+let jobCounts    = {};       // { companyId: count }
+let filterHasJobs = false;
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 async function init() {
@@ -336,7 +319,7 @@ async function init() {
   if (!res.ok) {
     document.getElementById('setupScreen').style.display = 'block';
     const errEl = document.getElementById('setupError');
-    if (res.error) { errEl.style.display = 'block'; errEl.textContent = 'Error: ' + (res.error || JSON.stringify(res.missing)); }
+    if (res.error || res.missing) { errEl.style.display = 'block'; errEl.textContent = 'Error: ' + (res.error || 'Missing vars: ' + (res.missing || []).join(', ')); }
     return;
   }
   aiEnabled     = !!res.aiEnabled;
@@ -350,9 +333,10 @@ async function init() {
 async function loadCompanies() {
   setScanState(true);
   showError(null);
+  jobCounts = {};
 
   try {
-    const res = await fetch(`/api/stale-companies?days=${cfg.days}&scoreField=${cfg.scoreField}`);
+    const res  = await fetch(`/api/stale-companies?days=${cfg.days}`);
     const data = await res.json();
     if (data.error) throw new Error(data.error);
 
@@ -361,9 +345,8 @@ async function loadCompanies() {
     expandedIds.clear();
 
     document.getElementById('statCompanies').textContent = companies.length;
-    document.getElementById('statEmails').textContent = companies.length * 4;
 
-    // Populate BD owner filter dropdown (preserve current selection if still valid)
+    // Populate BD owner dropdown, preserving previous selection
     const bdSel  = document.getElementById('filterBD');
     const prevBD = bdSel.value;
     const owners = data.bdOwners || [];
@@ -373,7 +356,7 @@ async function loadCompanies() {
 
     renderList();
 
-    // If launched from a specific Company record inside Bullhorn, auto-expand it
+    // Auto-expand if launched from a specific company inside Bullhorn
     const params     = new URLSearchParams(window.location.search);
     const entityType = params.get('EntityType');
     const entityId   = parseInt(params.get('EntityID'));
@@ -381,41 +364,84 @@ async function loadCompanies() {
       setTimeout(() => {
         const card = document.getElementById(`card-${entityId}`);
         if (card) { card.scrollIntoView({ behavior: 'smooth', block: 'center' }); toggleCard(entityId); }
-        else showToast('This company has recent activity and is not currently stale');
+        else showToast('This company has recent activity and is not currently stale.');
       }, 400);
     }
   } catch (e) {
     showError(e.message);
-    renderList();
   } finally {
     setScanState(false);
+    // Load job counts asynchronously (don't block the main render)
+    loadJobCounts();
   }
+}
+
+// ─── Async job counts ─────────────────────────────────────────────────────────
+async function loadJobCounts() {
+  if (!companies.length) return;
+  const ids = companies.map(c => c.id).join(',');
+  try {
+    const counts = await fetch(`/api/job-counts?ids=${ids}`).then(r => r.json());
+    if (counts.error) return;
+    jobCounts = counts;
+    // Update badges in the DOM without re-rendering cards
+    companies.forEach(c => {
+      const badge = document.getElementById(`jc-${c.id}`);
+      if (!badge) return;
+      const n = counts[c.id] || 0;
+      badge.textContent = n > 0 ? `${n} role${n !== 1 ? 's' : ''}` : '—';
+      badge.className   = `jobs-count-badge ${n > 0 ? 'has-jobs' : 'no-jobs'}`;
+      badge.dataset.count = n;
+    });
+    // Re-apply filters so "has open jobs" toggle works
+    applyFilters();
+  } catch (_) {}
 }
 
 // ─── Render ───────────────────────────────────────────────────────────────────
 function renderList() {
   const list = document.getElementById('companyList');
-
   if (!companies.length) {
-    list.innerHTML = `<div class="empty-state"><div class="empty-icon">🎉</div><div class="empty-title">No Stale Companies Found</div><div class="empty-desc">All companies have been active within the last ${cfg.days} days.</div></div>`;
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">🎉</div><div class="empty-title">No Stale Companies Found</div><div class="empty-desc">All Active Account companies have had a placement within the last ${cfg.days} days.</div></div>`;
     document.getElementById('resultCount').textContent = '';
     return;
   }
-
   list.innerHTML = companies.map(c => renderCard(c)).join('');
   applyFilters();
 }
 
+function nameInitials(name) {
+  if (!name) return '?';
+  return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+}
+
 function renderCard(c) {
-  const scoreClass = c.score != null ? `score-${Math.min(c.score, 4)}` : 'score-null';
-  const pipClass   = c.score != null ? `pip-${Math.min(c.score, 4)}`   : 'pip-null';
-  const scoreLabel = c.score != null ? c.score : '?';
+  const sc = c.score;
+  const scoreClass = sc != null ? `score-${sc}` : 'score-null';
+  const pipClass   = sc != null ? `pip-${sc}`   : 'pip-null';
+  const scoreLabel = sc != null ? sc : '?';
 
   let staleHtml = '';
   if (c.daysStale != null) {
     const cls = c.daysStale >= 150 ? 'stale-critical' : c.daysStale >= 90 ? 'stale-high' : c.daysStale >= 60 ? 'stale-medium' : 'stale-low';
-    staleHtml = `<span class="stale-badge ${cls}">${c.daysStale} days stale</span>`;
+    staleHtml = `<span class="stale-badge ${cls}">${c.daysStale}d w/o placement</span>`;
+  } else {
+    staleHtml = `<span class="stale-badge stale-critical">No placements on record</span>`;
   }
+
+  // Job count badge (loading state until loadJobCounts fires)
+  const jc = jobCounts[c.id];
+  const jcClass = jc === undefined ? 'jobs-loading' : jc > 0 ? 'has-jobs' : 'no-jobs';
+  const jcText  = jc === undefined ? '···' : jc > 0 ? `${jc} role${jc !== 1 ? 's' : ''}` : '—';
+  const jcAttr  = jc !== undefined ? `data-count="${jc}"` : '';
+
+  // Owner chips
+  const bdHtml = c.bdOwner && c.bdOwner !== 'Unassigned'
+    ? `<span class="owner-chip chip-bd"><span class="chip-av">${esc(c.bdOwnerInitials)}</span>${esc(c.bdOwner)}</span>` : '';
+  const amInitials = nameInitials(c.ownerAM);
+  const amHtml = c.ownerAM
+    ? `<span class="owner-chip chip-am"><span class="chip-av">${esc(amInitials)}</span>${esc(c.ownerAM)}</span>` : '';
+  const ownerRowHtml = (bdHtml || amHtml) ? `<div class="owner-row">${bdHtml}${amHtml}</div>` : '';
 
   const data     = cardData[c.id];
   const expanded = expandedIds.has(c.id);
@@ -423,11 +449,9 @@ function renderCard(c) {
 
   let bodyHtml = '';
   if (expanded) {
-    if (!data || !data.loaded) {
-      bodyHtml = `<div class="card-loading"><span class="spinner"></span>Loading contacts &amp; jobs…</div>`;
-    } else {
-      bodyHtml = renderCardBody(c, data);
-    }
+    bodyHtml = (!data || !data.loaded)
+      ? `<div class="card-loading"><span class="spinner"></span>Loading contacts &amp; jobs…</div>`
+      : renderCardBody(c, data);
   }
 
   return `
@@ -440,11 +464,13 @@ function renderCard(c) {
           <span class="score-pip ${pipClass}">Score ${scoreLabel}</span>
           <span class="card-industry">${esc(c.industry)}</span>
           ${staleHtml}
-          ${c.website ? `<a class="card-website" href="${esc(c.website)}" target="_blank" onclick="event.stopPropagation()">↗ Website</a>` : ''}
+          ${c.website ? `<a class="card-website" href="${esc(c.website)}" target="_blank" onclick="event.stopPropagation()">↗ Site</a>` : ''}
         </div>
+        ${ownerRowHtml}
       </div>
       <div class="card-actions-right">
-        <button class="btn-notify${notified ? ' notified' : ''}" onclick="notifyBD(event,${c.id})">${notified ? '✓ BD Notified' : '🔔 Notify BD'}</button>
+        <span class="jobs-count-badge ${jcClass}" id="jc-${c.id}" ${jcAttr}>${jcText}</span>
+        <button class="btn-notify${notified ? ' notified' : ''}" onclick="notifyBD(event,${c.id})">${notified ? '✓ Notified' : '🔔 Notify BD'}</button>
         <div class="expand-icon">&#8964;</div>
       </div>
     </div>
@@ -453,17 +479,18 @@ function renderCard(c) {
 }
 
 function renderCardBody(c, data) {
-  // Internal Bullhorn jobs
-  const internalHtml = data.jobs.map(j => `
+  // ── Jobs (internal + external) ─────────────────────────────────────────
+  const internalHtml = (data.jobs || []).map(j => `
     <div class="job-item">
       <div class="job-dot" style="background:#6366f1"></div>
       <div>
-        <div class="job-title">${esc(j.title)} <span class="job-src-badge src-bh">Bullhorn</span></div>
+        <div class="job-title">${esc(j.title)} <span class="job-src-badge src-bh">Bullhorn</span>
+          ${j.status ? `<span class="job-status-tag">${esc(j.status)}</span>` : ''}
+        </div>
         <div class="job-detail">${esc(j.type)}${j.daysPosted != null ? ` · ${j.daysPosted}d ago` : ''} · ${j.openings} opening${j.openings !== 1 ? 's' : ''}</div>
       </div>
     </div>`).join('');
 
-  // External job board jobs (Adzuna)
   let externalHtml = '';
   if (data.externalJobsLoading) {
     externalHtml = `<div class="job-ext-loading"><span class="spinner"></span>Searching job boards…</div>`;
@@ -472,80 +499,119 @@ function renderCardBody(c, data) {
     <div class="job-item">
       <div class="job-dot" style="background:#f97316"></div>
       <div>
-        <div class="job-title">${esc(j.title)} <span class="job-src-badge src-ext">Job Boards</span>${j.url ? ` <a class="job-ext-link" href="${esc(j.url)}" target="_blank" onclick="event.stopPropagation()">↗</a>` : ''}</div>
-        <div class="job-detail">${esc(j.location)}${j.daysPosted != null ? ` · ${j.daysPosted}d ago` : ''}</div>
+        <div class="job-title">${esc(j.title)} <span class="job-src-badge src-ext">Job Boards</span>
+          ${j.url ? ` <a class="job-ext-link" href="${esc(j.url)}" target="_blank" onclick="event.stopPropagation()">↗</a>` : ''}
+        </div>
+        <div class="job-detail">${esc(j.location || '')}${j.daysPosted != null ? ` · ${j.daysPosted}d ago` : ''}</div>
       </div>
     </div>`).join('');
-  } else if (adzunaEnabled && !data.externalJobsLoading) {
-    externalHtml = `<div class="no-jobs" style="color:#94a3b8;font-style:italic;">No external postings found on job boards</div>`;
   }
 
   const jobsHtml = (internalHtml + externalHtml) || '<div class="no-jobs">No open roles found in Bullhorn or job boards</div>';
 
-  const tabs = ['Recruiting','Sales','HR','Ops'];
-  const activeTab = data.activeTab || 'Recruiting';
+  // ── Owners ─────────────────────────────────────────────────────────────
+  const amInitials = nameInitials(c.ownerAM);
+  const ownersHtml = `
+    <div class="bd-owner">
+      <div class="bd-avatar">${esc(c.bdOwnerInitials)}</div>
+      <div><div class="bd-label">BD Owner</div><div class="bd-name">${esc(c.bdOwner)}</div></div>
+    </div>
+    ${c.ownerAM ? `
+    <div class="bd-owner am">
+      <div class="bd-avatar am">${esc(amInitials)}</div>
+      <div><div class="bd-label am">Account Manager</div><div class="bd-name am">${esc(c.ownerAM)}</div></div>
+    </div>` : ''}`;
 
-  const tabsHtml = tabs.map(t => {
-    const sent = data.sent?.[t];
-    return `<button class="tab-btn${t === activeTab ? ' active' : ''}${sent ? ' sent' : ''}" id="tab-${c.id}-${t}" onclick="switchTab(${c.id},'${t}')">${t}${sent ? ' ✓' : ''}</button>`;
-  }).join('');
+  // ── Contact dropdown ───────────────────────────────────────────────────
+  const allContacts = data.allContacts || [];
+  const cats = ['Recruiting', 'Sales', 'HR', 'Ops', 'Other'];
 
-  const panelsHtml = tabs.map(t => {
-    const contacts    = (data.contacts[t] || []);
-    const contact     = contacts[0];
-    const draft       = data.drafts[t];
-    const sent        = data.sent?.[t];
-    const isActive    = t === activeTab;
+  let contactSelectHtml = '';
+  if (allContacts.length > 0) {
+    const groups = cats
+      .filter(cat => (data.contacts[cat] || []).length > 0)
+      .map(cat => `<optgroup label="${cat}">${
+        (data.contacts[cat] || []).map(ct =>
+          `<option value="${ct.id}" ${ct.id === data.selectedContactId ? 'selected' : ''}>${esc(ct.name)}${ct.title ? ' — ' + esc(ct.title) : ''}</option>`
+        ).join('')
+      }</optgroup>`).join('');
+    contactSelectHtml = `
+      <div class="contact-label">Select contact:</div>
+      <select class="contact-select" onchange="switchContact(${c.id}, this.value)">${groups}</select>`;
+  }
 
-    const contactHtml = contact
-      ? `<div class="contact-info">
-           <div class="contact-avatar av-${t}">${esc(contact.initials)}</div>
-           <div>
-             <div class="contact-name">${esc(contact.name)}</div>
-             <div class="contact-role">${esc(contact.title)}</div>
-             <div class="contact-email">${esc(contact.email)}</div>
-           </div>
-         </div>`
-      : `<div class="no-contact">No ${t} contact found for this company</div>`;
+  const selContact = allContacts.find(ct => ct.id === data.selectedContactId);
+  const contactInfoHtml = selContact
+    ? `<div class="contact-info">
+         <div class="contact-avatar av-${selContact.category || 'Other'}">${esc(selContact.initials)}</div>
+         <div>
+           <div class="contact-name">${esc(selContact.name)}</div>
+           <div class="contact-role">${esc(selContact.title)}</div>
+           ${selContact.email ? `<div class="contact-email">${esc(selContact.email)}</div>` : ''}
+           ${selContact.phone ? `<div class="contact-role" style="color:#94a3b8;">${esc(selContact.phone)}</div>` : ''}
+         </div>
+       </div>`
+    : allContacts.length === 0
+      ? `<div class="no-contact">No contacts found for this company</div>`
+      : '';
 
-    const draftBody = draft
-      ? `<div class="email-draft-text" contenteditable="true" id="draft-${c.id}-${t}">${esc(draft)}</div>`
-      : `<div class="draft-loading"><span class="spinner"></span>Generating draft…</div>`;
+  // ── Draft for selected contact ─────────────────────────────────────────
+  const draftKey  = data.selectedContactId;
+  const draftText = draftKey != null ? data.contactDrafts[draftKey] : undefined;
+  const isSent    = !!(data.sent?.[draftKey]);
 
-    const actionsHtml = draft
+  let draftHtml = '';
+  if (allContacts.length > 0) {
+    const draftBody = draftText === null
+      ? `<div class="draft-loading"><span class="spinner"></span>Generating draft…</div>`
+      : draftText === undefined
+        ? `<div class="draft-loading" style="color:#94a3b8;">Select a contact above</div>`
+        : `<div class="email-draft-text" contenteditable="true" id="draft-${c.id}-${draftKey}">${esc(draftText)}</div>`;
+
+    const actionsHtml = draftText
       ? `<div class="email-draft-actions">
-           <button class="btn-send${sent ? ' sent-ok' : ''}" id="sendbtn-${c.id}-${t}" onclick="sendEmail(${c.id},'${t}')">${sent ? '✓ Sent' : '✉ Send'}</button>
-           <button class="btn-copy" onclick="copyEmail(${c.id},'${t}')">⎘ Copy</button>
-           <button class="btn-skip" onclick="skipContact(${c.id},'${t}')">✕ Skip</button>
+           <button class="btn-send${isSent ? ' sent-ok' : ''}" onclick="sendEmail(${c.id},${draftKey})">${isSent ? '✓ Sent' : '✉ Send'}</button>
+           <button class="btn-copy" onclick="copyEmail(${c.id},${draftKey})">⎘ Copy</button>
+           <button class="btn-regen" onclick="regenDraft(${c.id},${draftKey})" title="Generate a new draft">↺ New draft</button>
          </div>`
       : '';
 
-    return `
-    <div class="contact-panel${isActive ? ' active' : ''}" id="panel-${c.id}-${t}">
-      ${contactHtml}
+    draftHtml = `
       <div class="email-draft-box">
         <div class="email-draft-label">Draft email${aiEnabled ? ' <span class="ai-badge" style="font-size:9px;">AI</span>' : ''}</div>
         ${draftBody}
         ${actionsHtml}
+      </div>`;
+  }
+
+  // ── Note section ───────────────────────────────────────────────────────
+  const noteHtml = `
+    <div class="note-section">
+      <div class="section-title">Add Note</div>
+      <textarea class="note-textarea" id="note-${c.id}"
+                placeholder="Write your note here, then use 'Copy Note' and paste it into Bullhorn → Notes tab."
+                oninput="saveNote(${c.id},this.value)">${esc(data.note || '')}</textarea>
+      <div class="note-actions">
+        <button class="btn-copy" onclick="copyNote(${c.id})">⎘ Copy Note</button>
+        <span class="note-hint">Then paste into Bullhorn → Notes</span>
       </div>
     </div>`;
-  }).join('');
 
-  return `<div class="card-body-inner">
-    <div>
-      <div class="section-title">Open Job Listings</div>
-      ${jobsHtml}
-      <div class="bd-owner">
-        <div class="bd-avatar">${esc(c.bdOwnerInitials)}</div>
-        <div><div class="bd-label">BD Owner</div><div class="bd-name">${esc(c.bdOwner)}</div></div>
+  return `
+    <div class="card-body-inner">
+      <div>
+        <div class="section-title">Open Job Listings</div>
+        ${jobsHtml}
+        ${ownersHtml}
       </div>
-    </div>
-    <div>
-      <div class="section-title">Outreach Drafts</div>
-      <div class="contact-tabs">${tabsHtml}</div>
-      ${panelsHtml}
-    </div>
-  </div>`;
+      <div>
+        <div class="section-title">Outreach</div>
+        ${contactSelectHtml}
+        ${contactInfoHtml}
+        ${draftHtml}
+        ${noteHtml}
+      </div>
+    </div>`;
 }
 
 // ─── Card interactions ────────────────────────────────────────────────────────
@@ -562,10 +628,14 @@ async function toggleCard(id) {
 
   const company = companies.find(c => c.id === id);
 
-  // Show external jobs loading state immediately
-  cardData[id] = { contacts: {}, jobs: [], externalJobs: [], externalJobsLoading: adzunaEnabled, drafts: {}, sent: {}, activeTab: 'Recruiting', notified: false, loaded: false };
+  // Show loading state immediately
+  cardData[id] = {
+    contacts: {}, allContacts: [], selectedContactId: null, contactDrafts: {},
+    jobs: [], externalJobs: [], externalJobsLoading: adzunaEnabled,
+    note: cardData[id]?.note || '', notified: cardData[id]?.notified || false,
+    sent: {}, loaded: false
+  };
 
-  // Fetch contacts + internal jobs + external jobs all in parallel
   const [contactsRes, jobsRes, extJobsRes] = await Promise.all([
     fetch(`/api/company/${id}/contacts`).then(r => r.json()).catch(() => ({})),
     fetch(`/api/company/${id}/jobs`).then(r => r.json()).catch(() => ({ data: [] })),
@@ -574,84 +644,125 @@ async function toggleCard(id) {
       : Promise.resolve({ data: [] })
   ]);
 
+  // Flatten contacts from all categories
+  const CATS = ['Recruiting', 'Sales', 'HR', 'Ops', 'Other'];
+  const allContacts = CATS.flatMap(cat =>
+    (contactsRes[cat] || []).map(ct => ({ ...ct, category: cat }))
+  ).filter((ct, i, arr) => arr.findIndex(x => x.id === ct.id) === i);
+
+  const firstContact = allContacts[0] || null;
+
   cardData[id] = {
     contacts:            contactsRes,
-    jobs:                jobsRes.data || [],
+    allContacts,
+    selectedContactId:   firstContact?.id ?? null,
+    contactDrafts:       {},
+    jobs:                jobsRes.data  || [],
     externalJobs:        extJobsRes.data || [],
     externalJobsLoading: false,
-    drafts:              {},
-    sent:                {},
-    activeTab:           'Recruiting',
+    note:                cardData[id]?.note || '',
     notified:            cardData[id]?.notified || false,
+    sent:                {},
     loaded:              true
   };
   refreshCard(id);
 
-  // Generate draft emails for all 4 roles asynchronously
-  const firstJob = cardData[id].jobs[0] || cardData[id].externalJobs[0];
-  const roles    = ['Recruiting','Sales','HR','Ops'];
+  // Auto-generate draft for first contact
+  if (firstContact) generateContactDraft(id, firstContact);
+}
 
-  for (const role of roles) {
-    const contact = (contactsRes[role] || [])[0];
-    fetch('/api/draft-email', {
+async function generateContactDraft(cId, contact) {
+  const data = cardData[cId];
+  if (!data || contact.id in data.contactDrafts) return;
+
+  data.contactDrafts[contact.id] = null; // null = loading
+  if (expandedIds.has(cId)) refreshCard(cId);
+
+  const company  = companies.find(x => x.id === cId);
+  const firstJob = (data.jobs || [])[0] || (data.externalJobs || [])[0];
+
+  try {
+    const { draft } = await fetch('/api/draft-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        companyName:  company?.name,
-        contactName:  contact?.name || `${role} Contact`,
-        contactRole:  role,
-        jobTitle:     firstJob?.title || null
+        companyName: company?.name,
+        contactName: contact.name,
+        contactRole: contact.category || 'Other',
+        jobTitle:    firstJob?.title || null
       })
-    })
-    .then(r => r.json())
-    .then(({ draft }) => {
-      if (cardData[id]) {
-        cardData[id].drafts[role] = draft;
-        if (expandedIds.has(id)) refreshCard(id);
-      }
-    })
-    .catch(() => {
-      if (cardData[id]) {
-        cardData[id].drafts[role] = `Hi, I wanted to reconnect regarding opportunities at ${company?.name}.`;
-        if (expandedIds.has(id)) refreshCard(id);
-      }
-    });
+    }).then(r => r.json());
+
+    if (cardData[cId]) {
+      cardData[cId].contactDrafts[contact.id] = draft || '';
+      // Don't disrupt the user if they're typing a note
+      if (expandedIds.has(cId) && document.activeElement?.id !== `note-${cId}`) refreshCard(cId);
+    }
+  } catch {
+    if (cardData[cId]) {
+      const fn = (contact.name || '').split(' ')[0] || 'there';
+      cardData[cId].contactDrafts[contact.id] = `Hi ${fn}, I wanted to reconnect and explore how we can support ${company?.name}'s hiring needs.`;
+      if (expandedIds.has(cId) && document.activeElement?.id !== `note-${cId}`) refreshCard(cId);
+    }
   }
 }
 
+function switchContact(cId, contactId) {
+  const data = cardData[cId];
+  if (!data) return;
+  const id = parseInt(contactId);
+  data.selectedContactId = id;
+  const contact = data.allContacts.find(c => c.id === id);
+  if (contact && !(contact.id in data.contactDrafts)) generateContactDraft(cId, contact);
+  else refreshCard(cId);
+}
+
+function regenDraft(cId, contactId) {
+  const data = cardData[cId];
+  if (!data) return;
+  delete data.contactDrafts[contactId];
+  const contact = data.allContacts.find(c => c.id === contactId);
+  if (contact) { generateContactDraft(cId, contact); showToast('Generating new draft…'); }
+}
+
 function refreshCard(id) {
-  const c    = companies.find(x => x.id === id);
-  const el   = document.getElementById(`card-${id}`);
+  const c  = companies.find(x => x.id === id);
+  const el = document.getElementById(`card-${id}`);
   if (!c || !el) return;
-  const tmp  = document.createElement('div');
+  const tmp = document.createElement('div');
   tmp.innerHTML = renderCard(c);
   el.replaceWith(tmp.firstElementChild);
 }
 
-function switchTab(cId, type) {
-  if (cardData[cId]) cardData[cId].activeTab = type;
-  refreshCard(cId);
-}
-
-function sendEmail(cId, type) {
+function sendEmail(cId, contactId) {
   if (!cardData[cId]) return;
   cardData[cId].sent = cardData[cId].sent || {};
-  cardData[cId].sent[type] = true;
+  cardData[cId].sent[contactId] = true;
   refreshCard(cId);
-  const c = companies.find(x => x.id === cId);
-  showToast(`Email to ${type} contact at ${c?.name} queued`);
+  const c  = companies.find(x => x.id === cId);
+  const ct = cardData[cId]?.allContacts?.find(x => x.id === contactId);
+  showToast(`Draft for ${ct?.name || 'contact'} at ${c?.name} marked as sent`);
 }
 
-function copyEmail(cId, type) {
-  const el = document.getElementById(`draft-${cId}-${type}`);
+function copyEmail(cId, contactId) {
+  const el = document.getElementById(`draft-${cId}-${contactId}`);
   if (el) navigator.clipboard.writeText(el.innerText).catch(() => {});
   showToast('Draft copied to clipboard');
 }
 
-function skipContact(cId, type) {
-  const el = document.getElementById(`panel-${cId}-${type}`);
-  if (el) el.style.opacity = '0.4';
-  showToast(`${type} contact skipped`);
+function saveNote(cId, text) {
+  if (!cardData[cId]) cardData[cId] = {};
+  cardData[cId].note = text;
+}
+
+function copyNote(cId) {
+  const el = document.getElementById(`note-${cId}`);
+  if (!el) return;
+  const c        = companies.find(x => x.id === cId);
+  const dateStr  = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  const noteText = el.value || '';
+  navigator.clipboard.writeText(`Company: ${c?.name || ''}\nDate: ${dateStr}\n\n${noteText}`).catch(() => {});
+  showToast('Note copied — paste into Bullhorn → Notes');
 }
 
 function notifyBD(e, id) {
@@ -667,6 +778,12 @@ function notifyBD(e, id) {
 }
 
 // ─── Filters ──────────────────────────────────────────────────────────────────
+function toggleHasJobs(btn) {
+  filterHasJobs = !filterHasJobs;
+  btn.classList.toggle('active', filterHasJobs);
+  applyFilters();
+}
+
 function applyFilters() {
   const score  = document.getElementById('filterScore').value;
   const stale  = parseInt(document.getElementById('filterStale').value) || 0;
@@ -675,12 +792,15 @@ function applyFilters() {
   let visible  = 0;
 
   companies.forEach(c => {
-    const el   = document.getElementById(`card-${c.id}`);
+    const el = document.getElementById(`card-${c.id}`);
     if (!el) return;
-    const show = (!score  || String(c.score) === score)
-              && (!stale  || (c.daysStale || 0) >= stale)
-              && (!bd     || c.bdOwner === bd)
-              && (!search || c.name.toLowerCase().includes(search) || (c.industry || '').toLowerCase().includes(search));
+    const jc = jobCounts[c.id];
+    const show =
+      (!score  || String(c.score) === score)
+      && (!stale  || (c.daysStale || 0) >= stale)
+      && (!bd     || c.bdOwner === bd)
+      && (!filterHasJobs || (jc !== undefined ? jc > 0 : true)) // include unloaded cards
+      && (!search || c.name.toLowerCase().includes(search) || (c.industry || '').toLowerCase().includes(search));
     el.style.display = show ? '' : 'none';
     if (show) visible++;
   });
@@ -690,38 +810,13 @@ function applyFilters() {
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
 function openSettings() {
-  document.getElementById('settingDays').value       = cfg.days;
-  document.getElementById('settingScoreField').value = cfg.scoreField || 'customInt2';
-  document.getElementById('fieldsList').style.display = 'none';
+  document.getElementById('settingDays').value = cfg.days;
   document.getElementById('settingsModal').classList.add('open');
 }
 function closeSettings() { document.getElementById('settingsModal').classList.remove('open'); }
-
-async function loadFieldOptions() {
-  const list = document.getElementById('fieldsList');
-  list.style.display = 'block';
-  list.innerHTML = '<div class="field-option">Loading fields…</div>';
-  const fields = await fetch('/api/meta/company-fields').then(r => r.json()).catch(() => []);
-  if (!fields.length) { list.innerHTML = '<div class="field-option">Could not load fields</div>'; return; }
-  list.innerHTML = fields.map(f =>
-    `<div class="field-option${f.name === cfg.scoreField ? ' selected' : ''}" onclick="selectField('${f.name}')">
-       <span>${esc(f.label)} <small>(${esc(f.name)})</small></span>
-       <span class="field-type">${esc(f.type)}</span>
-     </div>`
-  ).join('');
-}
-
-function selectField(name) {
-  document.getElementById('settingScoreField').value = name;
-  document.querySelectorAll('.field-option').forEach(el => el.classList.remove('selected'));
-  event.currentTarget.classList.add('selected');
-}
-
 function saveSettings() {
-  cfg.days       = parseInt(document.getElementById('settingDays').value) || 90;
-  cfg.scoreField = document.getElementById('settingScoreField').value.trim() || 'customInt1';
+  cfg.days = parseInt(document.getElementById('settingDays').value) || 90;
   localStorage.setItem('bh_days', cfg.days);
-  localStorage.setItem('bh_score_field', cfg.scoreField);
   closeSettings();
   loadCompanies();
 }
@@ -731,7 +826,7 @@ function setScanState(active) {
   document.getElementById('scanBar').classList.toggle('active', active);
   const btn = document.getElementById('btnScan');
   btn.textContent = active ? '⟳ Scanning…' : '▶ Refresh';
-  btn.disabled = active;
+  btn.disabled    = active;
 }
 
 function showError(msg) {

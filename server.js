@@ -170,7 +170,7 @@ app.get('/api/stale-companies', async (req, res) => {
     // Only Active Account companies
     const allCompanies = await cdataQuery(
       `SELECT TOP 1000 ID, CompanyName, BusinessSectors, CompanyWebsite,
-              DateLastModified, BusinessDevelopmentManager
+              DateLastModified, BusinessDevelopmentManager, OwnerAM
        FROM ${T('ClientCorporation')}
        WHERE Status = 'Active Account'
        ORDER BY CompanyName`
@@ -221,6 +221,7 @@ app.get('/api/stale-companies', async (req, res) => {
         daysStale,
         bdOwner:         bdName,
         bdOwnerInitials: initials,
+        ownerAM:         c.OwnerAM || null,
         website
       };
     }).sort((a, b) => {
@@ -282,33 +283,75 @@ app.get('/api/company/:id/contacts', async (req, res) => {
 app.get('/api/company/:id/jobs', async (req, res) => {
   const id = parseInt(req.params.id);
   if (!id) return res.status(400).json({ error: 'Invalid ID' });
-  try {
-    // Broad query — no Status filter since CData status values may differ
-    const rows = await cdataQuery(
-      `SELECT TOP 10 ID, Title, DateAdded, Status, EmploymentType, NumOpenings
-       FROM ${T('JobOrder')}
-       WHERE ClientCorporationid = ${id}
-       ORDER BY DateAdded DESC`
-    );
-    res.json({
-      data: rows
-        .filter(j => {
-          // Exclude clearly closed statuses
-          const s = (j.Status || '').toLowerCase();
-          return !s.includes('archive') && !s.includes('cancel') && !s.includes('fill') && !s.includes('closed');
-        })
-        .map(j => ({
-          id:         j.ID,
-          title:      j.Title,
-          status:     j.Status || '',
-          type:       j.EmploymentType || 'Full-time',
-          openings:   j.NumOpenings || 1,
-          daysPosted: j.DateAdded ? Math.floor((Date.now() - new Date(j.DateAdded).getTime()) / 86400000) : null
-        }))
-    });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
+
+  const toJob = j => ({
+    id:         j.ID,
+    title:      j.Title || '(Untitled)',
+    status:     j.Status || '',
+    type:       j.EmploymentType || 'Full-time',
+    openings:   j.NumOpenings || 1,
+    daysPosted: j.DateAdded ? Math.floor((Date.now() - new Date(j.DateAdded).getTime()) / 86400000) : null
+  });
+
+  // Try ClientCorporationid first, then ClientCorporation as fallback
+  // (field name varies across CData connection configs)
+  let rows = null, fieldErr = null;
+  for (const field of ['ClientCorporationid', 'ClientCorporation']) {
+    try {
+      rows = await cdataQuery(
+        `SELECT TOP 20 ID, Title, DateAdded, Status, EmploymentType, NumOpenings
+         FROM ${T('JobOrder')}
+         WHERE ${field} = ${id}
+         ORDER BY DateAdded DESC`
+      );
+      break;
+    } catch (e) {
+      fieldErr = e.message;
+    }
   }
+  if (rows === null) return res.json({ data: [], error: fieldErr });
+
+  // Exclude statuses that are definitively closed
+  const CLOSED = /archiv|cancel|fill|closed|deleted/i;
+  res.json({ data: rows.filter(j => !CLOSED.test(j.Status || '')).map(toJob) });
+});
+
+// Batch job counts — called once after companies list loads
+app.get('/api/job-counts', async (req, res) => {
+  const ids = (req.query.ids || '').split(',').map(Number).filter(n => n > 0).slice(0, 300);
+  if (!ids.length) return res.json({});
+  const oneYearAgo = new Date(Date.now() - 365 * 86400000).toISOString().slice(0, 10);
+  const idList     = ids.join(',');
+
+  const toCounts = rows => {
+    const m = {};
+    rows.forEach(r => { if (r.ClientCorporationid) m[r.ClientCorporationid] = (m[r.ClientCorporationid] || 0) + 1; });
+    return m;
+  };
+
+  // Try GROUP BY COUNT first, fall back to row-level count
+  for (const field of ['ClientCorporationid', 'ClientCorporation']) {
+    try {
+      let counts = {};
+      try {
+        const rows = await cdataQuery(
+          `SELECT ${field} AS ClientCorporationid, COUNT(*) AS cnt
+           FROM ${T('JobOrder')}
+           WHERE ${field} IN (${idList}) AND DateAdded > '${oneYearAgo}'
+           GROUP BY ${field}`
+        );
+        rows.forEach(r => { if (r.ClientCorporationid) counts[r.ClientCorporationid] = parseInt(r.cnt) || 0; });
+      } catch (_) {
+        const rows = await cdataQuery(
+          `SELECT ${field} AS ClientCorporationid FROM ${T('JobOrder')}
+           WHERE ${field} IN (${idList}) AND DateAdded > '${oneYearAgo}' LIMIT 5000`
+        );
+        counts = toCounts(rows);
+      }
+      return res.json(counts);
+    } catch (_) { continue; }
+  }
+  res.json({});
 });
 
 // AI email draft
