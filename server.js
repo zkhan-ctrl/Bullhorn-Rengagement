@@ -44,61 +44,24 @@ async function cdataQuery(sql) {
   }
 }
 
-// ─── Auto-detect FK field names ───────────────────────────────────────────────
-// CData Bullhorn connector uses 'Companyid' for the FK to ClientCorporation in
-// both Placement and ClientContact (not 'ClientCorporationid').
-// Detected at startup from live schema; defaults to 'Companyid' on empty tables.
+// ─── FK field names ────────────────────────────────────────────────────────────
+// CData's Bullhorn connector uses 'Companyid' as the FK to ClientCorporation in
+// Placement, ClientContact, and JobOrder (confirmed from live schema inspection).
+// Hard-coded here to avoid heavy SELECT * probes at startup that hit rate limits.
 
 const FIELD = {
-  placementCorpField: null,
-  jobOrderCorpField:  null,
+  placementCorpField: 'Companyid',
+  jobOrderCorpField:  'Companyid',
 };
 
-async function detectFields() {
-  // Detect by reading actual column names from a live row (accurate even when
-  // field names differ between CData versions).  Falls back to 'Companyid'
-  // which is what the Bullhorn CData connector consistently uses.
-
-  const colsOf = async (table) => {
-    try {
-      const rows = await cdataQuery(`SELECT TOP 1 * FROM ${T(table)}`);
-      return rows.length ? Object.keys(rows[0]) : [];
-    } catch (_) { return []; }
-  };
-
-  const pick = (cols, ...candidates) =>
-    candidates.find(c => cols.map(x => x.toLowerCase()).includes(c.toLowerCase())) || candidates[candidates.length - 1];
-
-  const placementCols = await colsOf('Placement');
-  FIELD.placementCorpField = pick(placementCols, 'Companyid', 'ClientCorporationid', 'ClientCorporation');
-  console.log(`✓ Placement corp field: ${FIELD.placementCorpField} (schema has ${placementCols.length} cols)`);
-
-  const jobCols = await colsOf('JobOrder');
-  FIELD.jobOrderCorpField = pick(jobCols, 'Companyid', 'ClientCorporationid', 'ClientCorporation');
-  console.log(`✓ JobOrder corp field: ${FIELD.jobOrderCorpField} (schema has ${jobCols.length} cols)`);
-}
-
-// ─── Placement query helpers (uses detected field) ───────────────────────────
+// ─── Placement query helpers ─────────────────────────────────────────────────
 function placementCorpSql_recent(cutoff) {
-  if (FIELD.placementCorpField === 'JOIN') {
-    return `SELECT j.${FIELD.jobOrderCorpField} AS ClientCorporationid
-            FROM ${T('Placement')} p
-            JOIN ${T('JobOrder')} j ON p.JobOrderid = j.ID
-            WHERE p.DateAdded > '${cutoff}' LIMIT 2000`;
-  }
   return `SELECT ${FIELD.placementCorpField} AS ClientCorporationid
           FROM ${T('Placement')}
           WHERE ${FIELD.placementCorpField} IS NOT NULL AND DateAdded > '${cutoff}' LIMIT 2000`;
 }
 
 function placementCorpSql_last(idList) {
-  if (FIELD.placementCorpField === 'JOIN') {
-    return `SELECT j.${FIELD.jobOrderCorpField} AS ClientCorporationid, p.DateAdded
-            FROM ${T('Placement')} p
-            JOIN ${T('JobOrder')} j ON p.JobOrderid = j.ID
-            WHERE j.${FIELD.jobOrderCorpField} IN (${idList})
-            ORDER BY p.DateAdded DESC LIMIT 2000`;
-  }
   return `SELECT ${FIELD.placementCorpField} AS ClientCorporationid, DateAdded
           FROM ${T('Placement')}
           WHERE ${FIELD.placementCorpField} IN (${idList})
@@ -177,9 +140,17 @@ app.get('/api/debug', async (req, res) => {
     const r  = await axios.post(CDATA_API, { query: sql, connection: CDATA_CONNECTION },
       { headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/json', Accept: 'application/json' } });
     const rs = r.data.results?.[0];
-    res.json({ sql, columns: rs?.schema?.map(c => c.columnName) || [], rows: rs?.rows?.length || 0, firstRow: rs?.rows?.[0] });
+    res.json({
+      sql,
+      httpStatus: r.status,
+      rawResultCount: r.data.results?.length,
+      rawResult: rs,
+      columns: rs?.schema?.map(c => c.columnName) || [],
+      rows: rs?.rows?.length || 0,
+      firstRow: rs?.rows?.[0]
+    });
   } catch (e) {
-    res.json({ sql, error: e.message, raw: e.response?.data });
+    res.json({ sql, error: e.message, httpStatus: e.response?.status, raw: e.response?.data });
   }
 });
 
@@ -521,8 +492,4 @@ app.get('/api/company/:id/external-jobs', async (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`\n✅ CGR Re-Engagement Tool → http://localhost:${PORT}\n`);
-  // Probe CData field names in the background so queries use the correct columns
-  if (process.env.CDATA_USER && process.env.CDATA_PAT) {
-    detectFields().catch(e => console.error('Field detection error:', e.message));
-  }
 });
