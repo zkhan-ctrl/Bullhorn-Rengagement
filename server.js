@@ -3,12 +3,12 @@ const express        = require('express');
 const axios          = require('axios');
 const path           = require('path');
 const { spawn }      = require('child_process');
+const fs             = require('fs');
 
 const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Allow Bullhorn to embed this tool in an iframe
 app.use((req, res, next) => {
   res.setHeader('Content-Security-Policy', "frame-ancestors *");
   res.removeHeader('X-Frame-Options');
@@ -17,111 +17,72 @@ app.use((req, res, next) => {
 
 const externalJobCache = new Map();
 
-// ─── CData Connect AI — SQL Query API ────────────────────────────────────────
-// Uses POST /api/query with plain SQL. No workspace required — works directly
-// with the BullhornCRM1 connection and BullhornCRM schema.
+// ─── CData Connect AI — SQL Query API ─────────────────────────────────────────
+// Response format: results[0].schema (column defs) + results[0].rows (arrays of values)
+// Must convert to array of objects using the schema column names.
 
 const CDATA_API        = 'https://cloud.cdata.com/api/query';
 const CDATA_CONNECTION = 'BullhornCRM1';
-const CDATA_CATALOG    = 'BullhornCRM1';
-const CDATA_SCHEMA     = 'BullhornCRM';
+const T                = (name) => `BullhornCRM1.BullhornCRM.${name}`;
 
-function odataToSQL(table, p = {}) {
-  const select = p['$select'] || '*';
-  let sql = `SELECT ${select} FROM ${CDATA_CATALOG}.${CDATA_SCHEMA}.${table}`;
-
-  if (p['$filter']) {
-    let w = p['$filter']
-      .replace(/ eq null\b/g,  ' IS NULL')
-      .replace(/ ne null\b/g,  ' IS NOT NULL')
-      .replace(/ eq true\b/g,  " = TRUE")
-      .replace(/ eq false\b/g, " = FALSE")
-      .replace(/ eq /g,  ' = ')
-      .replace(/ ne /g,  ' <> ')
-      .replace(/ gt /g,  ' > ')
-      .replace(/ lt /g,  ' < ')
-      .replace(/ ge /g,  ' >= ')
-      .replace(/ le /g,  ' <= ')
-      .replace(/ and /gi, ' AND ')
-      .replace(/ or /gi,  ' OR ');
-    // Wrap bare ISO date strings in quotes
-    w = w.replace(/([><=!]+\s*)(\d{4}-\d{2}-\d{2}T[\d:.Z]+)/g, "$1'$2'");
-    sql += ` WHERE ${w}`;
-  }
-
-  if (p['$orderby']) {
-    sql += ` ORDER BY ${p['$orderby'].replace(/ desc$/i, ' DESC').replace(/ asc$/i, ' ASC')}`;
-  }
-
-  if (p['$top']) sql += ` LIMIT ${p['$top']}`;
-
-  return sql;
-}
-
-async function cdataGet(table, params = {}) {
+async function cdataQuery(sql) {
   const auth = Buffer.from(`${process.env.CDATA_USER}:${process.env.CDATA_PAT}`).toString('base64');
-  const sql  = odataToSQL(table, params);
   try {
-    const r = await axios.post(
+    const r  = await axios.post(
       CDATA_API,
       { query: sql, connection: CDATA_CONNECTION },
       { headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/json', Accept: 'application/json' } }
     );
-    return r.data.results || r.data.value || [];
+    const rs = r.data.results?.[0];
+    if (!rs?.schema || !rs?.rows) return [];
+    const cols = rs.schema.map(c => c.columnName);
+    return rs.rows.map(row => {
+      const obj = {};
+      cols.forEach((col, i) => { obj[col] = row[i]; });
+      return obj;
+    });
   } catch (e) {
     const msg = e.response?.data?.error?.message || e.response?.data?.message || e.message;
-    throw new Error(`CData [${table}]: ${msg}`);
+    throw new Error(`CData: ${msg}`);
   }
 }
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
-// Temporary debug endpoint — shows raw CData response to diagnose field names
+// Debug — test any table: /api/debug?table=Note
 app.get('/api/debug', async (req, res) => {
   const auth  = Buffer.from(`${process.env.CDATA_USER}:${process.env.CDATA_PAT}`).toString('base64');
-  const query = req.query.q || 'SELECT TOP 3 * FROM BullhornCRM1.BullhornCRM.ClientCorporation';
+  const table = (req.query.table || 'ClientCorporation').replace(/[^a-zA-Z]/g, '');
+  const sql   = `SELECT TOP 2 * FROM BullhornCRM1.BullhornCRM.${table}`;
   try {
-    const r = await axios.post(
-      'https://cloud.cdata.com/api/query',
-      { query, connection: 'BullhornCRM1' },
-      { headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/json', Accept: 'application/json' } }
-    );
-    res.json({ sql: query, httpStatus: r.status, rawResponse: r.data });
+    const r  = await axios.post(CDATA_API, { query: sql, connection: CDATA_CONNECTION },
+      { headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/json', Accept: 'application/json' } });
+    const rs = r.data.results?.[0];
+    res.json({ sql, columns: rs?.schema?.map(c => c.columnName) || [], rows: rs?.rows?.length || 0, firstRow: rs?.rows?.[0] });
   } catch (e) {
-    res.json({ sql: query, error: e.message, httpStatus: e.response?.status, rawResponse: e.response?.data });
+    res.json({ sql, error: e.message, raw: e.response?.data });
   }
 });
 
-// Health check — verifies CData credentials and connection
+// Health check
 app.get('/api/status', async (req, res) => {
   const needed  = ['CDATA_USER', 'CDATA_PAT'];
   const missing = needed.filter(k => !process.env[k]);
   if (missing.length) return res.json({ ok: false, missing });
   try {
-    await cdataGet('ClientCorporation', { '$top': 1, '$select': 'id' });
-    res.json({
-      ok:            true,
-      aiEnabled:     !!process.env.ANTHROPIC_API_KEY,
-      adzunaEnabled: true  // JobSpy: no API key required
-    });
+    await cdataQuery(`SELECT TOP 1 ID FROM ${T('ClientCorporation')}`);
+    res.json({ ok: true, aiEnabled: !!process.env.ANTHROPIC_API_KEY, adzunaEnabled: true });
   } catch (e) {
     res.json({ ok: false, error: e.message });
   }
 });
 
-// Field discovery — reads a sample row to show available fields in Settings panel
+// Field discovery for Settings panel
 app.get('/api/meta/company-fields', async (req, res) => {
   try {
-    const sample = await cdataGet('ClientCorporation', { '$top': 1 });
-    if (!sample.length) return res.json([]);
-    const fields = Object.keys(sample[0])
-      .filter(k => !k.startsWith('@'))
-      .map(k => ({
-        name:  k,
-        label: k,
-        type:  typeof sample[0][k] === 'number' ? 'Integer' : 'String'
-      }));
-    res.json(fields);
+    const rows = await cdataQuery(`SELECT TOP 1 * FROM ${T('ClientCorporation')}`);
+    if (!rows.length) return res.json([]);
+    res.json(Object.keys(rows[0]).map(k => ({ name: k, label: k, type: typeof rows[0][k] === 'number' ? 'Integer' : 'String' })));
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -130,74 +91,60 @@ app.get('/api/meta/company-fields', async (req, res) => {
 // Main: stale companies
 app.get('/api/stale-companies', async (req, res) => {
   try {
-    const days       = parseInt(req.query.days) || 90;
-    const scoreField = req.query.scoreField || 'customInt2';
-    const cutoff     = new Date(Date.now() - days * 86400000).toISOString();
+    const days   = parseInt(req.query.days) || 90;
+    const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
 
-    // Find recently active company IDs across notes, jobs, and placements
+    // Find recently active company IDs across notes, jobs, placements
     const [recentNotes, recentJobs, recentPlacements] = await Promise.all([
-      cdataGet('Note', {
-        '$filter': `dateAdded gt ${cutoff} and ClientCorporationID ne null`,
-        '$select': 'ClientCorporationID',
-        '$top':    500
-      }),
-      cdataGet('JobOrder', {
-        '$filter': `dateAdded gt ${cutoff} and isDeleted eq false`,
-        '$select': 'ClientCorporationID',
-        '$top':    500
-      }),
-      cdataGet('Placement', {
-        '$filter': `dateBegin gt ${cutoff}`,
-        '$select': 'ClientCorporationID',
-        '$top':    500
-      }).catch(() => [])
+      cdataQuery(`SELECT ClientCorporationid FROM ${T('Note')} WHERE DateAdded > '${cutoff}' AND ClientCorporationid IS NOT NULL LIMIT 500`).catch(() => []),
+      cdataQuery(`SELECT ClientCorporationid FROM ${T('JobOrder')} WHERE DateAdded > '${cutoff}' AND ClientCorporationid IS NOT NULL LIMIT 500`).catch(() => []),
+      cdataQuery(`SELECT ClientCorporationid FROM ${T('Placement')} WHERE DateBegin > '${cutoff}' AND ClientCorporationid IS NOT NULL LIMIT 500`).catch(() => [])
     ]);
 
     const activeIds = new Set([
-      ...recentNotes.filter(n => n.ClientCorporationID).map(n => n.ClientCorporationID),
-      ...recentJobs.filter(j => j.ClientCorporationID).map(j => j.ClientCorporationID),
-      ...recentPlacements.filter(p => p.ClientCorporationID).map(p => p.ClientCorporationID)
+      ...recentNotes.map(n => n.ClientCorporationid).filter(Boolean),
+      ...recentJobs.map(j => j.ClientCorporationid).filter(Boolean),
+      ...recentPlacements.map(p => p.ClientCorporationid).filter(Boolean)
     ]);
 
-    // Get all active companies
-    const allCompanies = await cdataGet('ClientCorporation', {
-      '$filter':  "isDeleted eq false and status eq 'Active'",
-      '$select':  `id,name,industryList,companyURL,${scoreField},dateLastModified,OwnerFirstName,OwnerLastName`,
-      '$top':     500,
-      '$orderby': 'name'
-    });
+    // Get all companies (no isDeleted filter — field doesn't exist in CData view)
+    const allCompanies = await cdataQuery(
+      `SELECT TOP 500 ID, CompanyName, BusinessSectors, CompanyWebsite, ClientScore, DateLastModified, BusinessDevelopmentManager
+       FROM ${T('ClientCorporation')}
+       ORDER BY CompanyName`
+    );
 
-    const staleCompanies = allCompanies.filter(c => !activeIds.has(c.id));
+    const staleCompanies = allCompanies.filter(c => !activeIds.has(c.ID));
 
-    // Batch-fetch last note date per stale company for accurate "days stale"
+    // Last note date per stale company for accurate "days stale"
     let lastNoteMap = {};
     if (staleCompanies.length > 0) {
-      const ids      = staleCompanies.slice(0, 100).map(c => c.id).join(',');
-      const lastNotes = await cdataGet('Note', {
-        '$filter':  `ClientCorporationID in (${ids})`,
-        '$select':  'ClientCorporationID,dateAdded',
-        '$orderby': 'dateAdded desc',
-        '$top':     500
-      }).catch(() => []);
-
+      const ids = staleCompanies.slice(0, 100).map(c => c.ID).join(',');
+      const lastNotes = await cdataQuery(
+        `SELECT ClientCorporationid, DateAdded FROM ${T('Note')} WHERE ClientCorporationid IN (${ids}) ORDER BY DateAdded DESC LIMIT 500`
+      ).catch(() => []);
       lastNotes.forEach(n => {
-        if (n.ClientCorporationID && !lastNoteMap[n.ClientCorporationID]) {
-          lastNoteMap[n.ClientCorporationID] = n.dateAdded;
+        if (n.ClientCorporationid && !lastNoteMap[n.ClientCorporationid]) {
+          lastNoteMap[n.ClientCorporationid] = n.DateAdded;
         }
       });
     }
 
     const result = staleCompanies.map(c => {
-      const lastActivity = lastNoteMap[c.id] || c.dateLastModified;
+      const lastActivity = lastNoteMap[c.ID] || c.DateLastModified;
+      const bdOwner      = c.BusinessDevelopmentManager || 'Unassigned';
+      const initials     = bdOwner !== 'Unassigned'
+        ? bdOwner.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase()
+        : '?';
       return {
-        id:              c.id,
-        name:            c.name,
-        industry:        (c.industryList || '').split(';').filter(Boolean).join(', ') || 'N/A',
-        score:           c[scoreField] ?? null,
+        id:              c.ID,
+        name:            c.CompanyName,
+        industry:        c.BusinessSectors || 'N/A',
+        score:           c.ClientScore ?? null,
         daysStale:       lastActivity ? Math.floor((Date.now() - new Date(lastActivity).getTime()) / 86400000) : null,
-        bdOwner:         `${c.OwnerFirstName || ''} ${c.OwnerLastName || ''}`.trim() || 'Unassigned',
-        bdOwnerInitials: c.OwnerFirstName ? `${c.OwnerFirstName[0]}${(c.OwnerLastName || '?')[0]}`.toUpperCase() : '?',
-        website:         c.companyURL || null
+        bdOwner,
+        bdOwnerInitials: initials,
+        website:         c.CompanyWebsite || null
       };
     }).sort((a, b) => {
       const sa = a.score ?? 99, sb = b.score ?? 99;
@@ -212,14 +159,16 @@ app.get('/api/stale-companies', async (req, res) => {
   }
 });
 
-// Contacts for a company, categorized by role
+// Contacts for a company
 app.get('/api/company/:id/contacts', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id) return res.status(400).json({ error: 'Invalid ID' });
   try {
-    const rows = await cdataGet('ClientContact', {
-      '$filter': `ClientCorporationID eq ${req.params.id} and isDeleted eq false and status eq 'Active'`,
-      '$select': 'id,firstName,lastName,title,occupation,email,phone',
-      '$top':    50
-    });
+    const rows = await cdataQuery(
+      `SELECT TOP 50 ID, FirstName, LastName, Title, EmailAddress, Phone
+       FROM ${T('ClientContact')}
+       WHERE ClientCorporationid = ${id}`
+    );
 
     const cats  = { Recruiting: [], Sales: [], HR: [], Ops: [], Other: [] };
     const rules = [
@@ -230,15 +179,14 @@ app.get('/api/company/:id/contacts', async (req, res) => {
     ];
 
     rows.forEach(c => {
-      const text   = `${c.title || ''} ${c.occupation || ''}`;
-      const match  = rules.find(([, rx]) => rx.test(text));
+      const match = rules.find(([, rx]) => rx.test(c.Title || ''));
       cats[match ? match[0] : 'Other'].push({
-        id:       c.id,
-        name:     `${c.firstName || ''} ${c.lastName || ''}`.trim() || 'Unknown',
-        title:    c.title || c.occupation || 'Contact',
-        email:    c.email || '',
-        phone:    c.phone || '',
-        initials: `${(c.firstName || '?')[0]}${(c.lastName || '?')[0]}`.toUpperCase()
+        id:       c.ID,
+        name:     `${c.FirstName || ''} ${c.LastName || ''}`.trim() || 'Unknown',
+        title:    c.Title || 'Contact',
+        email:    c.EmailAddress || '',
+        phone:    c.Phone || '',
+        initials: `${(c.FirstName || '?')[0]}${(c.LastName || '?')[0]}`.toUpperCase()
       });
     });
 
@@ -250,20 +198,22 @@ app.get('/api/company/:id/contacts', async (req, res) => {
 
 // Open job orders for a company (from Bullhorn via CData)
 app.get('/api/company/:id/jobs', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id) return res.status(400).json({ error: 'Invalid ID' });
   try {
-    const rows = await cdataGet('JobOrder', {
-      '$filter':  `ClientCorporationID eq ${req.params.id} and isDeleted eq false and status eq 'Accepting Candidates'`,
-      '$select':  'id,title,dateAdded,employmentType,numOpenings',
-      '$top':     20,
-      '$orderby': 'dateAdded desc'
-    });
+    const rows = await cdataQuery(
+      `SELECT TOP 20 ID, Title, DateAdded, EmploymentType, NumOpenings
+       FROM ${T('JobOrder')}
+       WHERE ClientCorporationid = ${id} AND Status = 'Accepting Candidates'
+       ORDER BY DateAdded DESC`
+    );
     res.json({
       data: rows.map(j => ({
-        id:         j.id,
-        title:      j.title,
-        type:       j.employmentType || 'Full-time',
-        openings:   j.numOpenings || 1,
-        daysPosted: j.dateAdded ? Math.floor((Date.now() - new Date(j.dateAdded).getTime()) / 86400000) : null
+        id:         j.ID,
+        title:      j.Title,
+        type:       j.EmploymentType || 'Full-time',
+        openings:   j.NumOpenings || 1,
+        daysPosted: j.DateAdded ? Math.floor((Date.now() - new Date(j.DateAdded).getTime()) / 86400000) : null
       }))
     });
   } catch (e) {
@@ -271,7 +221,7 @@ app.get('/api/company/:id/jobs', async (req, res) => {
   }
 });
 
-// AI email draft (Claude if key present, templates as fallback)
+// AI email draft
 app.post('/api/draft-email', async (req, res) => {
   const { companyName, contactName, contactRole, jobTitle } = req.body;
 
@@ -302,48 +252,38 @@ app.post('/api/draft-email', async (req, res) => {
   res.json({ draft: templates[contactRole] || templates.Sales, ai: false });
 });
 
-// Prefer the venv Python (Railway/Nix), fall back to system python3 (local dev)
-const fs         = require('fs');
+// JobSpy Python subprocess
 const PYTHON_BIN = fs.existsSync(path.join(__dirname, '.venv', 'bin', 'python3'))
   ? path.join(__dirname, '.venv', 'bin', 'python3')
   : 'python3';
 
-// Run JobSpy Python script as subprocess, returns parsed JSON
 function runJobSpy(companyName) {
   return new Promise(resolve => {
-    const script = path.join(__dirname, 'scrape_jobs.py');
-    const py     = spawn(PYTHON_BIN, [script, companyName]);
+    const py    = spawn(PYTHON_BIN, [path.join(__dirname, 'scrape_jobs.py'), companyName]);
     let out = '', err = '';
-
-    const timer = setTimeout(() => {
-      py.kill();
-      resolve({ data: [], total: 0, error: 'Job search timed out after 55s' });
-    }, 55000);
-
+    const timer = setTimeout(() => { py.kill(); resolve({ data: [], total: 0, error: 'Timed out' }); }, 55000);
     py.stdout.on('data', d => { out += d; });
     py.stderr.on('data', d => { err += d; });
     py.on('close', () => {
       clearTimeout(timer);
-      try {
-        resolve(JSON.parse(out));
-      } catch {
-        resolve({ data: [], total: 0, error: err.slice(0, 200) || 'No output from job scraper' });
-      }
+      try { resolve(JSON.parse(out)); }
+      catch { resolve({ data: [], total: 0, error: err.slice(0, 200) || 'No output' }); }
     });
   });
 }
 
 // External job postings via JobSpy (LinkedIn, Indeed, Glassdoor, ZipRecruiter)
 app.get('/api/company/:id/external-jobs', async (req, res) => {
-  const cacheKey = `ext-${req.params.id}`;
+  const id       = parseInt(req.params.id);
+  const cacheKey = `ext-${id}`;
   const cached   = externalJobCache.get(cacheKey);
   if (cached && Date.now() - cached.ts < 60 * 60 * 1000) return res.json(cached.data);
 
   let companyName = req.query.name || '';
   if (!companyName) {
     try {
-      const rows  = await cdataGet('ClientCorporation', { '$filter': `id eq ${req.params.id}`, '$select': 'id,name', '$top': 1 });
-      companyName = rows[0]?.name || '';
+      const rows  = await cdataQuery(`SELECT TOP 1 ID, CompanyName FROM ${T('ClientCorporation')} WHERE ID = ${id}`);
+      companyName = rows[0]?.CompanyName || '';
     } catch (e) {
       return res.json({ data: [], companyName: '', error: e.message });
     }
@@ -353,14 +293,10 @@ app.get('/api/company/:id/external-jobs', async (req, res) => {
 
   const result  = await runJobSpy(companyName);
   const payload = { ...result, companyName };
-
-  if (!result.error && result.data.length >= 0) {
-    externalJobCache.set(cacheKey, { ts: Date.now(), data: payload });
-  }
-
+  if (!result.error) externalJobCache.set(cacheKey, { ts: Date.now(), data: payload });
   res.json(payload);
 });
 
-// ─── Start ────────────────────────────────────────────────────────────────────
+// ─── Start ─────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`\n✅ CGR Re-Engagement Tool → http://localhost:${PORT}\n`));
