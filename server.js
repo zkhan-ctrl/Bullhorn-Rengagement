@@ -45,44 +45,37 @@ async function cdataQuery(sql) {
 }
 
 // ─── Auto-detect FK field names ───────────────────────────────────────────────
-// CData may expose Placement.clientCorporation as "ClientCorporationid",
-// "ClientCorporation", or require a JOIN through JobOrder.
-// We probe once at startup and cache the working approach.
+// CData Bullhorn connector uses 'Companyid' for the FK to ClientCorporation in
+// both Placement and ClientContact (not 'ClientCorporationid').
+// Detected at startup from live schema; defaults to 'Companyid' on empty tables.
 
 const FIELD = {
-  placementCorpField: null,   // field name OR 'JOIN' if direct field not found
+  placementCorpField: null,
   jobOrderCorpField:  null,
 };
 
 async function detectFields() {
-  // JobOrder → ClientCorporation field
-  for (const f of ['ClientCorporationid', 'ClientCorporation', 'clientCorporationId']) {
-    try {
-      await cdataQuery(`SELECT TOP 1 ${f} FROM ${T('JobOrder')}`);
-      FIELD.jobOrderCorpField = f;
-      console.log(`✓ JobOrder.${f} confirmed`);
-      break;
-    } catch (_) {}
-  }
-  if (!FIELD.jobOrderCorpField) {
-    FIELD.jobOrderCorpField = 'ClientCorporationid';
-    console.warn('⚠ Could not confirm JobOrder corp field — using ClientCorporationid as default');
-  }
+  // Detect by reading actual column names from a live row (accurate even when
+  // field names differ between CData versions).  Falls back to 'Companyid'
+  // which is what the Bullhorn CData connector consistently uses.
 
-  // Placement → ClientCorporation field (may be direct or require join)
-  for (const f of ['ClientCorporationid', 'ClientCorporation', 'clientCorporationId']) {
+  const colsOf = async (table) => {
     try {
-      await cdataQuery(`SELECT TOP 1 ${f} FROM ${T('Placement')}`);
-      FIELD.placementCorpField = f;
-      console.log(`✓ Placement.${f} confirmed`);
-      break;
-    } catch (_) {}
-  }
-  if (!FIELD.placementCorpField) {
-    // No direct corp field in Placement — will use JOIN via JobOrder
-    FIELD.placementCorpField = 'JOIN';
-    console.log('✓ Placement uses JOIN via JobOrder for ClientCorporation');
-  }
+      const rows = await cdataQuery(`SELECT TOP 1 * FROM ${T(table)}`);
+      return rows.length ? Object.keys(rows[0]) : [];
+    } catch (_) { return []; }
+  };
+
+  const pick = (cols, ...candidates) =>
+    candidates.find(c => cols.map(x => x.toLowerCase()).includes(c.toLowerCase())) || candidates[candidates.length - 1];
+
+  const placementCols = await colsOf('Placement');
+  FIELD.placementCorpField = pick(placementCols, 'Companyid', 'ClientCorporationid', 'ClientCorporation');
+  console.log(`✓ Placement corp field: ${FIELD.placementCorpField} (schema has ${placementCols.length} cols)`);
+
+  const jobCols = await colsOf('JobOrder');
+  FIELD.jobOrderCorpField = pick(jobCols, 'Companyid', 'ClientCorporationid', 'ClientCorporation');
+  console.log(`✓ JobOrder corp field: ${FIELD.jobOrderCorpField} (schema has ${jobCols.length} cols)`);
 }
 
 // ─── Placement query helpers (uses detected field) ───────────────────────────
@@ -207,6 +200,18 @@ app.get('/api/debug-fields', async (req, res) => {
   res.json(result);
 });
 
+// Debug — run an arbitrary SELECT (read-only): GET /api/debug-sql?q=SELECT+TOP+5+ID,Title+FROM+JobOrder
+app.get('/api/debug-sql', async (req, res) => {
+  const sql = (req.query.q || '').trim();
+  if (!sql || !/^select\b/i.test(sql)) return res.status(400).json({ error: 'Only SELECT queries allowed' });
+  try {
+    const rows = await cdataQuery(sql);
+    res.json({ sql, rows, count: rows.length, cols: rows.length ? Object.keys(rows[0]) : [] });
+  } catch (e) {
+    res.json({ sql, error: e.message });
+  }
+});
+
 // Health check
 app.get('/api/status', async (req, res) => {
   const needed  = ['CDATA_USER', 'CDATA_PAT'];
@@ -319,15 +324,23 @@ app.get('/api/company/:id/contacts', async (req, res) => {
   const id = parseInt(req.params.id);
   if (!id) return res.status(400).json({ error: 'Invalid ID' });
   try {
-    const rows = await cdataQuery(
-      `SELECT TOP 50 ID, FirstName, LastName, Title, EmailAddress, Phone
+    // ClientContact FK to ClientCorporation is 'Companyid' in CData's Bullhorn connector.
+    // Email field is 'Email1', direct phone is 'DirectPhone'.
+    let rows = await cdataQuery(
+      `SELECT TOP 50 ID, FirstName, LastName, Title,
+              Email1 AS EmailAddress, DirectPhone AS Phone, MobilePhone
        FROM ${T('ClientContact')}
-       WHERE ClientCorporationid = ${id} AND Status = 'Active'`
-    ).catch(() => cdataQuery(
-      `SELECT TOP 50 ID, FirstName, LastName, Title, EmailAddress, Phone
-       FROM ${T('ClientContact')}
-       WHERE ClientCorporationid = ${id}`
-    ));
+       WHERE Companyid = ${id} AND Status = 'Active'`
+    );
+    // .catch() only fires on errors, not empty results — check length explicitly
+    if (!rows.length) {
+      rows = await cdataQuery(
+        `SELECT TOP 50 ID, FirstName, LastName, Title,
+                Email1 AS EmailAddress, DirectPhone AS Phone, MobilePhone
+         FROM ${T('ClientContact')}
+         WHERE Companyid = ${id}`
+      );
+    }
 
     const cats  = { Recruiting: [], Sales: [], HR: [], Ops: [], Other: [] };
     const rules = [
@@ -344,7 +357,7 @@ app.get('/api/company/:id/contacts', async (req, res) => {
         name:     `${c.FirstName || ''} ${c.LastName || ''}`.trim() || 'Unknown',
         title:    c.Title || 'Contact',
         email:    c.EmailAddress || '',
-        phone:    c.Phone || '',
+        phone:    c.Phone || c.MobilePhone || '',
         initials: `${(c.FirstName || '?')[0]}${(c.LastName || '?')[0]}`.toUpperCase()
       });
     });
@@ -369,10 +382,9 @@ app.get('/api/company/:id/jobs', async (req, res) => {
     daysPosted: j.DateAdded ? Math.floor((Date.now() - new Date(j.DateAdded).getTime()) / 86400000) : null
   });
 
-  // Use auto-detected field, fall back to alternative if needed
-  const jf = FIELD.jobOrderCorpField || 'ClientCorporationid';
+  const jf = FIELD.jobOrderCorpField || 'Companyid';
   let rows = null, fieldErr = null;
-  for (const field of [jf, jf === 'ClientCorporationid' ? 'ClientCorporation' : 'ClientCorporationid']) {
+  for (const field of [jf, jf === 'Companyid' ? 'ClientCorporationid' : 'Companyid']) {
     try {
       rows = await cdataQuery(
         `SELECT TOP 20 ID, Title, DateAdded, Status, EmploymentType, NumOpenings
@@ -399,7 +411,7 @@ app.get('/api/job-counts', async (req, res) => {
   const oneYearAgo = new Date(Date.now() - 365 * 86400000).toISOString().slice(0, 10);
   const idList     = ids.join(',');
 
-  const f = FIELD.jobOrderCorpField || 'ClientCorporationid';
+  const f = FIELD.jobOrderCorpField || 'Companyid';
   const toCounts = rows => {
     const m = {};
     rows.forEach(r => { if (r.ClientCorporationid) m[r.ClientCorporationid] = (m[r.ClientCorporationid] || 0) + 1; });
