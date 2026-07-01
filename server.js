@@ -7,105 +7,49 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Allow Bullhorn to embed this app in an iframe
+// Allow Bullhorn to embed this tool in an iframe
 app.use((req, res, next) => {
   res.setHeader('Content-Security-Policy', "frame-ancestors *");
   res.removeHeader('X-Frame-Options');
   next();
 });
 
-// Simple in-memory cache for external job results (1-hour TTL)
 const externalJobCache = new Map();
 
-// ─── Bullhorn Session ─────────────────────────────────────────────────────────
-let bh = { token: null, url: null, exp: 0 };
+// ─── CData Connect Cloud client ───────────────────────────────────────────────
+function cdataHeaders() {
+  const cred = Buffer.from(`${process.env.CDATA_USER}:${process.env.CDATA_PAT}`).toString('base64');
+  return { Authorization: `Basic ${cred}`, Accept: 'application/json' };
+}
 
-async function getBH() {
-  if (bh.token && Date.now() < bh.exp) return bh;
-
-  const { BULLHORN_CLIENT_ID: cid, BULLHORN_CLIENT_SECRET: cs,
-          BULLHORN_USERNAME: user, BULLHORN_PASSWORD: pass } = process.env;
-
-  if (!cid || !cs || !user || !pass) {
-    throw new Error('Missing Bullhorn credentials in .env file');
-  }
-
-  // Step 1: Get auth code (Bullhorn responds with a 302 redirect containing ?code=)
-  let code;
+async function cdataGet(table, odata = {}) {
+  const base = (process.env.CDATA_URL || '').replace(/\/$/, '');
+  const qs   = Object.entries(odata)
+    .filter(([, v]) => v != null)
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+    .join('&');
+  const url = `${base}/${table}${qs ? '?' + qs : ''}`;
   try {
-    await axios.get('https://auth.bullhornstaffing.com/oauth/authorize', {
-      params: { client_id: cid, response_type: 'code', action: 'Login', username: user, password: pass },
-      maxRedirects: 0
-    });
-    throw new Error('Expected 302 redirect from Bullhorn auth but got 200');
+    const r = await axios.get(url, { headers: cdataHeaders() });
+    return r.data.value || [];
   } catch (e) {
-    if (e.response?.status === 302) {
-      const loc = e.response.headers.location || '';
-      const m = loc.match(/[?&]code=([^&]+)/);
-      if (!m) throw new Error('No auth code in Bullhorn redirect. Check your client_id and credentials.');
-      code = decodeURIComponent(m[1]);
-    } else {
-      throw new Error('Bullhorn auth step 1 failed: ' + e.message);
-    }
-  }
-
-  // Step 2: Exchange code for access token
-  const tokenRes = await axios.post('https://auth.bullhornstaffing.com/oauth/token', null, {
-    params: { grant_type: 'authorization_code', code, client_id: cid, client_secret: cs }
-  });
-
-  // Step 3: Open REST session
-  const loginRes = await axios.get('https://rest.bullhornstaffing.com/rest-services/login', {
-    params: { version: '*', access_token: tokenRes.data.access_token }
-  });
-
-  bh = {
-    token: loginRes.data.BhRestToken,
-    url:   loginRes.data.restUrl,
-    exp:   Date.now() + 9 * 60 * 1000
-  };
-  console.log('✓ Bullhorn session opened:', bh.url);
-  return bh;
-}
-
-async function bhQuery(entity, params, retry = true) {
-  const { token, url } = await getBH();
-  try {
-    const r = await axios.get(`${url}query/${entity}`, {
-      params: { ...params, BhRestToken: token }
-    });
-    return r.data;
-  } catch (e) {
-    if (e.response?.status === 401 && retry) {
-      bh.token = null;
-      return bhQuery(entity, params, false);
-    }
-    const msg = e.response?.data?.errorMessage || e.message;
-    throw new Error(`Bullhorn query/${entity} failed: ${msg}`);
+    const msg = e.response?.data?.error?.message || e.message;
+    throw new Error(`CData [${table}]: ${msg}`);
   }
 }
 
-async function bhMeta(entity) {
-  const { token, url } = await getBH();
-  const r = await axios.get(`${url}meta/${entity}`, {
-    params: { fields: '*', BhRestToken: token }
-  });
-  return r.data;
-}
+// ─── Routes ───────────────────────────────────────────────────────────────────
 
-// ─── API Routes ───────────────────────────────────────────────────────────────
-
-// Health / credentials check
+// Health check — verifies CData credentials and connection
 app.get('/api/status', async (req, res) => {
-  const needed = ['BULLHORN_CLIENT_ID','BULLHORN_CLIENT_SECRET','BULLHORN_USERNAME','BULLHORN_PASSWORD'];
+  const needed  = ['CDATA_URL', 'CDATA_USER', 'CDATA_PAT'];
   const missing = needed.filter(k => !process.env[k]);
   if (missing.length) return res.json({ ok: false, missing });
   try {
-    const { url } = await getBH();
+    await cdataGet('ClientCorporation', { '$top': 1, '$select': 'id' });
     res.json({
-      ok: true,
-      instance: url,
-      aiEnabled: !!process.env.ANTHROPIC_API_KEY,
+      ok:            true,
+      aiEnabled:     !!process.env.ANTHROPIC_API_KEY,
       adzunaEnabled: !!(process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY)
     });
   } catch (e) {
@@ -113,13 +57,18 @@ app.get('/api/status', async (req, res) => {
   }
 });
 
-// Discover ClientCorporation fields (helps user find the score field name)
+// Field discovery — reads a sample row to show available fields in Settings panel
 app.get('/api/meta/company-fields', async (req, res) => {
   try {
-    const meta = await bhMeta('ClientCorporation');
-    const fields = (meta.fields || [])
-      .filter(f => ['Integer','Double','BigDecimal','String'].includes(f.dataType) && !f.name.startsWith('_'))
-      .map(f => ({ name: f.name, label: f.label || f.name, type: f.dataType }));
+    const sample = await cdataGet('ClientCorporation', { '$top': 1 });
+    if (!sample.length) return res.json([]);
+    const fields = Object.keys(sample[0])
+      .filter(k => !k.startsWith('@'))
+      .map(k => ({
+        name:  k,
+        label: k,
+        type:  typeof sample[0][k] === 'number' ? 'Integer' : 'String'
+      }));
     res.json(fields);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -131,68 +80,71 @@ app.get('/api/stale-companies', async (req, res) => {
   try {
     const days       = parseInt(req.query.days) || 90;
     const scoreField = req.query.scoreField || 'customInt2';
-    const cutoff     = Date.now() - days * 86400000;
+    const cutoff     = new Date(Date.now() - days * 86400000).toISOString();
 
-    // Run three queries in parallel to find recently active company IDs
-    const [notesRes, jobsRes, placementsRes] = await Promise.all([
-      bhQuery('Note', {
-        where: `dateAdded>${cutoff} AND clientCorporation.id IS NOT NULL`,
-        fields: 'clientCorporation(id)', count: 500
+    // Find recently active company IDs across notes, jobs, and placements
+    const [recentNotes, recentJobs, recentPlacements] = await Promise.all([
+      cdataGet('Note', {
+        '$filter': `dateAdded gt ${cutoff} and ClientCorporationID ne null`,
+        '$select': 'ClientCorporationID',
+        '$top':    500
       }),
-      bhQuery('JobOrder', {
-        where: `dateAdded>${cutoff} AND isDeleted=false`,
-        fields: 'clientCorporation(id)', count: 500
+      cdataGet('JobOrder', {
+        '$filter': `dateAdded gt ${cutoff} and isDeleted eq false`,
+        '$select': 'ClientCorporationID',
+        '$top':    500
       }),
-      bhQuery('Placement', {
-        where: `dateBegin>${cutoff}`,
-        fields: 'jobOrder(clientCorporation(id))', count: 500
-      }).catch(() => ({ data: [] })) // placements may not be accessible — degrade gracefully
+      cdataGet('Placement', {
+        '$filter': `dateBegin gt ${cutoff}`,
+        '$select': 'ClientCorporationID',
+        '$top':    500
+      }).catch(() => [])
     ]);
 
     const activeIds = new Set([
-      ...(notesRes.data   || []).filter(n => n.clientCorporation?.id).map(n => n.clientCorporation.id),
-      ...(jobsRes.data    || []).filter(j => j.clientCorporation?.id).map(j => j.clientCorporation.id),
-      ...(placementsRes.data || []).filter(p => p.jobOrder?.clientCorporation?.id).map(p => p.jobOrder.clientCorporation.id)
+      ...recentNotes.filter(n => n.ClientCorporationID).map(n => n.ClientCorporationID),
+      ...recentJobs.filter(j => j.ClientCorporationID).map(j => j.ClientCorporationID),
+      ...recentPlacements.filter(p => p.ClientCorporationID).map(p => p.ClientCorporationID)
     ]);
 
-    // Fetch all active companies (up to 200)
-    const allRes = await bhQuery('ClientCorporation', {
-      where: "isDeleted=false AND status='Active'",
-      fields: `id,name,industryList,companyURL,${scoreField},dateLastModified,owner(id,firstName,lastName)`,
-      count: 200,
-      orderBy: 'name'
+    // Get all active companies
+    const allCompanies = await cdataGet('ClientCorporation', {
+      '$filter':  "isDeleted eq false and status eq 'Active'",
+      '$select':  `id,name,industryList,companyURL,${scoreField},dateLastModified,OwnerFirstName,OwnerLastName`,
+      '$top':     500,
+      '$orderby': 'name'
     });
 
-    const staleCompanies = (allRes.data || []).filter(c => !activeIds.has(c.id));
+    const staleCompanies = allCompanies.filter(c => !activeIds.has(c.id));
 
-    // Batch-fetch last note date per stale company (for accurate "days stale")
+    // Batch-fetch last note date per stale company for accurate "days stale"
     let lastNoteMap = {};
     if (staleCompanies.length > 0) {
-      const ids = staleCompanies.slice(0, 100).map(c => c.id).join(',');
-      const noteRes = await bhQuery('Note', {
-        where: `clientCorporation.id IN (${ids})`,
-        fields: 'clientCorporation(id),dateAdded',
-        orderBy: '-dateAdded',
-        count: 500
-      }).catch(() => ({ data: [] }));
+      const ids      = staleCompanies.slice(0, 100).map(c => c.id).join(',');
+      const lastNotes = await cdataGet('Note', {
+        '$filter':  `ClientCorporationID in (${ids})`,
+        '$select':  'ClientCorporationID,dateAdded',
+        '$orderby': 'dateAdded desc',
+        '$top':     500
+      }).catch(() => []);
 
-      (noteRes.data || []).forEach(n => {
-        const cid = n.clientCorporation?.id;
-        if (cid && !lastNoteMap[cid]) lastNoteMap[cid] = n.dateAdded;
+      lastNotes.forEach(n => {
+        if (n.ClientCorporationID && !lastNoteMap[n.ClientCorporationID]) {
+          lastNoteMap[n.ClientCorporationID] = n.dateAdded;
+        }
       });
     }
 
     const result = staleCompanies.map(c => {
       const lastActivity = lastNoteMap[c.id] || c.dateLastModified;
-      const score = c[scoreField];
       return {
-        id:           c.id,
-        name:         c.name,
-        industry:     (c.industryList || '').split(';').filter(Boolean).join(', ') || 'N/A',
-        score:        score != null ? score : null,
-        daysStale:    lastActivity ? Math.floor((Date.now() - lastActivity) / 86400000) : null,
-        bdOwner:         c.owner ? `${c.owner.firstName || ''} ${c.owner.lastName || ''}`.trim() || 'Unassigned' : 'Unassigned',
-        bdOwnerInitials: c.owner ? `${(c.owner.firstName||'?')[0]}${(c.owner.lastName||'?')[0]}`.toUpperCase() : '?',
+        id:              c.id,
+        name:            c.name,
+        industry:        (c.industryList || '').split(';').filter(Boolean).join(', ') || 'N/A',
+        score:           c[scoreField] ?? null,
+        daysStale:       lastActivity ? Math.floor((Date.now() - new Date(lastActivity).getTime()) / 86400000) : null,
+        bdOwner:         `${c.OwnerFirstName || ''} ${c.OwnerLastName || ''}`.trim() || 'Unassigned',
+        bdOwnerInitials: c.OwnerFirstName ? `${c.OwnerFirstName[0]}${(c.OwnerLastName || '?')[0]}`.toUpperCase() : '?',
         website:         c.companyURL || null
       };
     }).sort((a, b) => {
@@ -203,21 +155,21 @@ app.get('/api/stale-companies', async (req, res) => {
 
     res.json({ data: result, total: result.length, scannedActive: activeIds.size });
   } catch (e) {
-    console.error('stale-companies error:', e.message);
+    console.error('stale-companies:', e.message);
     res.status(500).json({ error: e.message });
   }
 });
 
-// Contacts for a company, sorted into 4 role buckets
+// Contacts for a company, categorized by role
 app.get('/api/company/:id/contacts', async (req, res) => {
   try {
-    const r = await bhQuery('ClientContact', {
-      where: `clientCorporation.id=${req.params.id} AND isDeleted=false AND status='Active'`,
-      fields: 'id,firstName,lastName,title,occupation,email,phone',
-      count: 50
+    const rows = await cdataGet('ClientContact', {
+      '$filter': `ClientCorporationID eq ${req.params.id} and isDeleted eq false and status eq 'Active'`,
+      '$select': 'id,firstName,lastName,title,occupation,email,phone',
+      '$top':    50
     });
 
-    const cats = { Recruiting: [], Sales: [], HR: [], Ops: [], Other: [] };
+    const cats  = { Recruiting: [], Sales: [], HR: [], Ops: [], Other: [] };
     const rules = [
       ['Recruiting', /talent|recruit|acquisition|sourcing/i],
       ['Sales',      /sales|business dev|\bbd\b|account exec/i],
@@ -225,17 +177,16 @@ app.get('/api/company/:id/contacts', async (req, res) => {
       ['Ops',        /operat|\bcoo\b|chief operat|logistics/i]
     ];
 
-    (r.data || []).forEach(c => {
-      const text  = `${c.title || ''} ${c.occupation || ''}`;
-      const match = rules.find(([, rx]) => rx.test(text));
-      const bucket = match ? match[0] : 'Other';
-      cats[bucket].push({
-        id:    c.id,
-        name:  `${c.firstName || ''} ${c.lastName || ''}`.trim() || 'Unknown',
-        title: c.title || c.occupation || 'Contact',
-        email: c.email || '',
-        phone: c.phone || '',
-        initials: `${(c.firstName||'?')[0]}${(c.lastName||'?')[0]}`.toUpperCase()
+    rows.forEach(c => {
+      const text   = `${c.title || ''} ${c.occupation || ''}`;
+      const match  = rules.find(([, rx]) => rx.test(text));
+      cats[match ? match[0] : 'Other'].push({
+        id:       c.id,
+        name:     `${c.firstName || ''} ${c.lastName || ''}`.trim() || 'Unknown',
+        title:    c.title || c.occupation || 'Contact',
+        email:    c.email || '',
+        phone:    c.phone || '',
+        initials: `${(c.firstName || '?')[0]}${(c.lastName || '?')[0]}`.toUpperCase()
       });
     });
 
@@ -245,22 +196,22 @@ app.get('/api/company/:id/contacts', async (req, res) => {
   }
 });
 
-// Open job orders for a company
+// Open job orders for a company (from Bullhorn via CData)
 app.get('/api/company/:id/jobs', async (req, res) => {
   try {
-    const r = await bhQuery('JobOrder', {
-      where: `clientCorporation.id=${req.params.id} AND isDeleted=false AND status='Accepting Candidates'`,
-      fields: 'id,title,dateAdded,employmentType,numOpenings',
-      count: 20,
-      orderBy: '-dateAdded'
+    const rows = await cdataGet('JobOrder', {
+      '$filter':  `ClientCorporationID eq ${req.params.id} and isDeleted eq false and status eq 'Accepting Candidates'`,
+      '$select':  'id,title,dateAdded,employmentType,numOpenings',
+      '$top':     20,
+      '$orderby': 'dateAdded desc'
     });
     res.json({
-      data: (r.data || []).map(j => ({
+      data: rows.map(j => ({
         id:         j.id,
         title:      j.title,
         type:       j.employmentType || 'Full-time',
         openings:   j.numOpenings || 1,
-        daysPosted: j.dateAdded ? Math.floor((Date.now() - j.dateAdded) / 86400000) : null
+        daysPosted: j.dateAdded ? Math.floor((Date.now() - new Date(j.dateAdded).getTime()) / 86400000) : null
       }))
     });
   } catch (e) {
@@ -268,20 +219,20 @@ app.get('/api/company/:id/jobs', async (req, res) => {
   }
 });
 
-// AI-generated email draft (Claude if key present, else template)
+// AI email draft (Claude if key present, templates as fallback)
 app.post('/api/draft-email', async (req, res) => {
   const { companyName, contactName, contactRole, jobTitle } = req.body;
 
   if (process.env.ANTHROPIC_API_KEY) {
     try {
       const Anthropic = require('@anthropic-ai/sdk');
-      const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-      const msg = await client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
+      const client    = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+      const msg       = await client.messages.create({
+        model:      'claude-haiku-4-5-20251001',
         max_tokens: 120,
-        messages: [{
-          role: 'user',
-          content: `You are a recruiter at a staffing agency. Write exactly ONE direct, warm re-engagement sentence to ${contactName} (${contactRole} at ${companyName}).${jobTitle ? ` They have an open "${jobTitle}" role.` : ''} Under 30 words. No greeting, no subject, just the sentence body. Do not start with "I".`
+        messages:   [{
+          role:    'user',
+          content: `You are a recruiter at a staffing agency. Write exactly ONE direct, warm re-engagement sentence to ${contactName} (${contactRole} at ${companyName}).${jobTitle ? ` They have an open "${jobTitle}" role.` : ''} Under 30 words. No greeting, no subject line, just the sentence. Do not start with "I".`
         }]
       });
       return res.json({ draft: msg.content[0].text.trim(), ai: true });
@@ -290,7 +241,6 @@ app.post('/api/draft-email', async (req, res) => {
     }
   }
 
-  // Template fallback
   const templates = {
     Recruiting: `Given your ${jobTitle ? `open ${jobTitle} role` : 'current openings'} at ${companyName}, I wanted to reconnect — we have strong, pre-vetted candidates ready for consideration.`,
     Sales:      `I noticed ${companyName} has active hiring needs and wanted to reconnect to explore how our staffing solutions can support your growth this quarter.`,
@@ -300,45 +250,32 @@ app.post('/api/draft-email', async (req, res) => {
   res.json({ draft: templates[contactRole] || templates.Sales, ai: false });
 });
 
-// External job postings for a company (via Adzuna — searches Indeed, LinkedIn, etc.)
+// External job postings via Adzuna (searches Indeed, ZipRecruiter, etc.)
 app.get('/api/company/:id/external-jobs', async (req, res) => {
   const cacheKey = `ext-${req.params.id}`;
   const cached   = externalJobCache.get(cacheKey);
-  if (cached && Date.now() - cached.ts < 60 * 60 * 1000) {
-    return res.json(cached.data);
-  }
+  if (cached && Date.now() - cached.ts < 60 * 60 * 1000) return res.json(cached.data);
 
-  // Get company name + website from Bullhorn
   let companyName = req.query.name || '';
   if (!companyName) {
     try {
-      const { token, url } = await getBH();
-      const r = await axios.get(`${url}entity/ClientCorporation/${req.params.id}`, {
-        params: { fields: 'id,name,companyURL', BhRestToken: token }
-      });
-      companyName = r.data?.data?.name || '';
+      const rows  = await cdataGet('ClientCorporation', { '$filter': `id eq ${req.params.id}`, '$select': 'id,name', '$top': 1 });
+      companyName = rows[0]?.name || '';
     } catch (e) {
-      return res.status(500).json({ error: e.message, data: [] });
+      return res.json({ data: [], companyName: '', error: e.message });
     }
   }
 
   if (!process.env.ADZUNA_APP_ID || !process.env.ADZUNA_APP_KEY) {
-    return res.json({ data: [], companyName, message: 'Add ADZUNA_APP_ID and ADZUNA_APP_KEY to .env to enable job board search.' });
+    return res.json({ data: [], companyName, message: 'Add ADZUNA credentials to enable job board search.' });
   }
 
   try {
     const country = process.env.ADZUNA_COUNTRY || 'us';
-    const r = await axios.get(`https://api.adzuna.com/v1/api/jobs/${country}/search/1`, {
-      params: {
-        app_id:          process.env.ADZUNA_APP_ID,
-        app_key:         process.env.ADZUNA_APP_KEY,
-        company:         companyName,
-        results_per_page: 10,
-        sort_by:         'date'
-      }
+    const r       = await axios.get(`https://api.adzuna.com/v1/api/jobs/${country}/search/1`, {
+      params: { app_id: process.env.ADZUNA_APP_ID, app_key: process.env.ADZUNA_APP_KEY, company: companyName, results_per_page: 10, sort_by: 'date' }
     });
-
-    const jobs = (r.data.results || []).map(j => ({
+    const jobs    = (r.data.results || []).map(j => ({
       id:         j.id,
       title:      j.title,
       location:   j.location?.display_name || '',
@@ -347,23 +284,14 @@ app.get('/api/company/:id/external-jobs', async (req, res) => {
       url:        j.redirect_url,
       source:     'Job Boards'
     }));
-
     const payload = { data: jobs, companyName, total: r.data.count || jobs.length };
     externalJobCache.set(cacheKey, { ts: Date.now(), data: payload });
     res.json(payload);
   } catch (e) {
-    console.error('Adzuna error:', e.response?.data || e.message);
     res.json({ data: [], companyName, error: 'Job board search unavailable' });
   }
 });
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`
-╔════════════════════════════════════════════╗
-║   CGR Re-Engagement Tool                   ║
-║   http://localhost:${PORT}                    ║
-╚════════════════════════════════════════════╝
-  `);
-});
+app.listen(PORT, () => console.log(`\n✅ CGR Re-Engagement Tool → http://localhost:${PORT}\n`));
