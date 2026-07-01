@@ -1,7 +1,8 @@
 require('dotenv').config();
-const express = require('express');
-const axios   = require('axios');
-const path    = require('path');
+const express        = require('express');
+const axios          = require('axios');
+const path           = require('path');
+const { spawn }      = require('child_process');
 
 const app = express();
 app.use(express.json());
@@ -50,7 +51,7 @@ app.get('/api/status', async (req, res) => {
     res.json({
       ok:            true,
       aiEnabled:     !!process.env.ANTHROPIC_API_KEY,
-      adzunaEnabled: !!(process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY)
+      adzunaEnabled: true  // JobSpy: no API key required
     });
   } catch (e) {
     res.json({ ok: false, error: e.message });
@@ -250,7 +251,32 @@ app.post('/api/draft-email', async (req, res) => {
   res.json({ draft: templates[contactRole] || templates.Sales, ai: false });
 });
 
-// External job postings via Adzuna (searches Indeed, ZipRecruiter, etc.)
+// Run JobSpy Python script as subprocess, returns parsed JSON
+function runJobSpy(companyName) {
+  return new Promise(resolve => {
+    const script = path.join(__dirname, 'scrape_jobs.py');
+    const py     = spawn('python3', [script, companyName]);
+    let out = '', err = '';
+
+    const timer = setTimeout(() => {
+      py.kill();
+      resolve({ data: [], total: 0, error: 'Job search timed out after 55s' });
+    }, 55000);
+
+    py.stdout.on('data', d => { out += d; });
+    py.stderr.on('data', d => { err += d; });
+    py.on('close', () => {
+      clearTimeout(timer);
+      try {
+        resolve(JSON.parse(out));
+      } catch {
+        resolve({ data: [], total: 0, error: err.slice(0, 200) || 'No output from job scraper' });
+      }
+    });
+  });
+}
+
+// External job postings via JobSpy (LinkedIn, Indeed, Glassdoor, ZipRecruiter)
 app.get('/api/company/:id/external-jobs', async (req, res) => {
   const cacheKey = `ext-${req.params.id}`;
   const cached   = externalJobCache.get(cacheKey);
@@ -266,30 +292,16 @@ app.get('/api/company/:id/external-jobs', async (req, res) => {
     }
   }
 
-  if (!process.env.ADZUNA_APP_ID || !process.env.ADZUNA_APP_KEY) {
-    return res.json({ data: [], companyName, message: 'Add ADZUNA credentials to enable job board search.' });
+  if (!companyName) return res.json({ data: [], companyName: '' });
+
+  const result  = await runJobSpy(companyName);
+  const payload = { ...result, companyName };
+
+  if (!result.error && result.data.length >= 0) {
+    externalJobCache.set(cacheKey, { ts: Date.now(), data: payload });
   }
 
-  try {
-    const country = process.env.ADZUNA_COUNTRY || 'us';
-    const r       = await axios.get(`https://api.adzuna.com/v1/api/jobs/${country}/search/1`, {
-      params: { app_id: process.env.ADZUNA_APP_ID, app_key: process.env.ADZUNA_APP_KEY, company: companyName, results_per_page: 10, sort_by: 'date' }
-    });
-    const jobs    = (r.data.results || []).map(j => ({
-      id:         j.id,
-      title:      j.title,
-      location:   j.location?.display_name || '',
-      type:       j.contract_time === 'part_time' ? 'Part-time' : 'Full-time',
-      daysPosted: j.created ? Math.floor((Date.now() - new Date(j.created).getTime()) / 86400000) : null,
-      url:        j.redirect_url,
-      source:     'Job Boards'
-    }));
-    const payload = { data: jobs, companyName, total: r.data.count || jobs.length };
-    externalJobCache.set(cacheKey, { ts: Date.now(), data: payload });
-    res.json(payload);
-  } catch (e) {
-    res.json({ data: [], companyName, error: 'Job board search unavailable' });
-  }
+  res.json(payload);
 });
 
 // ─── Start ────────────────────────────────────────────────────────────────────
