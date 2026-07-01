@@ -23,11 +23,12 @@ const externalJobCache = new Map();
 
 const CDATA_API        = 'https://cloud.cdata.com/api/query';
 const CDATA_CONNECTION = 'BullhornCRM1';
+const CDATA_CATALOG    = 'BullhornCRM1';
 const CDATA_SCHEMA     = 'BullhornCRM';
 
 function odataToSQL(table, p = {}) {
   const select = p['$select'] || '*';
-  let sql = `SELECT ${select} FROM ${CDATA_SCHEMA}.${table}`;
+  let sql = `SELECT ${select} FROM ${CDATA_CATALOG}.${CDATA_SCHEMA}.${table}`;
 
   if (p['$filter']) {
     let w = p['$filter']
@@ -78,7 +79,7 @@ async function cdataGet(table, params = {}) {
 // Temporary debug endpoint — shows raw CData response to diagnose field names
 app.get('/api/debug', async (req, res) => {
   const auth  = Buffer.from(`${process.env.CDATA_USER}:${process.env.CDATA_PAT}`).toString('base64');
-  const query = req.query.q || 'SELECT TOP 3 * FROM BullhornCRM.ClientCorporation';
+  const query = req.query.q || 'SELECT TOP 3 * FROM BullhornCRM1.BullhornCRM.ClientCorporation';
   try {
     const r = await axios.post(
       'https://cloud.cdata.com/api/query',
