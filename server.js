@@ -18,8 +18,6 @@ app.use((req, res, next) => {
 const externalJobCache = new Map();
 
 // ─── CData Connect AI — SQL Query API ─────────────────────────────────────────
-// Response: results[0].schema (column defs) + results[0].rows (arrays of values)
-
 const CDATA_API        = 'https://cloud.cdata.com/api/query';
 const CDATA_CONNECTION = 'BullhornCRM1';
 const T                = (name) => `BullhornCRM1.BullhornCRM.${name}`;
@@ -44,6 +42,74 @@ async function cdataQuery(sql) {
     const msg = e.response?.data?.error?.message || e.response?.data?.message || e.message;
     throw new Error(`CData: ${msg}`);
   }
+}
+
+// ─── Auto-detect FK field names ───────────────────────────────────────────────
+// CData may expose Placement.clientCorporation as "ClientCorporationid",
+// "ClientCorporation", or require a JOIN through JobOrder.
+// We probe once at startup and cache the working approach.
+
+const FIELD = {
+  placementCorpField: null,   // field name OR 'JOIN' if direct field not found
+  jobOrderCorpField:  null,
+};
+
+async function detectFields() {
+  // JobOrder → ClientCorporation field
+  for (const f of ['ClientCorporationid', 'ClientCorporation', 'clientCorporationId']) {
+    try {
+      await cdataQuery(`SELECT TOP 1 ${f} FROM ${T('JobOrder')}`);
+      FIELD.jobOrderCorpField = f;
+      console.log(`✓ JobOrder.${f} confirmed`);
+      break;
+    } catch (_) {}
+  }
+  if (!FIELD.jobOrderCorpField) {
+    FIELD.jobOrderCorpField = 'ClientCorporationid';
+    console.warn('⚠ Could not confirm JobOrder corp field — using ClientCorporationid as default');
+  }
+
+  // Placement → ClientCorporation field (may be direct or require join)
+  for (const f of ['ClientCorporationid', 'ClientCorporation', 'clientCorporationId']) {
+    try {
+      await cdataQuery(`SELECT TOP 1 ${f} FROM ${T('Placement')}`);
+      FIELD.placementCorpField = f;
+      console.log(`✓ Placement.${f} confirmed`);
+      break;
+    } catch (_) {}
+  }
+  if (!FIELD.placementCorpField) {
+    // No direct corp field in Placement — will use JOIN via JobOrder
+    FIELD.placementCorpField = 'JOIN';
+    console.log('✓ Placement uses JOIN via JobOrder for ClientCorporation');
+  }
+}
+
+// ─── Placement query helpers (uses detected field) ───────────────────────────
+function placementCorpSql_recent(cutoff) {
+  if (FIELD.placementCorpField === 'JOIN') {
+    return `SELECT j.${FIELD.jobOrderCorpField} AS ClientCorporationid
+            FROM ${T('Placement')} p
+            JOIN ${T('JobOrder')} j ON p.JobOrderid = j.ID
+            WHERE p.DateAdded > '${cutoff}' LIMIT 2000`;
+  }
+  return `SELECT ${FIELD.placementCorpField} AS ClientCorporationid
+          FROM ${T('Placement')}
+          WHERE ${FIELD.placementCorpField} IS NOT NULL AND DateAdded > '${cutoff}' LIMIT 2000`;
+}
+
+function placementCorpSql_last(idList) {
+  if (FIELD.placementCorpField === 'JOIN') {
+    return `SELECT j.${FIELD.jobOrderCorpField} AS ClientCorporationid, p.DateAdded
+            FROM ${T('Placement')} p
+            JOIN ${T('JobOrder')} j ON p.JobOrderid = j.ID
+            WHERE j.${FIELD.jobOrderCorpField} IN (${idList})
+            ORDER BY p.DateAdded DESC LIMIT 2000`;
+  }
+  return `SELECT ${FIELD.placementCorpField} AS ClientCorporationid, DateAdded
+          FROM ${T('Placement')}
+          WHERE ${FIELD.placementCorpField} IN (${idList})
+          ORDER BY DateAdded DESC LIMIT 2000`;
 }
 
 // ─── CSV Score Lookup ──────────────────────────────────────────────────────────
@@ -124,6 +190,23 @@ app.get('/api/debug', async (req, res) => {
   }
 });
 
+// Debug — show auto-detected field names + column lists for Placement & JobOrder
+app.get('/api/debug-fields', async (req, res) => {
+  const auth = Buffer.from(`${process.env.CDATA_USER}:${process.env.CDATA_PAT}`).toString('base64');
+  const result = { detected: FIELD };
+  for (const table of ['Placement', 'JobOrder', 'ClientContact', 'ClientCorporation']) {
+    try {
+      const r  = await axios.post(CDATA_API,
+        { query: `SELECT TOP 1 * FROM BullhornCRM1.BullhornCRM.${table}`, connection: CDATA_CONNECTION },
+        { headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/json', Accept: 'application/json' } });
+      result[table] = r.data.results?.[0]?.schema?.map(c => c.columnName) || [];
+    } catch (e) {
+      result[table] = { error: e.message };
+    }
+  }
+  res.json(result);
+});
+
 // Health check
 app.get('/api/status', async (req, res) => {
   const needed  = ['CDATA_USER', 'CDATA_PAT'];
@@ -157,12 +240,9 @@ app.get('/api/stale-companies', async (req, res) => {
     const days   = parseInt(req.query.days) || 90;
     const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
 
-    // Staleness is defined solely by Placement.DateAdded (when deal was placed)
-    const recentPlacements = await cdataQuery(
-      `SELECT ClientCorporationid FROM ${T('Placement')}
-       WHERE DateAdded > '${cutoff}' AND ClientCorporationid IS NOT NULL LIMIT 2000`
-    ).catch(() => []);
-
+    // Staleness = no Placement added in the last `days` days
+    // Uses auto-detected field (direct or via JOIN)
+    const recentPlacements = await cdataQuery(placementCorpSql_recent(cutoff)).catch(() => []);
     const activeIds = new Set(
       recentPlacements.map(p => p.ClientCorporationid).filter(id => id != null)
     );
@@ -183,15 +263,11 @@ app.get('/api/stale-companies', async (req, res) => {
       allCompanies.map(c => c.BusinessDevelopmentManager).filter(Boolean)
     )].sort();
 
-    // Last placement date per stale company (for display)
+    // Last placement date per stale company (for "X days w/o placement" display)
     let lastPlacedMap = {};
     if (staleCompanies.length > 0) {
-      const ids = staleCompanies.slice(0, 500).map(c => c.ID).join(',');
-      const last = await cdataQuery(
-        `SELECT ClientCorporationid, DateAdded FROM ${T('Placement')}
-         WHERE ClientCorporationid IN (${ids})
-         ORDER BY DateAdded DESC LIMIT 2000`
-      ).catch(() => []);
+      const idList = staleCompanies.slice(0, 500).map(c => c.ID).join(',');
+      const last   = await cdataQuery(placementCorpSql_last(idList)).catch(() => []);
       last.forEach(p => {
         const cid = p.ClientCorporationid;
         if (cid && !lastPlacedMap[cid]) lastPlacedMap[cid] = p.DateAdded;
@@ -293,10 +369,10 @@ app.get('/api/company/:id/jobs', async (req, res) => {
     daysPosted: j.DateAdded ? Math.floor((Date.now() - new Date(j.DateAdded).getTime()) / 86400000) : null
   });
 
-  // Try ClientCorporationid first, then ClientCorporation as fallback
-  // (field name varies across CData connection configs)
+  // Use auto-detected field, fall back to alternative if needed
+  const jf = FIELD.jobOrderCorpField || 'ClientCorporationid';
   let rows = null, fieldErr = null;
-  for (const field of ['ClientCorporationid', 'ClientCorporation']) {
+  for (const field of [jf, jf === 'ClientCorporationid' ? 'ClientCorporation' : 'ClientCorporationid']) {
     try {
       rows = await cdataQuery(
         `SELECT TOP 20 ID, Title, DateAdded, Status, EmploymentType, NumOpenings
@@ -323,35 +399,34 @@ app.get('/api/job-counts', async (req, res) => {
   const oneYearAgo = new Date(Date.now() - 365 * 86400000).toISOString().slice(0, 10);
   const idList     = ids.join(',');
 
+  const f = FIELD.jobOrderCorpField || 'ClientCorporationid';
   const toCounts = rows => {
     const m = {};
     rows.forEach(r => { if (r.ClientCorporationid) m[r.ClientCorporationid] = (m[r.ClientCorporationid] || 0) + 1; });
     return m;
   };
 
-  // Try GROUP BY COUNT first, fall back to row-level count
-  for (const field of ['ClientCorporationid', 'ClientCorporation']) {
+  try {
+    let counts = {};
     try {
-      let counts = {};
-      try {
-        const rows = await cdataQuery(
-          `SELECT ${field} AS ClientCorporationid, COUNT(*) AS cnt
-           FROM ${T('JobOrder')}
-           WHERE ${field} IN (${idList}) AND DateAdded > '${oneYearAgo}'
-           GROUP BY ${field}`
-        );
-        rows.forEach(r => { if (r.ClientCorporationid) counts[r.ClientCorporationid] = parseInt(r.cnt) || 0; });
-      } catch (_) {
-        const rows = await cdataQuery(
-          `SELECT ${field} AS ClientCorporationid FROM ${T('JobOrder')}
-           WHERE ${field} IN (${idList}) AND DateAdded > '${oneYearAgo}' LIMIT 5000`
-        );
-        counts = toCounts(rows);
-      }
-      return res.json(counts);
-    } catch (_) { continue; }
+      const rows = await cdataQuery(
+        `SELECT ${f} AS ClientCorporationid, COUNT(*) AS cnt
+         FROM ${T('JobOrder')}
+         WHERE ${f} IN (${idList}) AND DateAdded > '${oneYearAgo}'
+         GROUP BY ${f}`
+      );
+      rows.forEach(r => { if (r.ClientCorporationid) counts[r.ClientCorporationid] = parseInt(r.cnt) || 0; });
+    } catch (_) {
+      const rows = await cdataQuery(
+        `SELECT ${f} AS ClientCorporationid FROM ${T('JobOrder')}
+         WHERE ${f} IN (${idList}) AND DateAdded > '${oneYearAgo}' LIMIT 5000`
+      ).catch(() => []);
+      counts = toCounts(rows);
+    }
+    return res.json(counts);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
-  res.json({});
 });
 
 // AI email draft
@@ -432,4 +507,10 @@ app.get('/api/company/:id/external-jobs', async (req, res) => {
 
 // ─── Start ─────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`\n✅ CGR Re-Engagement Tool → http://localhost:${PORT}\n`));
+app.listen(PORT, () => {
+  console.log(`\n✅ CGR Re-Engagement Tool → http://localhost:${PORT}\n`);
+  // Probe CData field names in the background so queries use the correct columns
+  if (process.env.CDATA_USER && process.env.CDATA_PAT) {
+    detectFields().catch(e => console.error('Field detection error:', e.message));
+  }
+});
