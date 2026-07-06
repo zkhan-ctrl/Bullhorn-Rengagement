@@ -129,10 +129,23 @@ CAREER_PATHS = [
 
 # Links that mean "view the actual job listings" (from a landing/culture page)
 VIEW_JOBS_RE = re.compile(
-    r'\b(view|see|browse|find|explore)\s+(jobs?|positions?|openings?|opportunit\w*|roles?|vacancies)\b'
-    r'|\b(current|open|available)\s+(positions?|openings?|jobs?|roles?)\b'
-    r'|\bjob\s+(listings?|boards?|search|portal)\b'
-    r'|\bopen\s+roles?\b',
+    r'\b(view|see|browse|find|explore|search|check\s+out)\s+(jobs?|positions?|openings?|opportunit\w*|roles?|vacancies|listings?)\b'
+    r'|\b(current|open|available|active|all)\s+(positions?|openings?|jobs?|roles?|listings?|postings?)\b'
+    r'|\bjob\s+(listings?|boards?|search|portal|postings?|openings?|opportunit\w*)\b'
+    r'|\bjobs?\s+(in|for|at|available|near)\b'
+    r'|\bopen\s+roles?\b'
+    r'|\bcareer\s+(opportunities?|openings?|listings?|postings?)\b'
+    r'|\bwork\s+(with|for)\s+us\b'
+    r'|\bjoin\s+(our\s+)?(team|us|company)\b'
+    r'|\bapply\s+(now|today|here)\b'
+    r'|\bpositions?\s+(available|open|listed)\b',
+    re.I
+)
+
+# href patterns that indicate a page contains individual job listings
+JOB_LISTING_HREF_RE = re.compile(
+    r'/(jobs?|careers?/jobs?|positions?|openings?|apply|posting|requisition|vacancies)'
+    r'|[?&](jobId|req_id|category|job_id|positionId)=',
     re.I
 )
 
@@ -251,25 +264,43 @@ def find_careers_url(start_url):
 def drill_to_listings(careers_html, careers_url):
     """
     If the careers page is a culture/benefits landing page, follow
-    'View Job Opportunities' / 'Current Openings' type links to get
+    'View Job Opportunities' / 'Job Postings' / 'Current Openings' type links
     to the page that actually lists individual job titles.
+    Checks both link text AND href patterns; returns highest-scoring candidate.
     """
     if not careers_html or not HAS_BS4:
         return None, None
     soup = parse_html(careers_html)
+    candidates = []  # (score, full_url)
+    seen_urls = set()
+
     for a in soup.find_all('a', href=True):
         text = a.get_text(' ', strip=True)
         href = a['href'].strip()
-        if not VIEW_JOBS_RE.search(text):
-            continue
         if not href or href.startswith('#') or 'javascript' in href.lower():
             continue
         full_url = urljoin(careers_url, href)
-        if full_url == careers_url:
+        parsed = urlparse(full_url)
+        if full_url == careers_url or not parsed.netloc:
             continue
-        page_html, final_url = http_get(full_url, timeout=8)
+        if full_url in seen_urls:
+            continue
+        seen_urls.add(full_url)
+        score = 0
+        if VIEW_JOBS_RE.search(text):
+            score += 3
+        if JOB_LISTING_HREF_RE.search(href):
+            score += 2
+        if CAREER_KEYWORDS.search(href) and not CAREER_KEYWORDS.search(
+                urlparse(careers_url).path):
+            score += 1
+        if score > 0:
+            candidates.append((score, full_url))
+
+    for _score, url in sorted(candidates, key=lambda x: x[0], reverse=True):
+        page_html, final_url = http_get(url, timeout=8)
         if page_html and len(page_html) > 500:
-            return (final_url or full_url), page_html
+            return (final_url or url), page_html
     return None, None
 
 
@@ -592,10 +623,12 @@ def parse_html_jobs(html, page_url, company_name, source='Company Website'):
     if jobs:
         return jobs
 
-    # BeautifulSoup heading heuristic — strict rules to avoid false positives
+    # BeautifulSoup — two passes
     if HAS_BS4:
         soup = parse_html(html)
         seen = set()
+
+        # Pass 1: heading + li + anchor heuristic (strict — requires JOB_TITLE_WORDS)
         for tag in soup.find_all(['h1', 'h2', 'h3', 'h4', 'li', 'a']):
             text  = tag.get_text(' ', strip=True)
             words = text.split()
@@ -610,6 +643,28 @@ def parse_html_jobs(html, page_url, company_name, source='Company Website'):
                 link = urljoin(page_url, href) if href else page_url
                 jobs.append(make_job(title=text, company=company_name,
                                      url=link, source=source))
+
+        if jobs:
+            return jobs[:25]
+
+        # Pass 2: job-link extraction — catches pages like Bray where job titles
+        # are plain <a> links pointing at individual job-application/detail pages.
+        # We require the href to look like a job-posting URL but relax the title rules.
+        for a in soup.find_all('a', href=True):
+            href = a['href'].strip()
+            text = a.get_text(' ', strip=True)
+            words = text.split()
+            if not JOB_LISTING_HREF_RE.search(href):
+                continue
+            if not (2 <= len(words) <= 12 and 6 <= len(text) <= 100):
+                continue
+            if NON_JOB_TERMS.search(text):
+                continue
+            if text in seen:
+                continue
+            seen.add(text)
+            jobs.append(make_job(title=text, company=company_name,
+                                 url=urljoin(page_url, href), source=source))
         return jobs[:25]
 
     # Regex fallback (no BS4)

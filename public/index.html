@@ -435,10 +435,10 @@ function nameInitials(name) {
 
 function renderCard(c) {
   const sc = c.score;
-  const scoreClass = sc != null ? `score-${sc}` : 'score-null';
-  const pipClass   = sc != null ? `pip-${sc}`   : 'pip-null';
-  const scoreLabel = sc != null ? sc : '?';
-  const scoreBadgeLabel = sc != null ? `T${sc}` : '?';
+  const scoreClass = `score-${sc ?? 4}`;
+  const pipClass   = `pip-${sc ?? 4}`;
+  const scoreLabel = sc ?? 4;
+  const scoreBadgeLabel = `T${sc ?? 4}`;
 
 
   // Job count badge (loading state until loadJobCounts fires)
@@ -473,7 +473,7 @@ function renderCard(c) {
       <div class="card-info">
         <div class="card-company-name">${esc(c.name)}</div>
         <div class="card-meta-row">
-          <span class="score-pip ${pipClass}">${sc != null ? `Tier ${scoreLabel}` : 'Unscored'}</span>
+          <span class="score-pip ${pipClass}">Tier ${scoreLabel}</span>
           <span class="card-industry">${esc(c.industry)}</span>
           ${c.website ? `<a class="card-website" href="${esc(c.website)}" target="_blank" onclick="event.stopPropagation()">↗ Site</a>` : ''}
         </div>
