@@ -451,33 +451,38 @@ const PYTHON_BIN = fs.existsSync(path.join(__dirname, '.venv', 'bin', 'python3')
   ? path.join(__dirname, '.venv', 'bin', 'python3')
   : 'python3';
 
-function runJobSpy(companyName) {
+function runJobScraper(companyName, websiteUrl) {
   return new Promise(resolve => {
-    const py    = spawn(PYTHON_BIN, [path.join(__dirname, 'scrape_jobs.py'), companyName]);
+    const args = [path.join(__dirname, 'scrape_jobs.py'), companyName];
+    if (websiteUrl) args.push(websiteUrl);
+    const py  = spawn(PYTHON_BIN, args);
     let out = '', err = '';
-    const timer = setTimeout(() => { py.kill(); resolve({ data: [], total: 0, error: 'Timed out' }); }, 55000);
+    const timer = setTimeout(() => { py.kill(); resolve({ data: [], total: 0, error: 'Timed out' }); }, 90000);
     py.stdout.on('data', d => { out += d; });
     py.stderr.on('data', d => { err += d; });
     py.on('close', () => {
       clearTimeout(timer);
       try { resolve(JSON.parse(out)); }
-      catch { resolve({ data: [], total: 0, error: err.slice(0, 200) || 'No output' }); }
+      catch { resolve({ data: [], total: 0, error: err.slice(0, 300) || 'No output' }); }
     });
   });
 }
 
-// External job postings via JobSpy (LinkedIn, Indeed, Glassdoor, ZipRecruiter)
+// External job postings — Indeed RSS + Monster + career page + JobSpy
 app.get('/api/company/:id/external-jobs', async (req, res) => {
   const id       = parseInt(req.params.id);
   const cacheKey = `ext-${id}`;
   const cached   = externalJobCache.get(cacheKey);
   if (cached && Date.now() - cached.ts < 60 * 60 * 1000) return res.json(cached.data);
 
-  let companyName = req.query.name || '';
+  let companyName = req.query.name    || '';
+  let websiteUrl  = req.query.website || '';
+
   if (!companyName) {
     try {
-      const rows  = await cdataQuery(`SELECT TOP 1 ID, CompanyName FROM ${T('ClientCorporation')} WHERE ID = ${id}`);
-      companyName = rows[0]?.CompanyName || '';
+      const rows  = await cdataQuery(`SELECT TOP 1 ID, CompanyName, CompanyWebsite FROM ${T('ClientCorporation')} WHERE ID = ${id}`);
+      companyName = rows[0]?.CompanyName    || '';
+      websiteUrl  = websiteUrl || rows[0]?.CompanyWebsite || '';
     } catch (e) {
       return res.json({ data: [], companyName: '', error: e.message });
     }
@@ -485,7 +490,10 @@ app.get('/api/company/:id/external-jobs', async (req, res) => {
 
   if (!companyName) return res.json({ data: [], companyName: '' });
 
-  const result  = await runJobSpy(companyName);
+  // Ensure website has a protocol
+  if (websiteUrl && !/^https?:\/\//i.test(websiteUrl)) websiteUrl = `https://${websiteUrl}`;
+
+  const result  = await runJobScraper(companyName, websiteUrl);
   const payload = { ...result, companyName };
   if (!result.error) externalJobCache.set(cacheKey, { ts: Date.now(), data: payload });
   res.json(payload);

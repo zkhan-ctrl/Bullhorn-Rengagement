@@ -640,7 +640,7 @@ async function toggleCard(id) {
     fetch(`/api/company/${id}/contacts`).then(r => r.json()).catch(() => ({})),
     fetch(`/api/company/${id}/jobs`).then(r => r.json()).catch(() => ({ data: [] })),
     adzunaEnabled
-      ? fetch(`/api/company/${id}/external-jobs?name=${encodeURIComponent(company?.name || '')}`).then(r => r.json()).catch(() => ({ data: [] }))
+      ? fetch(`/api/company/${id}/external-jobs?name=${encodeURIComponent(company?.name || '')}&website=${encodeURIComponent(company?.website || '')}`).then(r => r.json()).catch(() => ({ data: [] }))
       : Promise.resolve({ data: [] })
   ]);
 
