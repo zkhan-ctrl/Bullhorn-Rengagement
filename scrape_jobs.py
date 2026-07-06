@@ -125,7 +125,20 @@ CAREER_PATHS = [
     '/careers', '/jobs', '/employment', '/join-us', '/work-with-us',
     '/opportunities', '/openings', '/about/careers', '/company/careers',
     '/careers/open-positions', '/careers/', '/join/', '/positions',
+    # Extended paths seen in the wild
+    '/career', '/available-opportunities', '/current-opportunities',
+    '/job-listings', '/job-openings', '/careers/jobs', '/en/careers',
+    '/about/jobs', '/work-here', '/now-hiring', '/talent',
+    '/jobs/search', '/open-positions', '/job-opportunities',
 ]
+
+# URL path segments that indicate a page is NOT a careers page (services, products, etc.)
+NON_CAREERS_PATH_RE = re.compile(
+    r'/(?:service|product|solution|case.stud|about|team|contact|'
+    r'news|blog|press|media|investor|partner|resource|privacy|'
+    r'terms|legal|support|faq)s?(?:/|$)',
+    re.I
+)
 
 # Links that mean "view the actual job listings" (from a landing/culture page)
 VIEW_JOBS_RE = re.compile(
@@ -250,9 +263,21 @@ def find_careers_url(start_url):
         if url in seen:
             continue
         seen.add(url)
+        path = urlparse(url).path
+        # Skip pages that are clearly not careers (services, products, about, etc.)
+        if NON_CAREERS_PATH_RE.search(path) and not CAREER_KEYWORDS.search(path):
+            continue
         page_html, page_final = http_get(url, timeout=8)
-        if page_html and len(page_html) > 500:
-            return (page_final or url), page_html
+        if not page_html or len(page_html) < 500:
+            continue
+        # Also skip if after redirects we ended up on a clearly non-careers page
+        final_path = urlparse(page_final or url).path
+        if NON_CAREERS_PATH_RE.search(final_path) and not CAREER_KEYWORDS.search(final_path):
+            continue
+        # Avoid soft-404s that silently redirect to the homepage
+        if final_path in ('/', ''):
+            continue
+        return (page_final or url), page_html
 
     return None, None
 
@@ -372,6 +397,24 @@ def detect_ats(url, html):
     m = re.search(r'recruiting\.paylocity\.com/recruiting/jobs/All/(\d+)/([^/\s"\']+)', combined)
     if m:
         return 'Paylocity', {'id': m.group(1), 'company': m.group(2)}
+
+    # ADP WorkforceNow (iframe-style portal)
+    m = re.search(r'workforcenow\.adp\.com/[^\s"\'<>]+', combined, re.I)
+    if m:
+        adp_url = m.group(0)
+        if not adp_url.startswith('http'):
+            adp_url = 'https://' + adp_url
+        return 'ADP', {'url': adp_url}
+
+    # ADP myjobs portal (e.g. myjobs.adp.com/citb)
+    m = re.search(r'myjobs\.adp\.com/([a-z0-9_-]+)', combined, re.I)
+    if m:
+        return 'ADP', {'url': f'https://myjobs.adp.com/{m.group(1)}'}
+
+    # ApplicantPro
+    m = re.search(r'([a-z0-9-]+)\.applicantpro\.com', combined, re.I)
+    if m:
+        return 'ApplicantPro', {'subdomain': m.group(1)}
 
     return None, None
 
@@ -548,6 +591,41 @@ def fetch_jazzhr(cfg, company_name):
     return parse_html_jobs(html, final_url or '', company_name, source='JazzHR')
 
 
+def fetch_icims(cfg, company_name):
+    host = cfg.get('host')
+    if not host:
+        return []
+    url = f"https://{host}/jobs/search"
+    html, final_url = http_get(url)
+    jobs = parse_html_jobs(html, final_url or url, company_name, source='iCIMS') if html else []
+    return jobs or scrape_with_playwright(url, company_name)
+
+
+def fetch_adp(cfg, company_name):
+    """ADP WorkforceNow and myjobs portals are JS-rendered — use Playwright."""
+    url = cfg.get('url', '')
+    if not url:
+        return []
+    return scrape_with_playwright(url, company_name)
+
+
+def fetch_applicantpro(cfg, company_name):
+    sub = cfg['subdomain']
+    url = f"https://{sub}.applicantpro.com/jobs/"
+    html, final_url = http_get(url)
+    if not html:
+        return []
+    return parse_html_jobs(html, final_url or url, company_name, source='ApplicantPro')
+
+
+def fetch_paylocity(cfg, company_name):
+    url = (f"https://recruiting.paylocity.com/recruiting/jobs/All"
+           f"/{cfg['id']}/{cfg['company']}")
+    html, final_url = http_get(url)
+    jobs = parse_html_jobs(html, final_url or url, company_name, source='Paylocity') if html else []
+    return jobs or scrape_with_playwright(url, company_name)
+
+
 ATS_HANDLERS = {
     'Greenhouse':      fetch_greenhouse,
     'Lever':           fetch_lever,
@@ -557,6 +635,10 @@ ATS_HANDLERS = {
     'Workday':         fetch_workday,
     'Oracle':          fetch_oracle,
     'JazzHR':          fetch_jazzhr,
+    'iCIMS':           fetch_icims,
+    'ADP':             fetch_adp,
+    'ApplicantPro':    fetch_applicantpro,
+    'Paylocity':       fetch_paylocity,
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
