@@ -322,10 +322,13 @@ app.get('/api/company/:id/contacts', async (req, res) => {
     ];
 
     rows.forEach(c => {
+      const name = `${c.FirstName || ''} ${c.LastName || ''}`.trim();
+      // Skip Bullhorn auto-generated placeholder contacts
+      if (!name || /default\s*contact/i.test(name)) return;
       const match = rules.find(([, rx]) => rx.test(c.Title || ''));
       cats[match ? match[0] : 'Other'].push({
         id:       c.ID,
-        name:     `${c.FirstName || ''} ${c.LastName || ''}`.trim() || 'Unknown',
+        name,
         title:    c.Title || 'Contact',
         email:    c.EmailAddress || '',
         phone:    c.Phone || c.MobilePhone || '',
