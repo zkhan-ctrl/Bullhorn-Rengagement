@@ -56,16 +56,16 @@ const FIELD = {
 
 // ─── Placement query helpers ─────────────────────────────────────────────────
 function placementCorpSql_recent(cutoff) {
-  return `SELECT ${FIELD.placementCorpField} AS ClientCorporationid
+  return `SELECT TOP 2000 ${FIELD.placementCorpField} AS ClientCorporationid
           FROM ${T('Placement')}
-          WHERE ${FIELD.placementCorpField} IS NOT NULL AND DateAdded > '${cutoff}' LIMIT 2000`;
+          WHERE ${FIELD.placementCorpField} IS NOT NULL AND DateAdded > '${cutoff}'`;
 }
 
 function placementCorpSql_last(idList) {
-  return `SELECT ${FIELD.placementCorpField} AS ClientCorporationid, DateAdded
+  return `SELECT TOP 2000 ${FIELD.placementCorpField} AS ClientCorporationid, DateAdded
           FROM ${T('Placement')}
           WHERE ${FIELD.placementCorpField} IN (${idList})
-          ORDER BY DateAdded DESC LIMIT 2000`;
+          ORDER BY DateAdded DESC`;
 }
 
 // ─── CSV Score Lookup ──────────────────────────────────────────────────────────
