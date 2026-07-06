@@ -421,7 +421,7 @@ function runJobScraper(companyName, websiteUrl) {
     if (websiteUrl) args.push(websiteUrl);
     const py  = spawn(PYTHON_BIN, args);
     let out = '', err = '';
-    const timer = setTimeout(() => { py.kill(); resolve({ data: [], total: 0, error: 'Timed out' }); }, 30000);
+    const timer = setTimeout(() => { py.kill(); resolve({ data: [], total: 0, error: 'Timed out' }); }, 45000);
     py.stdout.on('data', d => { out += d; });
     py.stderr.on('data', d => { err += d; });
     py.on('close', () => {

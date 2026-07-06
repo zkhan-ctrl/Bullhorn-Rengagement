@@ -769,21 +769,24 @@ def parse_html_jobs(html, page_url, company_name, source='Company Website'):
 
 PLAYWRIGHT_BROWSERS = os.environ.get('PLAYWRIGHT_BROWSERS_PATH', '/app/.playwright')
 
-def scrape_with_playwright(url, company_name):
+def _playwright_render(url, timeout_ms=15000):
+    """Render a URL with Playwright. Returns (html, captured_json_list)."""
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
-        return []
+        return None, []
 
-    captured_json = []
+    captured = []
 
     def on_response(response):
         ct = response.headers.get('content-type', '')
-        if 'json' in ct and response.status == 200:
+        if 'json' in ct and response.status == 200 and len(captured) < 10:
             try:
                 data = response.json()
-                if isinstance(data, (list, dict)) and _looks_like_jobs(data):
-                    captured_json.append(data)
+                if isinstance(data, (list, dict)):
+                    txt = json.dumps(data)[:500].lower()
+                    if any(k in txt for k in ('title', 'job', 'posting', 'requisition', 'career')):
+                        captured.append(data)
             except Exception:
                 pass
 
@@ -796,18 +799,24 @@ def scrape_with_playwright(url, company_name):
             )
             page = browser.new_page()
             page.on('response', on_response)
-            page.goto(url, wait_until='networkidle', timeout=15000)
+            page.goto(url, wait_until='networkidle', timeout=timeout_ms)
             html = page.content()
             browser.close()
+        return html, captured
+    except Exception:
+        return None, []
 
-        for data in captured_json:
+
+def scrape_with_playwright(url, company_name):
+    html, captured = _playwright_render(url)
+    if not html:
+        return []
+    for data in captured:
+        if _looks_like_jobs(data):
             jobs = _extract_from_xhr(data, url, company_name)
             if jobs:
                 return jobs
-
-        return parse_html_jobs(html, url, company_name, source='Company Website (rendered)')
-    except Exception:
-        return []
+    return parse_html_jobs(html, url, company_name, source='Company Website (rendered)')
 
 
 def _find_chromium():
@@ -917,7 +926,7 @@ def extract_with_llm(html, page_url, company_name):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def scrape_company(company_name, homepage_url):
-    # Stage 1a: find careers page
+    # Stage 1a: find careers page (static HTTP)
     careers_url, careers_html = find_careers_url(homepage_url)
     method = 'failed'
 
@@ -927,7 +936,7 @@ def scrape_company(company_name, homepage_url):
         if drill_url and drill_url != careers_url:
             careers_url, careers_html = drill_url, drill_html
 
-    # Stage 2: ATS detection
+    # Stage 2: ATS detection on careers page, then homepage (static HTML only)
     ats_name, ats_cfg = detect_ats(careers_url, careers_html)
     if not ats_name and homepage_url:
         home_html, _ = (http_get(homepage_url)
@@ -950,13 +959,92 @@ def scrape_company(company_name, homepage_url):
         if jobs:
             method = 'html_parse'
 
-    # Stage 3b: Playwright
+    # Stage 3b: Playwright render of careers page
+    # Also re-runs ATS detection on the rendered HTML (catches JS-embedded ATS links
+    # like ADP iframes that only appear after JavaScript executes)
     if not jobs and careers_url:
-        jobs = scrape_with_playwright(careers_url, company_name)
-        if jobs:
-            method = 'playwright'
+        rendered_html, rendered_json = _playwright_render(careers_url)
+        if rendered_html:
+            if not ats_name:
+                new_ats, new_cfg = detect_ats(careers_url, rendered_html)
+                if new_ats and new_ats in ATS_HANDLERS:
+                    try:
+                        jobs = ATS_HANDLERS[new_ats](new_cfg, company_name)
+                        if jobs:
+                            method = new_ats
+                            ats_name = new_ats
+                    except Exception:
+                        pass
+            if not jobs:
+                for data in rendered_json:
+                    if _looks_like_jobs(data):
+                        xjobs = _extract_from_xhr(data, careers_url, company_name)
+                        if xjobs:
+                            jobs = xjobs
+                            method = 'playwright'
+                            break
+            if not jobs:
+                jobs = parse_html_jobs(rendered_html, careers_url, company_name,
+                                       source='Company Website (rendered)')
+                if jobs:
+                    method = 'playwright'
 
-    # Stage 3c: LLM extraction
+    # Stage 4: Playwright-rendered homepage discovery
+    # Runs only when static HTTP found no careers URL at all (SPA homepages where
+    # navigation links are injected by JavaScript and invisible to static fetching)
+    if not jobs and homepage_url and careers_url is None:
+        rendered_home, _ = _playwright_render(homepage_url, timeout_ms=8000)
+        if rendered_home:
+            # ATS detection on rendered homepage (catches JS-loaded ADP/iCIMS links)
+            new_ats2, new_cfg2 = detect_ats(homepage_url, rendered_home)
+            if new_ats2 and new_ats2 in ATS_HANDLERS:
+                try:
+                    jobs = ATS_HANDLERS[new_ats2](new_cfg2, company_name)
+                    if jobs:
+                        method = new_ats2
+                except Exception:
+                    pass
+            # Find careers link from rendered homepage HTML
+            if not jobs and HAS_BS4:
+                soup = parse_html(rendered_home)
+                home_candidates = []
+                for a in soup.find_all('a', href=True):
+                    text = a.get_text(' ', strip=True)
+                    href = a['href'].strip()
+                    if not href or href.startswith('#') or 'javascript' in href.lower():
+                        continue
+                    full_url = urljoin(homepage_url, href)
+                    score = 0
+                    if CAREER_KEYWORDS.search(text):
+                        score += 3
+                    if CAREER_KEYWORDS.search(href):
+                        score += 2
+                    if score:
+                        home_candidates.append((score, full_url))
+                for _s, cand_url in sorted(home_candidates, reverse=True)[:3]:
+                    cand_domain = urlparse(cand_url).netloc
+                    home_domain = urlparse(homepage_url).netloc
+                    if cand_domain and cand_domain != home_domain:
+                        # Off-domain link — check if it's a known ATS
+                        ext_ats, ext_cfg = detect_ats(cand_url, '')
+                        if ext_ats and ext_ats in ATS_HANDLERS:
+                            try:
+                                jobs = ATS_HANDLERS[ext_ats](ext_cfg, company_name)
+                                if jobs:
+                                    method = ext_ats
+                                    careers_url = cand_url
+                                    break
+                            except Exception:
+                                pass
+                    else:
+                        new_jobs = scrape_with_playwright(cand_url, company_name)
+                        if new_jobs:
+                            jobs = new_jobs
+                            careers_url = cand_url
+                            method = 'playwright'
+                            break
+
+    # Stage 3c: LLM extraction (last resort, only if we have careers HTML)
     if not jobs and careers_html:
         jobs = extract_with_llm(careers_html, careers_url or '', company_name)
         if jobs:
@@ -978,7 +1066,7 @@ def main():
                               'method': 'timeout', 'careersUrl': ''}))
             sys.exit(0)
         signal.signal(signal.SIGALRM, _alarm)
-        signal.alarm(22)
+        signal.alarm(35)
     except (AttributeError, OSError):
         pass
 
