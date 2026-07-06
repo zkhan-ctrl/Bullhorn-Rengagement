@@ -18,6 +18,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .stat { text-align: center; }
 .stat-num { font-size: 20px; font-weight: 700; color: #f97316; line-height: 1; }
 .stat-label { font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+.stat-divider { width: 1px; background: #334155; align-self: stretch; margin: 0 4px; }
+.stat-t1 { color: #fbbf24; }
+.stat-t2 { color: #60a5fa; }
+.stat-t3 { color: #34d399; }
+.stat-t4 { color: #94a3b8; }
 .header-right { display: flex; align-items: center; gap: 8px; }
 .btn-scan { background: #f97316; color: white; border: none; padding: 7px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
 .btn-scan:hover { background: #ea6c05; }
@@ -242,7 +247,28 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       </div>
     </div>
     <div class="header-stats">
-      <div class="stat"><div class="stat-num" id="statCompanies">—</div><div class="stat-label">Companies</div></div>
+      <div class="stat">
+        <div class="stat-num" id="statCompanies">—</div>
+        <div class="stat-label" id="statCompaniesLabel">Companies</div>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat">
+        <div class="stat-num stat-t1" id="statT1">—</div>
+        <div class="stat-label">Tier 1</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num stat-t2" id="statT2">—</div>
+        <div class="stat-label">Tier 2</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num stat-t3" id="statT3">—</div>
+        <div class="stat-label">Tier 3</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num stat-t4" id="statT4">—</div>
+        <div class="stat-label">Tier 4</div>
+      </div>
+      <div class="stat-divider"></div>
       <div class="stat"><div class="stat-num" id="statNotified">0</div><div class="stat-label">BD Notified</div></div>
     </div>
     <div class="header-right">
@@ -346,6 +372,7 @@ async function loadCompanies() {
     if (prevBD && owners.includes(prevBD)) bdSel.value = prevBD;
 
     renderList();
+    updateHeaderStats();
 
     // Auto-expand if launched from a specific company inside Bullhorn
     const params     = new URLSearchParams(window.location.search);
@@ -773,6 +800,20 @@ function notifyBD(e, id) {
   showToast(`${c?.bdOwner || 'BD Owner'} notified about ${c?.name}`);
 }
 
+// ─── Header stats (reactive to BD filter) ────────────────────────────────────
+function updateHeaderStats() {
+  const bd  = document.getElementById('filterBD').value;
+  const src = bd ? companies.filter(c => c.bdOwner === bd) : companies;
+
+  document.getElementById('statCompanies').textContent    = src.length || '—';
+  document.getElementById('statCompaniesLabel').textContent =
+    bd ? bd.split(' ')[0] : 'Companies';
+  document.getElementById('statT1').textContent = src.filter(c => c.score === 1).length || '0';
+  document.getElementById('statT2').textContent = src.filter(c => c.score === 2).length || '0';
+  document.getElementById('statT3').textContent = src.filter(c => c.score === 3).length || '0';
+  document.getElementById('statT4').textContent = src.filter(c => c.score === 4).length || '0';
+}
+
 // ─── Filters ──────────────────────────────────────────────────────────────────
 function toggleHasJobs(btn) {
   filterHasJobs = !filterHasJobs;
@@ -800,6 +841,7 @@ function applyFilters() {
   });
 
   document.getElementById('resultCount').textContent = `Showing ${visible} of ${companies.length}`;
+  updateHeaderStats();
 }
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
