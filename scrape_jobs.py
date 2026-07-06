@@ -215,6 +215,13 @@ def find_careers_url(start_url):
     if '://' not in start_url:
         start_url = 'https://' + start_url
 
+    # If the URL itself IS an ATS portal (e.g. Bullhorn stores the ADP URL directly),
+    # return it immediately so detect_ats in scrape_company picks it up.
+    quick_ats, _ = detect_ats(start_url, '')
+    if quick_ats:
+        html, final = http_get(start_url)
+        return (final or start_url), html
+
     # If the URL already looks like a careers page, use it directly
     if CAREER_KEYWORDS.search(urlparse(start_url).path):
         html, final = http_get(start_url)
@@ -795,9 +802,16 @@ def _playwright_render(url, timeout_ms=15000):
             browser = pw.chromium.launch(
                 executable_path=_find_chromium(),
                 headless=True,
-                args=['--no-sandbox', '--disable-dev-shm-usage']
+                args=['--no-sandbox', '--disable-dev-shm-usage', '--disable-blink-features=AutomationControlled']
             )
-            page = browser.new_page()
+            ctx = browser.new_context(
+                user_agent=(
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                    'AppleWebKit/537.36 (KHTML, like Gecko) '
+                    'Chrome/120.0.0.0 Safari/537.36'
+                )
+            )
+            page = ctx.new_page()
             page.on('response', on_response)
             page.goto(url, wait_until='networkidle', timeout=timeout_ms)
             html = page.content()
@@ -836,26 +850,72 @@ def _find_chromium():
 
 def _looks_like_jobs(data):
     text = json.dumps(data)[:2000].lower()
-    return sum(1 for kw in ('title', 'location', 'apply', 'posting', 'requisition')
-               if kw in text) >= 3
+    primary   = ('title', 'location', 'apply', 'posting', 'requisition')
+    secondary = ('department', 'employment', 'salary', 'opening', 'position',
+                 'vacancy', 'hiring', 'career', 'role', 'compensation')
+    return (sum(1 for kw in primary if kw in text) >= 2 or
+            sum(1 for kw in primary + secondary if kw in text) >= 3)
 
+
+_XHR_CONTAINER_KEYS = (
+    'jobs', 'jobPostings', 'results', 'openings', 'positions',
+    'vacancies', 'data', 'postings', 'requisitions', 'jobRequisitions',
+    'listings', 'opportunities', 'items', 'content', 'records',
+)
 
 def _extract_from_xhr(data, page_url, company_name):
-    items = (data if isinstance(data, list)
-             else data.get('jobs', data.get('jobPostings', data.get('results', []))))
+    # Find the list of job items in various data structures
+    items = []
+    if isinstance(data, list):
+        items = data
+    elif isinstance(data, dict):
+        for key in _XHR_CONTAINER_KEYS:
+            v = data.get(key)
+            if isinstance(v, list) and v:
+                items = v
+                break
+        # One level of nesting (e.g. {data: {jobs: [...]}})
+        if not items:
+            for v in data.values():
+                if isinstance(v, dict):
+                    for key in _XHR_CONTAINER_KEYS:
+                        vv = v.get(key)
+                        if isinstance(vv, list) and vv:
+                            items = vv
+                            break
+                elif isinstance(v, list) and v and isinstance(v[0], dict):
+                    if any(k in v[0] for k in ('title', 'name', 'jobTitle',
+                                               'positionTitle', 'requisitionTitle')):
+                        items = v
+                if items:
+                    break
+
     if not isinstance(items, list) or not items:
         return []
+
     jobs = []
     for j in items[:50]:
         if not isinstance(j, dict):
             continue
-        title = j.get('title') or j.get('name') or j.get('jobTitle') or ''
-        if not title:
+        title = (j.get('title') or j.get('name') or j.get('jobTitle') or
+                 j.get('positionTitle') or j.get('requisitionTitle') or
+                 j.get('jobName') or j.get('position') or j.get('role') or
+                 j.get('jobPosition') or j.get('openingTitle') or '')
+        if not title or len(str(title)) < 2:
             continue
-        loc = str(j.get('location') or j.get('locationText') or j.get('city') or '')
+        loc_raw = (j.get('location') or j.get('locationText') or j.get('city') or
+                   j.get('locationName') or j.get('workLocation') or '')
+        if isinstance(loc_raw, dict):
+            loc = (loc_raw.get('name') or loc_raw.get('city') or
+                   loc_raw.get('displayName') or loc_raw.get('country') or '')
+        else:
+            loc = str(loc_raw)
+        job_url = (j.get('url') or j.get('applyUrl') or j.get('jobUrl') or
+                   j.get('link') or j.get('applicationUrl') or j.get('externalUrl') or
+                   j.get('hostedUrl') or page_url)
         jobs.append(make_job(
-            title=title, company=company_name, location=loc,
-            url=j.get('url') or j.get('applyUrl') or j.get('jobUrl') or page_url,
+            title=str(title).strip(), company=company_name, location=loc,
+            url=job_url,
             source='Company Website (XHR)',
         ))
     return jobs
