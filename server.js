@@ -211,57 +211,27 @@ app.get('/api/meta/company-fields', async (req, res) => {
   }
 });
 
-// Main: stale Active Account companies (no placement in `days` days)
+// All Active Account companies, sorted by score then name
 app.get('/api/stale-companies', async (req, res) => {
   try {
-    const days   = parseInt(req.query.days) || 90;
-    const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
-
-    // Staleness = no Placement added in the last `days` days
-    // Uses auto-detected field (direct or via JOIN)
-    const recentPlacements = await cdataQuery(placementCorpSql_recent(cutoff)).catch(() => []);
-    const activeIds = new Set(
-      recentPlacements.map(p => p.ClientCorporationid).filter(id => id != null)
-    );
-
-    // Only Active Account companies
     const allCompanies = await cdataQuery(
       `SELECT TOP 1000 ID, CompanyName, BusinessSectors, CompanyWebsite,
-              DateLastModified, BusinessDevelopmentManager, OwnerAM
+              BusinessDevelopmentManager, OwnerAM
        FROM ${T('ClientCorporation')}
        WHERE Status = 'Active Account'
        ORDER BY CompanyName`
     );
 
-    const staleCompanies = allCompanies.filter(c => !activeIds.has(c.ID));
-
-    // BD owners for filter dropdown
     const bdOwners = [...new Set(
       allCompanies.map(c => c.BusinessDevelopmentManager).filter(Boolean)
     )].sort();
 
-    // Last placement date per stale company (for "X days w/o placement" display)
-    let lastPlacedMap = {};
-    if (staleCompanies.length > 0) {
-      const last = await cdataQuery(placementCorpSql_last()).catch(() => []);
-      last.forEach(p => {
-        const cid = p.ClientCorporationid;
-        if (cid && !lastPlacedMap[cid]) lastPlacedMap[cid] = p.DateAdded;
-      });
-    }
-
-    const result = staleCompanies.map(c => {
-      const lastDate = lastPlacedMap[c.ID];
-      const daysStale = lastDate
-        ? Math.floor((Date.now() - new Date(lastDate).getTime()) / 86400000)
-        : null;
-
+    const result = allCompanies.map(c => {
       const bdName   = c.BusinessDevelopmentManager || 'Unassigned';
       const initials = bdName !== 'Unassigned'
         ? bdName.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase()
         : '?';
 
-      // Ensure website has a protocol so href works correctly
       let website = c.CompanyWebsite ? c.CompanyWebsite.trim() : null;
       if (website && !/^https?:\/\//i.test(website)) website = `https://${website}`;
 
@@ -270,20 +240,18 @@ app.get('/api/stale-companies', async (req, res) => {
         name:            c.CompanyName,
         industry:        c.BusinessSectors || 'N/A',
         score:           CSV_SCORE.get(c.ID) ?? null,
-        daysStale,
         bdOwner:         bdName,
         bdOwnerInitials: initials,
         ownerAM:         c.OwnerAM || null,
         website
       };
     }).sort((a, b) => {
-      // Sort by score (1 = top priority), then by most days stale
       const sa = a.score ?? 5, sb = b.score ?? 5;
       if (sa !== sb) return sa - sb;
-      return (b.daysStale || 0) - (a.daysStale || 0);
+      return (a.name || '').localeCompare(b.name || '');
     });
 
-    res.json({ data: result, total: result.length, scannedActive: activeIds.size, bdOwners });
+    res.json({ data: result, total: result.length, bdOwners });
   } catch (e) {
     console.error('stale-companies:', e.message);
     res.status(500).json({ error: e.message });
@@ -457,7 +425,7 @@ function runJobScraper(companyName, websiteUrl) {
     if (websiteUrl) args.push(websiteUrl);
     const py  = spawn(PYTHON_BIN, args);
     let out = '', err = '';
-    const timer = setTimeout(() => { py.kill(); resolve({ data: [], total: 0, error: 'Timed out' }); }, 90000);
+    const timer = setTimeout(() => { py.kill(); resolve({ data: [], total: 0, error: 'Timed out' }); }, 30000);
     py.stdout.on('data', d => { out += d; });
     py.stderr.on('data', d => { err += d; });
     py.on('close', () => {

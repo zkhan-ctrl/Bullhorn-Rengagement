@@ -5,22 +5,23 @@ Usage: python3 scrape_jobs.py "Company Name" [homepage_or_careers_url]
 
 Pipeline per company:
   Stage 1 — Discover the careers page from the homepage
+             then drill into the actual listings page if it's a landing page
   Stage 2 — Detect ATS platform and call its JSON API directly
   Stage 3 — Fallback: plain HTML parse → Playwright render → LLM extraction
 
 Output (stdout): { "data": [...], "total": N, "method": "...", "careersUrl": "..." }
 """
 import sys, json, re, os
-from datetime import date, datetime, timedelta
-from urllib.parse import urljoin, urlparse, quote_plus
+from datetime import date, datetime
+from urllib.parse import urljoin, urlparse
 
 # ── HTTP client (httpx with retries) ──────────────────────────────────────────
 
 try:
     import httpx
-    _TRANSPORT = httpx.HTTPTransport(retries=3)
+    _TRANSPORT = httpx.HTTPTransport(retries=2)
 
-    def http_get(url, timeout=15, headers=None, follow=True):
+    def http_get(url, timeout=8, headers=None, follow=True):
         h = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
                           'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
@@ -37,12 +38,9 @@ try:
         except Exception:
             return None, None
 
-    def http_post_json(url, payload, timeout=15, headers=None):
-        h = {
-            'User-Agent': 'Mozilla/5.0',
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-        }
+    def http_post_json(url, payload, timeout=8, headers=None):
+        h = {'User-Agent': 'Mozilla/5.0', 'Content-Type': 'application/json',
+             'Accept': 'application/json'}
         if headers:
             h.update(headers)
         try:
@@ -53,7 +51,7 @@ try:
         except Exception:
             return None
 
-    def http_get_json(url, timeout=15, headers=None):
+    def http_get_json(url, timeout=8, headers=None):
         h = {'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json'}
         if headers:
             h.update(headers)
@@ -66,11 +64,9 @@ try:
             return None
 
 except ImportError:
-    # Fallback to stdlib urllib if httpx not yet installed
     from urllib.request import urlopen, Request
-    from urllib.error import URLError
 
-    def http_get(url, timeout=15, headers=None, follow=True):
+    def http_get(url, timeout=8, headers=None, follow=True):
         h = {'User-Agent': 'Mozilla/5.0 (compatible)', 'Accept': '*/*'}
         if headers:
             h.update(headers)
@@ -81,7 +77,7 @@ except ImportError:
         except Exception:
             return None, None
 
-    def http_post_json(url, payload, timeout=15, headers=None):
+    def http_post_json(url, payload, timeout=8, headers=None):
         import urllib.request
         data = json.dumps(payload).encode()
         h = {'User-Agent': 'Mozilla/5.0', 'Content-Type': 'application/json',
@@ -95,7 +91,7 @@ except ImportError:
         except Exception:
             return None
 
-    def http_get_json(url, timeout=15, headers=None):
+    def http_get_json(url, timeout=8, headers=None):
         html, _ = http_get(url, timeout=timeout,
                            headers={'Accept': 'application/json', **(headers or {})})
         if html:
@@ -130,6 +126,15 @@ CAREER_PATHS = [
     '/opportunities', '/openings', '/about/careers', '/company/careers',
     '/careers/open-positions', '/careers/', '/join/', '/positions',
 ]
+
+# Links that mean "view the actual job listings" (from a landing/culture page)
+VIEW_JOBS_RE = re.compile(
+    r'\b(view|see|browse|find|explore)\s+(jobs?|positions?|openings?|opportunit\w*|roles?|vacancies)\b'
+    r'|\b(current|open|available)\s+(positions?|openings?|jobs?|roles?)\b'
+    r'|\bjob\s+(listings?|boards?|search|portal)\b'
+    r'|\bopen\s+roles?\b',
+    re.I
+)
 
 def base_url(url):
     p = urlparse(url)
@@ -173,14 +178,11 @@ def norm_remote(text):
     return 'Unknown'
 
 # ─────────────────────────────────────────────────────────────────────────────
-# STAGE 1 — Careers page discovery
+# STAGE 1a — Careers page discovery
 # ─────────────────────────────────────────────────────────────────────────────
 
 def find_careers_url(start_url):
-    """
-    Given a homepage (or any URL), find the best careers/jobs page.
-    Returns (careers_url, html_at_that_url).
-    """
+    """Given a homepage, find the best careers/jobs page."""
     if not start_url:
         return None, None
 
@@ -197,7 +199,7 @@ def find_careers_url(start_url):
         return None, None
 
     origin = base_url(final_url or start_url)
-    candidates = []  # list of (score, href)
+    candidates = []  # (score, url)
 
     # Scan <a> tags
     if HAS_BS4:
@@ -206,8 +208,6 @@ def find_careers_url(start_url):
             href = a['href'].strip()
             text = a.get_text(' ', strip=True)
             full = urljoin(final_url or start_url, href)
-            if not full.startswith(origin) and not full.startswith('http'):
-                continue
             score = 0
             if CAREER_KEYWORDS.search(text):
                 score += 3
@@ -232,26 +232,46 @@ def find_careers_url(start_url):
     for path in CAREER_PATHS:
         candidates.append((1, origin + path))
 
-    # Sort by score, deduplicate, try each
     seen = set()
-    for score, url in sorted(candidates, reverse=True):
+    for _score, url in sorted(candidates, reverse=True):
         if url in seen:
             continue
         seen.add(url)
-        page_html, page_final = http_get(url, timeout=12)
+        page_html, page_final = http_get(url, timeout=8)
         if page_html and len(page_html) > 500:
-            # Follow one more level if this looks like a landing page
-            if HAS_BS4:
-                soup2 = parse_html(page_html)
-                for a in soup2.find_all('a', href=True):
-                    h2 = a['href'].strip()
-                    t2 = a.get_text(' ', strip=True)
-                    f2 = urljoin(page_final or url, h2)
-                    if CAREER_KEYWORDS.search(t2) and f2 not in seen:
-                        candidates.append((0, f2))
             return (page_final or url), page_html
 
     return None, None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STAGE 1b — Drill from landing page to actual listings
+# ─────────────────────────────────────────────────────────────────────────────
+
+def drill_to_listings(careers_html, careers_url):
+    """
+    If the careers page is a culture/benefits landing page, follow
+    'View Job Opportunities' / 'Current Openings' type links to get
+    to the page that actually lists individual job titles.
+    """
+    if not careers_html or not HAS_BS4:
+        return None, None
+    soup = parse_html(careers_html)
+    for a in soup.find_all('a', href=True):
+        text = a.get_text(' ', strip=True)
+        href = a['href'].strip()
+        if not VIEW_JOBS_RE.search(text):
+            continue
+        if not href or href.startswith('#') or 'javascript' in href.lower():
+            continue
+        full_url = urljoin(careers_url, href)
+        if full_url == careers_url:
+            continue
+        page_html, final_url = http_get(full_url, timeout=8)
+        if page_html and len(page_html) > 500:
+            return (final_url or full_url), page_html
+    return None, None
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STAGE 2 — ATS detection + native API handlers
@@ -262,9 +282,7 @@ def detect_ats(url, html):
     if not url:
         return None, None
 
-    # Collect all text to scan: final URL + iframe srcs + script srcs
     scan_targets = [url, html or '']
-
     if HAS_BS4 and html:
         soup = parse_html(html)
         for tag in soup.find_all(['iframe', 'script']):
@@ -275,42 +293,36 @@ def detect_ats(url, html):
 
     combined = ' '.join(scan_targets)
 
-    # Greenhouse
     m = re.search(r'boards\.greenhouse\.io/([a-z0-9_-]+)', combined, re.I)
     if m:
         return 'Greenhouse', {'token': m.group(1)}
 
-    # Lever
     m = re.search(r'jobs\.lever\.co/([a-z0-9_-]+)', combined, re.I)
     if m:
         return 'Lever', {'company': m.group(1)}
 
-    # Ashby
     m = re.search(r'jobs\.ashbyhq\.com/([a-z0-9_-]+)', combined, re.I)
     if m:
         return 'Ashby', {'company': m.group(1)}
 
-    # SmartRecruiters
     m = re.search(r'careers\.smartrecruiters\.com/([A-Za-z0-9_-]+)', combined)
     if not m:
         m = re.search(r'smartrecruiters\.com/([A-Za-z0-9_-]+)', combined)
     if m:
         return 'SmartRecruiters', {'company': m.group(1)}
 
-    # BambooHR
     m = re.search(r'([a-z0-9-]+)\.bamboohr\.com', combined, re.I)
     if m:
         return 'BambooHR', {'subdomain': m.group(1)}
 
-    # Workday
-    m = re.search(r'([a-z0-9-]+)\.wd\d+\.myworkdayjobs\.com/([a-z0-9_-]+)/([a-z0-9_-]+)', combined, re.I)
+    m = re.search(r'([a-z0-9-]+)\.wd\d+\.myworkdayjobs\.com/([a-z0-9_-]+)/([a-z0-9_-]+)',
+                  combined, re.I)
     if m:
         return 'Workday', {'tenant': m.group(1), 'wd': m.group(2), 'site': m.group(3)}
     m = re.search(r'([a-z0-9-]+)\.myworkdayjobs\.com', combined, re.I)
     if m:
         return 'Workday', {'tenant': m.group(1), 'wd': None, 'site': None}
 
-    # Oracle Recruiting Cloud
     m = re.search(r'fa-([a-z0-9-]+)\.fa\.em\d+\.oraclecloud\.com', combined, re.I)
     if not m:
         m = re.search(r'([\w-]+\.fa\.[\w.]+\.oraclecloud\.com)', combined, re.I)
@@ -318,17 +330,14 @@ def detect_ats(url, html):
         sn = re.search(r'siteNumber=([A-Z0-9]+)', combined)
         return 'Oracle', {'host': m.group(1), 'siteNumber': sn.group(1) if sn else None}
 
-    # iCIMS
     if 'icims.com' in combined:
         m = re.search(r'([\w-]+\.icims\.com)', combined, re.I)
         return 'iCIMS', {'host': m.group(1) if m else None}
 
-    # JazzHR
     m = re.search(r'([a-z0-9-]+)\.applytojob\.com', combined, re.I)
     if m:
         return 'JazzHR', {'subdomain': m.group(1)}
 
-    # Paylocity
     m = re.search(r'recruiting\.paylocity\.com/recruiting/jobs/All/(\d+)/([^/\s"\']+)', combined)
     if m:
         return 'Paylocity', {'id': m.group(1), 'company': m.group(2)}
@@ -337,70 +346,59 @@ def detect_ats(url, html):
 
 
 def fetch_greenhouse(cfg, company_name):
-    token = cfg['token']
-    data = http_get_json(f"https://boards-api.greenhouse.io/v1/boards/{token}/jobs?content=true")
+    data = http_get_json(
+        f"https://boards-api.greenhouse.io/v1/boards/{cfg['token']}/jobs?content=true"
+    )
     if not data:
         return []
     jobs = []
     for j in data.get('jobs', []):
         loc = j.get('location', {}).get('name', '') or ''
         jobs.append(make_job(
-            title=j.get('title', ''),
-            company=company_name,
-            location=loc,
-            url=j.get('absolute_url', ''),
-            source='Greenhouse',
+            title=j.get('title', ''), company=company_name, location=loc,
+            url=j.get('absolute_url', ''), source='Greenhouse',
             remote_type=norm_remote(loc + ' ' + j.get('title', '')),
         ))
     return jobs
 
 
 def fetch_lever(cfg, company_name):
-    co = cfg['company']
-    data = http_get_json(f"https://api.lever.co/v0/postings/{co}?mode=json")
+    data = http_get_json(f"https://api.lever.co/v0/postings/{cfg['company']}?mode=json")
     if not isinstance(data, list):
         return []
     jobs = []
     for j in data:
         cats = j.get('categories', {})
-        loc = cats.get('location') or j.get('workplaceType') or ''
+        loc  = cats.get('location') or j.get('workplaceType') or ''
         jobs.append(make_job(
-            title=j.get('text', ''),
-            company=company_name,
-            location=loc,
-            dept=cats.get('team', ''),
-            url=j.get('hostedUrl', ''),
-            source='Lever',
-            remote_type=norm_remote(loc + ' ' + j.get('workplaceType', '')),
+            title=j.get('text', ''), company=company_name, location=loc,
+            dept=cats.get('team', ''), url=j.get('hostedUrl', ''),
+            source='Lever', remote_type=norm_remote(str(loc)),
         ))
     return jobs
 
 
 def fetch_ashby(cfg, company_name):
-    co = cfg['company']
     data = http_get_json(
-        f"https://api.ashbyhq.com/posting-api/job-board/{co}?includeCompensation=true"
+        f"https://api.ashbyhq.com/posting-api/job-board/{cfg['company']}?includeCompensation=true"
     )
     if not data:
         return []
     jobs = []
     for j in data.get('jobPostings', []):
-        loc = (j.get('location') or j.get('locationName') or '')
+        loc = j.get('location') or j.get('locationName') or ''
         jobs.append(make_job(
-            title=j.get('title', ''),
-            company=company_name,
-            location=loc,
-            dept=j.get('departmentName', ''),
-            url=j.get('jobPostingPath', ''),
-            source='Ashby',
-            remote_type=norm_remote(loc + ' ' + j.get('isRemote', '')),
+            title=j.get('title', ''), company=company_name, location=loc,
+            dept=j.get('departmentName', ''), url=j.get('jobPostingPath', ''),
+            source='Ashby', remote_type=norm_remote(str(loc)),
         ))
     return jobs
 
 
 def fetch_smartrecruiters(cfg, company_name):
-    co = cfg['company']
-    data = http_get_json(f"https://api.smartrecruiters.com/v1/companies/{co}/postings")
+    data = http_get_json(
+        f"https://api.smartrecruiters.com/v1/companies/{cfg['company']}/postings"
+    )
     if not data:
         return []
     jobs = []
@@ -408,11 +406,8 @@ def fetch_smartrecruiters(cfg, company_name):
         loc = j.get('location', {})
         loc_str = ', '.join(filter(None, [loc.get('city'), loc.get('region'), loc.get('country')]))
         jobs.append(make_job(
-            title=j.get('name', ''),
-            company=company_name,
-            location=loc_str,
-            dept=j.get('department', {}).get('label', ''),
-            url=j.get('ref', ''),
+            title=j.get('name', ''), company=company_name, location=loc_str,
+            dept=j.get('department', {}).get('label', ''), url=j.get('ref', ''),
             source='SmartRecruiters',
             remote_type=norm_remote(j.get('typeOfEmployment', {}).get('label', '')),
         ))
@@ -420,7 +415,7 @@ def fetch_smartrecruiters(cfg, company_name):
 
 
 def fetch_bamboohr(cfg, company_name):
-    sub = cfg['subdomain']
+    sub  = cfg['subdomain']
     data = http_get_json(
         f"https://{sub}.bamboohr.com/careers/list",
         headers={'Accept': 'application/json'}
@@ -428,15 +423,14 @@ def fetch_bamboohr(cfg, company_name):
     if not data:
         return []
     jobs = []
-    for j in (data.get('result') or data if isinstance(data, list) else []):
+    for j in (data.get('result') or (data if isinstance(data, list) else [])):
         if not isinstance(j, dict):
             continue
         loc = j.get('location', {})
         loc_str = loc.get('city', '') if isinstance(loc, dict) else str(loc)
         jobs.append(make_job(
             title=j.get('jobOpeningName') or j.get('title', ''),
-            company=company_name,
-            location=loc_str,
+            company=company_name, location=loc_str,
             dept=j.get('departmentLabel', ''),
             url=f"https://{sub}.bamboohr.com/careers/{j.get('id', '')}",
             source='BambooHR',
@@ -451,23 +445,25 @@ def fetch_workday(cfg, company_name):
     url    = f"https://{tenant}.{wd}.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs"
     offset, jobs = 0, []
     while True:
-        data = http_post_json(url, {
-            'appliedFacets': {}, 'limit': 20, 'offset': offset, 'searchText': ''
-        })
+        data = http_post_json(url, {'appliedFacets': {}, 'limit': 20,
+                                    'offset': offset, 'searchText': ''})
         if not data:
             break
         postings = data.get('jobPostings', [])
         if not postings:
             break
         for j in postings:
-            loc = j.get('locationsText', '') or j.get('primaryLocations', [''])[0] if j.get('primaryLocations') else ''
+            loc = j.get('locationsText', '')
+            if not loc and j.get('primaryLocations'):
+                loc = j['primaryLocations'][0]
             jobs.append(make_job(
-                title=j.get('title', ''),
-                company=company_name,
+                title=j.get('title', ''), company=company_name,
                 location=loc if isinstance(loc, str) else '',
-                url=urljoin(f"https://{tenant}.{wd}.myworkdayjobs.com/{tenant}/{site}/", j.get('externalPath', '')),
-                source='Workday',
-                remote_type=norm_remote(str(loc)),
+                url=urljoin(
+                    f"https://{tenant}.{wd}.myworkdayjobs.com/{tenant}/{site}/",
+                    j.get('externalPath', '')
+                ),
+                source='Workday', remote_type=norm_remote(str(loc)),
             ))
         if len(postings) < 20:
             break
@@ -485,8 +481,10 @@ def fetch_oracle(cfg, company_name):
     base_api = f"https://{host}/hcmRestApi/resources/latest/recruitingCEJobRequisitions"
     offset, jobs = 0, []
     while True:
-        finder = f"findReqs;siteNumber={site},limit=25,offset={offset}" if site else f"findReqs;limit=25,offset={offset}"
-        url = f"{base_api}?onlyData=true&expand=requisitionList.secondaryLocations&finder={finder}"
+        finder = (f"findReqs;siteNumber={site},limit=25,offset={offset}"
+                  if site else f"findReqs;limit=25,offset={offset}")
+        url = (f"{base_api}?onlyData=true"
+               f"&expand=requisitionList.secondaryLocations&finder={finder}")
         data = http_get_json(url)
         if not data:
             break
@@ -495,14 +493,13 @@ def fetch_oracle(cfg, company_name):
             break
         for item in items:
             for req in item.get('requisitionList', [item]):
-                title = req.get('Title') or req.get('title', '')
-                loc   = req.get('PrimaryLocation') or req.get('primaryLocation', '')
+                title  = req.get('Title') or req.get('title', '')
+                loc    = req.get('PrimaryLocation') or req.get('primaryLocation', '')
                 req_id = req.get('Id') or req.get('id', '')
                 jobs.append(make_job(
-                    title=title,
-                    company=company_name,
-                    location=loc,
-                    url=f"https://{host}/hcmUI/CandidateExperience/en/sites/{site}/requisitions/{req_id}" if site else '',
+                    title=title, company=company_name, location=loc,
+                    url=(f"https://{host}/hcmUI/CandidateExperience/en/sites/{site}"
+                         f"/requisitions/{req_id}") if site else '',
                     source='Oracle',
                 ))
         if len(items) < 25:
@@ -514,49 +511,61 @@ def fetch_oracle(cfg, company_name):
 
 
 def fetch_jazzhr(cfg, company_name):
-    sub = cfg['subdomain']
-    html, final_url = http_get(f"https://{sub}.applytojob.com/apply")
+    html, final_url = http_get(f"https://{cfg['subdomain']}.applytojob.com/apply")
     if not html:
         return []
     return parse_html_jobs(html, final_url or '', company_name, source='JazzHR')
 
 
 ATS_HANDLERS = {
-    'Greenhouse':     fetch_greenhouse,
-    'Lever':          fetch_lever,
-    'Ashby':          fetch_ashby,
-    'SmartRecruiters':fetch_smartrecruiters,
-    'BambooHR':       fetch_bamboohr,
-    'Workday':        fetch_workday,
-    'Oracle':         fetch_oracle,
-    'JazzHR':         fetch_jazzhr,
+    'Greenhouse':      fetch_greenhouse,
+    'Lever':           fetch_lever,
+    'Ashby':           fetch_ashby,
+    'SmartRecruiters': fetch_smartrecruiters,
+    'BambooHR':        fetch_bamboohr,
+    'Workday':         fetch_workday,
+    'Oracle':          fetch_oracle,
+    'JazzHR':          fetch_jazzhr,
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STAGE 3a — Plain HTML parsing
 # ─────────────────────────────────────────────────────────────────────────────
 
+# Role/function words that strongly suggest a real job title
 JOB_TITLE_WORDS = [
     'engineer', 'manager', 'analyst', 'coordinator', 'specialist', 'director',
     'developer', 'designer', 'consultant', 'officer', 'supervisor', 'technician',
     'operator', 'associate', 'recruiter', 'architect', 'scientist', 'inspector',
     'captain', 'pilot', 'superintendent', 'estimator', 'planner', 'scheduler',
-    'welder', 'rigger', 'marine', 'naval', 'electrician', 'mechanic', 'surveyor',
-    'vice president', 'chief ', 'head of', 'senior ', 'principal ',
+    'welder', 'rigger', 'electrician', 'mechanic', 'surveyor', 'foreman',
+    'dispatcher', 'administrator', 'vice president', 'chief ', 'head of',
+    'senior ', 'principal ', 'lead ', 'staff ',
 ]
+
+# Words that mean this is definitely NOT a job title (benefits, products, nav)
+NON_JOB_TERMS = re.compile(
+    r'\b(insurance|benefit|wage|dental|vision|health|pension|401k|tuition|'
+    r'reimbursement|competitive|paid time|pto|parental leave|product|service|'
+    r'solution|equipment|system|pump|valve|gauge|sensor|fabrication|about|'
+    r'contact us|privacy|copyright|newsletter|learn more|read more|click here|'
+    r'download|follow us|sign up|log in|subscribe|terms|cookie)\b',
+    re.I
+)
+
 
 def parse_html_jobs(html, page_url, company_name, source='Company Website'):
     if not html:
         return []
     jobs = []
 
-    # JSON-LD structured data (most reliable when present)
+    # JSON-LD structured data — most reliable when present
     for m in re.finditer(
         r'<script[^>]+type=["\']application/ld\+json["\'][^>]*>(.*?)</script>',
         html, re.DOTALL | re.IGNORECASE
     ):
         try:
-            data = json.loads(m.group(1))
+            data  = json.loads(m.group(1))
             items = data if isinstance(data, list) else [data]
             for item in items:
                 if item.get('@type') == 'JobPosting':
@@ -574,7 +583,8 @@ def parse_html_jobs(html, page_url, company_name, source='Company Website'):
                         title=title, company=company_name, location=loc,
                         url=item.get('url', page_url), source=source,
                         date_posted=dp or None,
-                        remote_type='Remote' if item.get('jobLocationType') == 'TELECOMMUTE' else 'Unknown',
+                        remote_type='Remote' if item.get('jobLocationType') == 'TELECOMMUTE'
+                                    else 'Unknown',
                     ))
         except Exception:
             continue
@@ -582,29 +592,38 @@ def parse_html_jobs(html, page_url, company_name, source='Company Website'):
     if jobs:
         return jobs
 
-    # BeautifulSoup heading heuristic
+    # BeautifulSoup heading heuristic — strict rules to avoid false positives
     if HAS_BS4:
         soup = parse_html(html)
         seen = set()
         for tag in soup.find_all(['h1', 'h2', 'h3', 'h4', 'li', 'a']):
-            text = tag.get_text(' ', strip=True)
-            tl   = text.lower()
-            if (8 <= len(text) <= 120 and
-                    any(kw in tl for kw in JOB_TITLE_WORDS) and
-                    text not in seen):
+            text  = tag.get_text(' ', strip=True)
+            words = text.split()
+            tl    = text.lower()
+            if (2 <= len(words) <= 9          # real job titles are 2–9 words
+                    and 8 <= len(text) <= 75   # not too short, not too long
+                    and any(kw in tl for kw in JOB_TITLE_WORDS)
+                    and not NON_JOB_TERMS.search(text)
+                    and text not in seen):
                 seen.add(text)
                 href = tag.get('href', '') if tag.name == 'a' else ''
                 link = urljoin(page_url, href) if href else page_url
-                jobs.append(make_job(title=text, company=company_name, url=link, source=source))
+                jobs.append(make_job(title=text, company=company_name,
+                                     url=link, source=source))
         return jobs[:25]
 
     # Regex fallback (no BS4)
     seen = set()
-    for m in re.finditer(r'<h[1-4][^>]*>([^<]{8,120})</h[1-4]>', html, re.I):
-        text = re.sub(r'\s+', ' ', m.group(1)).strip()
-        if any(kw in text.lower() for kw in JOB_TITLE_WORDS) and text not in seen:
+    for m in re.finditer(r'<h[1-4][^>]*>([^<]{8,75})</h[1-4]>', html, re.I):
+        text  = re.sub(r'\s+', ' ', m.group(1)).strip()
+        words = text.split()
+        if (2 <= len(words) <= 9
+                and any(kw in text.lower() for kw in JOB_TITLE_WORDS)
+                and not NON_JOB_TERMS.search(text)
+                and text not in seen):
             seen.add(text)
-            jobs.append(make_job(title=text, company=company_name, url=page_url, source=source))
+            jobs.append(make_job(title=text, company=company_name,
+                                 url=page_url, source=source))
     return jobs[:25]
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -640,44 +659,44 @@ def scrape_with_playwright(url, company_name):
             )
             page = browser.new_page()
             page.on('response', on_response)
-            page.goto(url, wait_until='networkidle', timeout=30000)
+            page.goto(url, wait_until='networkidle', timeout=15000)
             html = page.content()
             browser.close()
 
-        # Use any captured XHR JSON
         for data in captured_json:
             jobs = _extract_from_xhr(data, url, company_name)
             if jobs:
                 return jobs
 
-        # Fall back to rendered HTML
         return parse_html_jobs(html, url, company_name, source='Company Website (rendered)')
     except Exception:
         return []
 
 
 def _find_chromium():
+    import glob
     candidates = [
         os.path.join(PLAYWRIGHT_BROWSERS, 'chromium-*/chrome-linux/chrome'),
         '/usr/bin/chromium-browser',
         '/usr/bin/chromium',
         '/run/current-system/sw/bin/chromium',
     ]
-    import glob
     for pattern in candidates:
         matches = glob.glob(pattern)
         if matches:
             return matches[0]
-    return None  # let playwright find it automatically
+    return None
 
 
 def _looks_like_jobs(data):
     text = json.dumps(data)[:2000].lower()
-    return sum(1 for kw in ('title', 'location', 'apply', 'posting', 'requisition') if kw in text) >= 3
+    return sum(1 for kw in ('title', 'location', 'apply', 'posting', 'requisition')
+               if kw in text) >= 3
 
 
 def _extract_from_xhr(data, page_url, company_name):
-    items = data if isinstance(data, list) else data.get('jobs', data.get('jobPostings', data.get('results', [])))
+    items = (data if isinstance(data, list)
+             else data.get('jobs', data.get('jobPostings', data.get('results', []))))
     if not isinstance(items, list) or not items:
         return []
     jobs = []
@@ -708,7 +727,6 @@ def extract_with_llm(html, page_url, company_name):
     except ImportError:
         return []
 
-    # Strip tags for a clean text feed, cap at 30k chars
     clean = re.sub(r'<(script|style|nav|footer|header)[^>]*>.*?</\1>', '', html,
                    flags=re.DOTALL | re.IGNORECASE)
     clean = re.sub(r'<[^>]+>', ' ', clean)
@@ -726,15 +744,16 @@ def extract_with_llm(html, page_url, company_name):
     for attempt in range(2):
         try:
             client = anthropic.Anthropic(api_key=api_key)
-            msg = client.messages.create(
+            msg    = client.messages.create(
                 model='claude-haiku-4-5-20251001',
                 max_tokens=2000,
-                messages=[{'role': 'user', 'content': prompt if attempt == 0
+                messages=[{'role': 'user',
+                           'content': prompt if attempt == 0
                            else prompt + '\n\nReturn valid JSON only, no explanation.'}]
             )
-            raw = msg.content[0].text.strip()
-            raw = re.sub(r'^```json\s*', '', raw)
-            raw = re.sub(r'```$', '', raw).strip()
+            raw  = msg.content[0].text.strip()
+            raw  = re.sub(r'^```json\s*', '', raw)
+            raw  = re.sub(r'```$', '', raw).strip()
             items = json.loads(raw)
             if not isinstance(items, list):
                 continue
@@ -743,8 +762,7 @@ def extract_with_llm(html, page_url, company_name):
                 title = j.get('job_title', '').strip()
                 if title:
                     jobs.append(make_job(
-                        title=title,
-                        company=company_name,
+                        title=title, company=company_name,
                         location=j.get('location') or '',
                         dept=j.get('department') or '',
                         url=j.get('job_url') or page_url,
@@ -762,15 +780,22 @@ def extract_with_llm(html, page_url, company_name):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def scrape_company(company_name, homepage_url):
-    # Stage 1: find careers page
+    # Stage 1a: find careers page
     careers_url, careers_html = find_careers_url(homepage_url)
     method = 'failed'
+
+    # Stage 1b: follow "View Job Opportunities" if careers page is a landing page
+    if careers_url and careers_html:
+        drill_url, drill_html = drill_to_listings(careers_html, careers_url)
+        if drill_url and drill_url != careers_url:
+            careers_url, careers_html = drill_url, drill_html
 
     # Stage 2: ATS detection
     ats_name, ats_cfg = detect_ats(careers_url, careers_html)
     if not ats_name and homepage_url:
-        # Also check the homepage itself for embedded ATS widgets
-        home_html, _ = http_get(homepage_url) if careers_url != homepage_url else (careers_html, None)
+        home_html, _ = (http_get(homepage_url)
+                        if careers_url != homepage_url
+                        else (careers_html, None))
         ats_name, ats_cfg = detect_ats(homepage_url, home_html)
 
     jobs = []
@@ -807,6 +832,19 @@ def scrape_company(company_name, homepage_url):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def main():
+    # Hard deadline — Python exits cleanly before Node.js kills the process.
+    # SIGALRM is Linux-only; skip silently on Windows.
+    try:
+        import signal
+        def _alarm(sig, frame):
+            print(json.dumps({'data': [], 'total': 0, 'error': 'timeout',
+                              'method': 'timeout', 'careersUrl': ''}))
+            sys.exit(0)
+        signal.signal(signal.SIGALRM, _alarm)
+        signal.alarm(22)
+    except (AttributeError, OSError):
+        pass
+
     company_name = sys.argv[1].strip() if len(sys.argv) > 1 else ''
     homepage_url = sys.argv[2].strip() if len(sys.argv) > 2 else ''
 
@@ -824,6 +862,7 @@ def main():
         }))
     except Exception as e:
         print(json.dumps({'data': [], 'total': 0, 'error': str(e)}))
+
 
 if __name__ == '__main__':
     main()

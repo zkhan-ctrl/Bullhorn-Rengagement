@@ -238,11 +238,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       <div class="header-logo">CGR</div>
       <div>
         <div class="header-title">Re-Engagement Tool</div>
-        <div class="header-subtitle">Active Account clients without a placement in 90+ days</div>
+        <div class="header-subtitle">Active Account clients — sorted by engagement score</div>
       </div>
     </div>
     <div class="header-stats">
-      <div class="stat"><div class="stat-num" id="statCompanies">—</div><div class="stat-label">Stale Co's</div></div>
+      <div class="stat"><div class="stat-num" id="statCompanies">—</div><div class="stat-label">Companies</div></div>
       <div class="stat"><div class="stat-num" id="statNotified">0</div><div class="stat-label">BD Notified</div></div>
     </div>
     <div class="header-right">
@@ -263,13 +263,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       <option value="3">Score 3</option>
       <option value="4">Score 4</option>
     </select>
-    <select class="filter-select" id="filterStale" onchange="applyFilters()">
-      <option value="">All Staleness</option>
-      <option value="60">60+ Days</option>
-      <option value="90">90+ Days</option>
-      <option value="150">150+ Days</option>
-      <option value="365">365+ Days</option>
-    </select>
     <select class="filter-select" id="filterBD" onchange="applyFilters()">
       <option value="">All BD Owners</option>
     </select>
@@ -287,13 +280,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   <div class="modal">
     <div class="modal-title">⚙ Settings</div>
     <div class="modal-field">
-      <div class="modal-label">Staleness Threshold (days)</div>
-      <input class="modal-input" id="settingDays" type="number" min="30" max="730" value="90">
-      <div class="modal-hint">Companies with no placement beyond this many days are flagged stale.</div>
+      <div class="modal-label">No settings available yet</div>
+      <div class="modal-hint">More options coming soon.</div>
     </div>
     <div class="modal-actions">
-      <button class="btn-cancel" onclick="closeSettings()">Cancel</button>
-      <button class="btn-save" onclick="saveSettings()">Save &amp; Refresh</button>
+      <button class="btn-cancel" onclick="closeSettings()">Close</button>
     </div>
   </div>
 </div>
@@ -302,7 +293,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 
 <script>
 // ─── State ────────────────────────────────────────────────────────────────────
-const cfg = { days: parseInt(localStorage.getItem('bh_days')) || 90 };
+const cfg = {};
 
 let companies    = [];
 let cardData     = {};
@@ -336,7 +327,7 @@ async function loadCompanies() {
   jobCounts = {};
 
   try {
-    const res  = await fetch(`/api/stale-companies?days=${cfg.days}`);
+    const res  = await fetch('/api/stale-companies');
     const data = await res.json();
     if (data.error) throw new Error(data.error);
 
@@ -402,7 +393,7 @@ async function loadJobCounts() {
 function renderList() {
   const list = document.getElementById('companyList');
   if (!companies.length) {
-    list.innerHTML = `<div class="empty-state"><div class="empty-icon">🎉</div><div class="empty-title">No Stale Companies Found</div><div class="empty-desc">All Active Account companies have had a placement within the last ${cfg.days} days.</div></div>`;
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">🎉</div><div class="empty-title">No Active Account Companies Found</div><div class="empty-desc">No companies with Status = 'Active Account' were found in Bullhorn.</div></div>`;
     document.getElementById('resultCount').textContent = '';
     return;
   }
@@ -421,13 +412,6 @@ function renderCard(c) {
   const pipClass   = sc != null ? `pip-${sc}`   : 'pip-null';
   const scoreLabel = sc != null ? sc : '?';
 
-  let staleHtml = '';
-  if (c.daysStale != null) {
-    const cls = c.daysStale >= 150 ? 'stale-critical' : c.daysStale >= 90 ? 'stale-high' : c.daysStale >= 60 ? 'stale-medium' : 'stale-low';
-    staleHtml = `<span class="stale-badge ${cls}">${c.daysStale}d w/o placement</span>`;
-  } else {
-    staleHtml = `<span class="stale-badge stale-critical">No placements on record</span>`;
-  }
 
   // Job count badge (loading state until loadJobCounts fires)
   const jc = jobCounts[c.id];
@@ -463,7 +447,6 @@ function renderCard(c) {
         <div class="card-meta-row">
           <span class="score-pip ${pipClass}">Score ${scoreLabel}</span>
           <span class="card-industry">${esc(c.industry)}</span>
-          ${staleHtml}
           ${c.website ? `<a class="card-website" href="${esc(c.website)}" target="_blank" onclick="event.stopPropagation()">↗ Site</a>` : ''}
         </div>
         ${ownerRowHtml}
@@ -628,23 +611,12 @@ async function toggleCard(id) {
 
   const company = companies.find(c => c.id === id);
 
-  // Show loading state immediately
-  cardData[id] = {
-    contacts: {}, allContacts: [], selectedContactId: null, contactDrafts: {},
-    jobs: [], externalJobs: [], externalJobsLoading: adzunaEnabled,
-    note: cardData[id]?.note || '', notified: cardData[id]?.notified || false,
-    sent: {}, loaded: false
-  };
-
-  const [contactsRes, jobsRes, extJobsRes] = await Promise.all([
+  // Load contacts and Bullhorn jobs immediately (fast CData queries)
+  const [contactsRes, jobsRes] = await Promise.all([
     fetch(`/api/company/${id}/contacts`).then(r => r.json()).catch(() => ({})),
-    fetch(`/api/company/${id}/jobs`).then(r => r.json()).catch(() => ({ data: [] })),
-    adzunaEnabled
-      ? fetch(`/api/company/${id}/external-jobs?name=${encodeURIComponent(company?.name || '')}&website=${encodeURIComponent(company?.website || '')}`).then(r => r.json()).catch(() => ({ data: [] }))
-      : Promise.resolve({ data: [] })
+    fetch(`/api/company/${id}/jobs`).then(r => r.json()).catch(() => ({ data: [] }))
   ]);
 
-  // Flatten contacts from all categories
   const CATS = ['Recruiting', 'Sales', 'HR', 'Ops', 'Other'];
   const allContacts = CATS.flatMap(cat =>
     (contactsRes[cat] || []).map(ct => ({ ...ct, category: cat }))
@@ -657,9 +629,9 @@ async function toggleCard(id) {
     allContacts,
     selectedContactId:   firstContact?.id ?? null,
     contactDrafts:       {},
-    jobs:                jobsRes.data  || [],
-    externalJobs:        extJobsRes.data || [],
-    externalJobsLoading: false,
+    jobs:                jobsRes.data || [],
+    externalJobs:        [],
+    externalJobsLoading: true,   // external jobs load in background
     note:                cardData[id]?.note || '',
     notified:            cardData[id]?.notified || false,
     sent:                {},
@@ -669,6 +641,30 @@ async function toggleCard(id) {
 
   // Auto-generate draft for first contact
   if (firstContact) generateContactDraft(id, firstContact);
+
+  // Load external jobs in background — card is already visible
+  loadExternalJobsForCard(id, company);
+}
+
+async function loadExternalJobsForCard(id, company) {
+  try {
+    const extRes = await fetch(
+      `/api/company/${id}/external-jobs` +
+      `?name=${encodeURIComponent(company?.name || '')}` +
+      `&website=${encodeURIComponent(company?.website || '')}`
+    ).then(r => r.json()).catch(() => ({ data: [] }));
+
+    if (cardData[id]) {
+      cardData[id].externalJobs        = extRes.data || [];
+      cardData[id].externalJobsLoading = false;
+      if (expandedIds.has(id)) refreshCard(id);
+    }
+  } catch {
+    if (cardData[id]) {
+      cardData[id].externalJobsLoading = false;
+      if (expandedIds.has(id)) refreshCard(id);
+    }
+  }
 }
 
 async function generateContactDraft(cId, contact) {
@@ -786,7 +782,6 @@ function toggleHasJobs(btn) {
 
 function applyFilters() {
   const score  = document.getElementById('filterScore').value;
-  const stale  = parseInt(document.getElementById('filterStale').value) || 0;
   const bd     = document.getElementById('filterBD').value;
   const search = document.getElementById('filterSearch').value.toLowerCase();
   let visible  = 0;
@@ -797,9 +792,8 @@ function applyFilters() {
     const jc = jobCounts[c.id];
     const show =
       (!score  || String(c.score) === score)
-      && (!stale  || (c.daysStale || 0) >= stale)
       && (!bd     || c.bdOwner === bd)
-      && (!filterHasJobs || (jc !== undefined ? jc > 0 : true)) // include unloaded cards
+      && (!filterHasJobs || (jc !== undefined ? jc > 0 : true))
       && (!search || c.name.toLowerCase().includes(search) || (c.industry || '').toLowerCase().includes(search));
     el.style.display = show ? '' : 'none';
     if (show) visible++;
@@ -809,17 +803,8 @@ function applyFilters() {
 }
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
-function openSettings() {
-  document.getElementById('settingDays').value = cfg.days;
-  document.getElementById('settingsModal').classList.add('open');
-}
+function openSettings() { document.getElementById('settingsModal').classList.add('open'); }
 function closeSettings() { document.getElementById('settingsModal').classList.remove('open'); }
-function saveSettings() {
-  cfg.days = parseInt(document.getElementById('settingDays').value) || 90;
-  localStorage.setItem('bh_days', cfg.days);
-  closeSettings();
-  loadCompanies();
-}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function setScanState(active) {
