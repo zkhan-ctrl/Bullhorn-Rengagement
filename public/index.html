@@ -283,11 +283,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   <div class="filters">
     <span class="filter-label">Filter:</span>
     <select class="filter-select" id="filterScore" onchange="applyFilters()">
-      <option value="">All Scores</option>
-      <option value="1">Score 1 (Priority)</option>
-      <option value="2">Score 2</option>
-      <option value="3">Score 3</option>
-      <option value="4">Score 4</option>
+      <option value="">All Tiers</option>
+      <option value="1">Tier 1 — Best</option>
+      <option value="2">Tier 2</option>
+      <option value="3">Tier 3</option>
+      <option value="4">Tier 4 — Lowest</option>
     </select>
     <select class="filter-select" id="filterBD" onchange="applyFilters()">
       <option value="">All BD Owners</option>
@@ -438,6 +438,7 @@ function renderCard(c) {
   const scoreClass = sc != null ? `score-${sc}` : 'score-null';
   const pipClass   = sc != null ? `pip-${sc}`   : 'pip-null';
   const scoreLabel = sc != null ? sc : '?';
+  const scoreBadgeLabel = sc != null ? `T${sc}` : '?';
 
 
   // Job count badge (loading state until loadJobCounts fires)
@@ -468,11 +469,11 @@ function renderCard(c) {
   return `
   <div class="card${expanded ? ' expanded' : ''}" id="card-${c.id}">
     <div class="card-header" onclick="toggleCard(${c.id})">
-      <div class="score-badge ${scoreClass}">${scoreLabel}</div>
+      <div class="score-badge ${scoreClass}">${scoreBadgeLabel}</div>
       <div class="card-info">
         <div class="card-company-name">${esc(c.name)}</div>
         <div class="card-meta-row">
-          <span class="score-pip ${pipClass}">Score ${scoreLabel}</span>
+          <span class="score-pip ${pipClass}">${sc != null ? `Tier ${scoreLabel}` : 'Unscored'}</span>
           <span class="card-industry">${esc(c.industry)}</span>
           ${c.website ? `<a class="card-website" href="${esc(c.website)}" target="_blank" onclick="event.stopPropagation()">↗ Site</a>` : ''}
         </div>
