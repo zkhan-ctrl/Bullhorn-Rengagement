@@ -1,12 +1,16 @@
 [phases.setup]
-nixPkgs = ['nodejs_20', 'python311']
+nixPkgs = ['nodejs_20', 'python311', 'chromium']
 
 [phases.install]
 cmds = [
   'npm install',
   'python3 -m venv .venv',
-  '.venv/bin/pip install -r requirements.txt'
+  '.venv/bin/pip install -r requirements.txt',
+  'PLAYWRIGHT_BROWSERS_PATH=/app/.playwright .venv/bin/playwright install chromium'
 ]
+
+[phases.build]
+cmds = []
 
 [start]
 cmd = 'node server.js'

@@ -61,10 +61,11 @@ function placementCorpSql_recent(cutoff) {
           WHERE ${FIELD.placementCorpField} IS NOT NULL AND DateAdded > '${cutoff}'`;
 }
 
-function placementCorpSql_last(idList) {
-  return `SELECT TOP 2000 ${FIELD.placementCorpField} AS ClientCorporationid, DateAdded
+// Fetch all recent placements ordered newest-first so we can find lastPlaced per company
+// without an IN (500 IDs) clause, which exceeds CData's query length limit.
+function placementCorpSql_last() {
+  return `SELECT TOP 5000 ${FIELD.placementCorpField} AS ClientCorporationid, DateAdded
           FROM ${T('Placement')}
-          WHERE ${FIELD.placementCorpField} IN (${idList})
           ORDER BY DateAdded DESC`;
 }
 
@@ -242,8 +243,7 @@ app.get('/api/stale-companies', async (req, res) => {
     // Last placement date per stale company (for "X days w/o placement" display)
     let lastPlacedMap = {};
     if (staleCompanies.length > 0) {
-      const idList = staleCompanies.slice(0, 500).map(c => c.ID).join(',');
-      const last   = await cdataQuery(placementCorpSql_last(idList)).catch(() => []);
+      const last = await cdataQuery(placementCorpSql_last()).catch(() => []);
       last.forEach(p => {
         const cid = p.ClientCorporationid;
         if (cid && !lastPlacedMap[cid]) lastPlacedMap[cid] = p.DateAdded;
@@ -404,8 +404,8 @@ app.get('/api/job-counts', async (req, res) => {
       rows.forEach(r => { if (r.ClientCorporationid) counts[r.ClientCorporationid] = parseInt(r.cnt) || 0; });
     } catch (_) {
       const rows = await cdataQuery(
-        `SELECT ${f} AS ClientCorporationid FROM ${T('JobOrder')}
-         WHERE ${f} IN (${idList}) AND DateAdded > '${oneYearAgo}' LIMIT 5000`
+        `SELECT TOP 5000 ${f} AS ClientCorporationid FROM ${T('JobOrder')}
+         WHERE ${f} IN (${idList}) AND DateAdded > '${oneYearAgo}'`
       ).catch(() => []);
       counts = toCounts(rows);
     }

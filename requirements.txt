@@ -1,1 +1,5 @@
 python-jobspy
+httpx
+beautifulsoup4
+anthropic
+playwright
