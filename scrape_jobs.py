@@ -356,17 +356,30 @@ def detect_ats(url, html):
 
     combined = ' '.join(scan_targets)
 
-    m = re.search(r'boards\.greenhouse\.io/([a-z0-9_-]+)', combined, re.I)
+    # Greenhouse — boards, job-boards, embed (with ?for= query param), and boards-api
+    m = (re.search(r'(?:boards|job-boards)\.greenhouse\.io/(?!embed/)([a-z0-9_-]+)', combined, re.I)
+         or re.search(r'boards-api\.greenhouse\.io/v1/boards/([a-z0-9_-]+)/', combined, re.I)
+         or re.search(r'embed\.greenhouse\.io/[^\s"\']*[?&]for=([a-z0-9_-]+)', combined, re.I))
     if m:
         return 'Greenhouse', {'token': m.group(1)}
 
-    m = re.search(r'jobs\.lever\.co/([a-z0-9_-]+)', combined, re.I)
+    # Lever — US and EU hosting
+    m = re.search(r'jobs(?:\.eu)?\.lever\.co/([a-z0-9_-]+)', combined, re.I)
     if m:
-        return 'Lever', {'company': m.group(1)}
+        eu = 'eu.' in (m.group(0) or '').lower()
+        return 'Lever', {'company': m.group(1), 'eu': eu}
 
     m = re.search(r'jobs\.ashbyhq\.com/([a-z0-9_-]+)', combined, re.I)
     if m:
         return 'Ashby', {'company': m.group(1)}
+
+    m = re.search(r'ats\.rippling\.com/([a-z0-9_-]+)/jobs', combined, re.I)
+    if m:
+        return 'Rippling', {'company': m.group(1)}
+
+    m = re.search(r'apply\.workable\.com/([A-Za-z0-9_-]+)', combined, re.I)
+    if m:
+        return 'Workable', {'company': m.group(1)}
 
     m = re.search(r'careers\.smartrecruiters\.com/([A-Za-z0-9_-]+)', combined)
     if not m:
@@ -444,7 +457,16 @@ def fetch_greenhouse(cfg, company_name):
 
 
 def fetch_lever(cfg, company_name):
-    data = http_get_json(f"https://api.lever.co/v0/postings/{cfg['company']}?mode=json")
+    company = cfg['company']
+    # Try EU endpoint first if detected there, then US (or vice versa)
+    hosts = ['https://api.lever.co/v0/postings', 'https://api.eu.lever.co/v0/postings']
+    if cfg.get('eu'):
+        hosts.reverse()
+    data = None
+    for host in hosts:
+        data = http_get_json(f"{host}/{company}?mode=json")
+        if isinstance(data, list):
+            break
     if not isinstance(data, list):
         return []
     jobs = []
@@ -460,17 +482,24 @@ def fetch_lever(cfg, company_name):
 
 
 def fetch_ashby(cfg, company_name):
+    slug = cfg['company']
     data = http_get_json(
-        f"https://api.ashbyhq.com/posting-api/job-board/{cfg['company']}?includeCompensation=true"
+        f"https://api.ashbyhq.com/posting-api/job-board/{slug}?includeCompensation=true"
     )
     if not data:
         return []
+    # Ashby API returns 'jobs'; older fallback key is 'jobPostings'
+    postings = data.get('jobs') or data.get('jobPostings') or []
     jobs = []
-    for j in data.get('jobPostings', []):
+    for j in postings:
         loc = j.get('location') or j.get('locationName') or ''
+        # jobUrl/applyUrl are full URLs; jobPostingPath is a relative path
+        job_url = j.get('jobUrl') or j.get('applyUrl') or j.get('jobPostingPath') or ''
+        if job_url and not job_url.startswith('http'):
+            job_url = f"https://jobs.ashbyhq.com/{slug}{job_url}"
         jobs.append(make_job(
             title=j.get('title', ''), company=company_name, location=loc,
-            dept=j.get('departmentName', ''), url=j.get('jobPostingPath', ''),
+            dept=j.get('departmentName', ''), url=job_url or f"https://jobs.ashbyhq.com/{slug}",
             source='Ashby', remote_type=norm_remote(str(loc)),
         ))
     return jobs
@@ -625,6 +654,33 @@ def fetch_applicantpro(cfg, company_name):
     return parse_html_jobs(html, final_url or url, company_name, source='ApplicantPro')
 
 
+def fetch_rippling(cfg, company_name):
+    """Rippling job boards are JS-rendered — Playwright required."""
+    url = f"https://ats.rippling.com/{cfg['company']}/jobs"
+    return scrape_with_playwright(url, company_name)
+
+
+def fetch_workable(cfg, company_name):
+    """Try Workable public JSON API first, fall back to Playwright."""
+    slug = cfg['company']
+    # Workable exposes a public API for published jobs
+    data = http_get_json(f"https://apply.workable.com/api/v3/accounts/{slug}/jobs")
+    if isinstance(data, dict) and data.get('results'):
+        jobs = []
+        for j in data['results']:
+            loc = (j.get('location') or {})
+            loc_str = loc.get('location_str') or loc.get('city') or ''
+            url = j.get('url') or f"https://apply.workable.com/{slug}/j/{j.get('shortcode', '')}"
+            jobs.append(make_job(
+                title=j.get('title', ''), company=company_name, location=loc_str,
+                dept=j.get('department', ''), url=url, source='Workable',
+            ))
+        return jobs
+    # Fallback: render the public board page
+    url = f"https://apply.workable.com/{slug}/"
+    return scrape_with_playwright(url, company_name)
+
+
 def fetch_paylocity(cfg, company_name):
     url = (f"https://recruiting.paylocity.com/recruiting/jobs/All"
            f"/{cfg['id']}/{cfg['company']}")
@@ -645,6 +701,8 @@ ATS_HANDLERS = {
     'iCIMS':           fetch_icims,
     'ADP':             fetch_adp,
     'ApplicantPro':    fetch_applicantpro,
+    'Rippling':        fetch_rippling,
+    'Workable':        fetch_workable,
     'Paylocity':       fetch_paylocity,
 }
 
@@ -674,6 +732,23 @@ NON_JOB_TERMS = re.compile(
 )
 
 
+def _collect_jsonld_jobs(node):
+    """Recursively yield JobPosting dicts from JSON-LD, handling @graph and arrays."""
+    if isinstance(node, list):
+        for item in node:
+            yield from _collect_jsonld_jobs(item)
+    elif isinstance(node, dict):
+        typ = node.get('@type', '')
+        types = typ if isinstance(typ, list) else [typ]
+        if any(str(t).lower() == 'jobposting' for t in types):
+            yield node
+        else:
+            if '@graph' in node:
+                yield from _collect_jsonld_jobs(node['@graph'])
+            if 'itemListElement' in node:
+                yield from _collect_jsonld_jobs(node['itemListElement'])
+
+
 def parse_html_jobs(html, page_url, company_name, source='Company Website'):
     if not html:
         return []
@@ -685,27 +760,25 @@ def parse_html_jobs(html, page_url, company_name, source='Company Website'):
         html, re.DOTALL | re.IGNORECASE
     ):
         try:
-            data  = json.loads(m.group(1))
-            items = data if isinstance(data, list) else [data]
-            for item in items:
-                if item.get('@type') == 'JobPosting':
-                    title = (item.get('title') or '').strip()
-                    if not title:
-                        continue
-                    loc_raw = item.get('jobLocation') or {}
-                    if isinstance(loc_raw, list):
-                        loc_raw = loc_raw[0] if loc_raw else {}
-                    addr = loc_raw.get('address') or {}
-                    loc  = ', '.join(filter(None, [addr.get('addressLocality'),
-                                                   addr.get('addressRegion')]))
-                    dp   = (item.get('datePosted') or '')[:10]
-                    jobs.append(make_job(
-                        title=title, company=company_name, location=loc,
-                        url=item.get('url', page_url), source=source,
-                        date_posted=dp or None,
-                        remote_type='Remote' if item.get('jobLocationType') == 'TELECOMMUTE'
-                                    else 'Unknown',
-                    ))
+            data = json.loads(m.group(1))
+            for item in _collect_jsonld_jobs(data):
+                title = (item.get('title') or '').strip()
+                if not title:
+                    continue
+                loc_raw = item.get('jobLocation') or {}
+                if isinstance(loc_raw, list):
+                    loc_raw = loc_raw[0] if loc_raw else {}
+                addr = loc_raw.get('address') or {}
+                loc  = ', '.join(filter(None, [addr.get('addressLocality'),
+                                               addr.get('addressRegion')]))
+                dp   = (item.get('datePosted') or '')[:10]
+                jobs.append(make_job(
+                    title=title, company=company_name, location=loc,
+                    url=item.get('url', page_url), source=source,
+                    date_posted=dp or None,
+                    remote_type='Remote' if item.get('jobLocationType') == 'TELECOMMUTE'
+                                else 'Unknown',
+                ))
         except Exception:
             continue
 
