@@ -920,8 +920,19 @@ function esc(str) {
     .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-// ─── Auth ─────────────────────────────────────────────────────────────────────
+// ─── Auth — bearer token stored in localStorage (works in iframe + proxy) ──────
+const _origFetch = window.fetch.bind(window);
+window.fetch = (url, opts = {}) => {
+  const token = localStorage.getItem('cgr_token');
+  if (token && typeof url === 'string' && url.startsWith('/api')) {
+    opts = { ...opts, headers: { ...(opts.headers || {}), 'Authorization': 'Bearer ' + token } };
+  }
+  return _origFetch(url, opts);
+};
+
 async function checkAuth() {
+  const token = localStorage.getItem('cgr_token');
+  if (!token) return false;
   try {
     const r = await fetch('/api/me');
     if (r.ok) {
@@ -931,18 +942,20 @@ async function checkAuth() {
       return true;
     }
   } catch (_) {}
+  localStorage.removeItem('cgr_token');
   return false;
 }
 
 async function logout() {
   await fetch('/api/logout', { method: 'POST' });
+  localStorage.removeItem('cgr_token');
   location.reload();
 }
 
 document.getElementById('loginForm').addEventListener('submit', async e => {
   e.preventDefault();
-  const btn  = document.getElementById('loginBtn');
-  const err  = document.getElementById('loginError');
+  const btn      = document.getElementById('loginBtn');
+  const err      = document.getElementById('loginError');
   const email    = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPassword').value;
 
@@ -951,13 +964,14 @@ document.getElementById('loginForm').addEventListener('submit', async e => {
   err.style.display = 'none';
 
   try {
-    const r    = await fetch('/api/login', {
+    const r    = await _origFetch('/api/login', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ email, password }),
     });
     const data = await r.json();
     if (r.ok) {
+      localStorage.setItem('cgr_token', data.token);
       document.getElementById('loginOverlay').classList.add('hidden');
       document.getElementById('headerUser').textContent = data.name;
       init();

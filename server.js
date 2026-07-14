@@ -4,12 +4,11 @@ const axios          = require('axios');
 const path           = require('path');
 const { spawn }      = require('child_process');
 const fs             = require('fs');
-const bcrypt         = require('bcryptjs');
-const session        = require('express-session');
-const rateLimit      = require('express-rate-limit');
+const bcrypt    = require('bcryptjs');
+const rateLimit = require('express-rate-limit');
+const crypto    = require('crypto');
 
-// ─── User store — parsed once at startup ──────────────────────────────────────
-// Passwords are hashed with bcrypt (cost 10) so plaintext never lives in memory.
+// ─── User store — parsed + hashed once at startup ─────────────────────────────
 const USERS_MAP = new Map();
 try {
   const rawUsers = JSON.parse(process.env.USERS || '[]');
@@ -26,23 +25,16 @@ try {
   console.error('❌ USERS env var parse error:', e.message);
 }
 
+// ─── Token store — 30-day bearer tokens, no cookies needed ───────────────────
+// Using Authorization headers avoids all SameSite/proxy/iframe cookie issues.
+const AUTH_TOKENS = new Map(); // token → { user, expires }
+setInterval(() => {
+  const now = Date.now();
+  for (const [t, d] of AUTH_TOKENS) if (d.expires < now) AUTH_TOKENS.delete(t);
+}, 60 * 60 * 1000); // prune expired tokens hourly
+
 const app = express();
 app.use(express.json());
-
-// ─── Session (30-day, httpOnly, sameSite=none for iframe embedding) ───────────
-app.use(session({
-  name:   'cgr.sid',
-  secret: process.env.SESSION_SECRET || 'change-me-in-production',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    httpOnly: true,
-    secure:   true,       // HTTPS only (Railway always serves HTTPS)
-    sameSite: 'none',     // Required: iframe is cross-site inside Bullhorn
-    maxAge:   30 * 24 * 60 * 60 * 1000,  // 30 days
-  },
-}));
-
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use((req, res, next) => {
@@ -51,20 +43,25 @@ app.use((req, res, next) => {
   next();
 });
 
-// ─── Auth middleware — protects all /api/* except /api/login & /api/logout ────
+// ─── Auth middleware — checks Bearer token on all /api/* except /api/login ────
 app.use('/api', (req, res, next) => {
-  if (req.path === '/login' || req.path === '/logout') return next();
-  if (!req.session?.user) return res.status(401).json({ error: 'Not authenticated' });
+  if (req.path === '/login') return next();
+  const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+  if (!token) return res.status(401).json({ error: 'Not authenticated' });
+  const record = AUTH_TOKENS.get(token);
+  if (!record || record.expires < Date.now()) {
+    AUTH_TOKENS.delete(token);
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  req.currentUser = record.user;
   next();
 });
 
-// ─── Rate limiter — max 5 login attempts per 15 minutes per IP ────────────────
+// ─── Rate limiter — 5 attempts per 15 min per IP ──────────────────────────────
 const loginLimiter = rateLimit({
-  windowMs:       15 * 60 * 1000,
-  max:            5,
-  message:        { error: 'Too many login attempts. Try again in 15 minutes.' },
-  standardHeaders: true,
-  legacyHeaders:  false,
+  windowMs: 15 * 60 * 1000, max: 5,
+  message: { error: 'Too many login attempts. Try again in 15 minutes.' },
+  standardHeaders: true, legacyHeaders: false,
 });
 
 // ─── Auth routes ──────────────────────────────────────────────────────────────
@@ -74,41 +71,28 @@ app.post('/api/login', loginLimiter, async (req, res) => {
 
   const user = USERS_MAP.get(email.toLowerCase().trim());
   if (!user) {
-    // Run bcrypt anyway to prevent timing-based user enumeration
-    await bcrypt.compare(password, '$2b$10$invalidhashtopreventtimingattack00000000000000000000000');
+    await bcrypt.compare(password, '$2b$10$invalidhashtopreventtimingattackxxxxxxxxxxxxxxxxxxxxxxx');
     return res.status(401).json({ error: 'Invalid email or password' });
   }
-
   const match = await bcrypt.compare(password, user.hash);
   if (!match) return res.status(401).json({ error: 'Invalid email or password' });
 
-  req.session.regenerate(err => {
-    if (err) return res.status(500).json({ error: 'Session error' });
-    req.session.user = {
-      email:        email.toLowerCase().trim(),
-      name:         user.name,
-      admin:        user.admin,
-      overloop_key: user.overloop_key,
-    };
-    // Explicitly save before sending response — ensures cookie is committed
-    // to the session store before the client fires its next API request.
-    req.session.save(saveErr => {
-      if (saveErr) return res.status(500).json({ error: 'Session error' });
-      res.json({ ok: true, name: user.name, admin: user.admin });
-    });
+  const token = crypto.randomBytes(32).toString('hex');
+  AUTH_TOKENS.set(token, {
+    user: { email: email.toLowerCase().trim(), name: user.name, admin: user.admin, overloop_key: user.overloop_key },
+    expires: Date.now() + 30 * 24 * 60 * 60 * 1000,
   });
+  res.json({ ok: true, token, name: user.name, admin: user.admin });
 });
 
 app.post('/api/logout', (req, res) => {
-  req.session.destroy(() => {
-    res.clearCookie('cgr.sid');
-    res.json({ ok: true });
-  });
+  const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+  if (token) AUTH_TOKENS.delete(token);
+  res.json({ ok: true });
 });
 
 app.get('/api/me', (req, res) => {
-  if (!req.session?.user) return res.status(401).json({ error: 'Not authenticated' });
-  const { email, name, admin } = req.session.user;
+  const { email, name, admin } = req.currentUser;
   res.json({ email, name, admin });
 });
 
