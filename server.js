@@ -90,7 +90,12 @@ app.post('/api/login', loginLimiter, async (req, res) => {
       admin:        user.admin,
       overloop_key: user.overloop_key,
     };
-    res.json({ ok: true, name: user.name, admin: user.admin });
+    // Explicitly save before sending response — ensures cookie is committed
+    // to the session store before the client fires its next API request.
+    req.session.save(saveErr => {
+      if (saveErr) return res.status(500).json({ error: 'Session error' });
+      res.json({ ok: true, name: user.name, admin: user.admin });
+    });
   });
 });
 
