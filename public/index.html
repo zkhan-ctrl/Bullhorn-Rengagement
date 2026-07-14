@@ -29,6 +29,26 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .btn-scan:disabled { background: #475569; cursor: default; }
 .btn-settings { background: transparent; border: 1px solid #334155; color: #94a3b8; padding: 6px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; }
 .btn-settings:hover { border-color: #94a3b8; color: white; }
+.btn-logout { background: transparent; border: 1px solid #334155; color: #94a3b8; padding: 6px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; transition: all 0.15s; }
+.btn-logout:hover { border-color: #f97316; color: #f97316; }
+.header-user { font-size: 11px; color: #64748b; white-space: nowrap; }
+
+/* LOGIN OVERLAY */
+#loginOverlay { position: fixed; inset: 0; z-index: 9999; background: #0a0f1e; display: flex; align-items: center; justify-content: center; }
+#loginOverlay.hidden { display: none; }
+.login-card { background: #1a2744; border-radius: 16px; padding: 44px 40px; width: 100%; max-width: 400px; box-shadow: 0 24px 64px rgba(0,0,0,0.6); }
+.login-logo { width: 56px; height: 56px; background: #f97316; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px; color: white; margin: 0 auto 20px; }
+.login-title { font-size: 22px; font-weight: 700; color: white; text-align: center; margin-bottom: 4px; }
+.login-subtitle { font-size: 12px; color: #475569; text-align: center; margin-bottom: 32px; letter-spacing: 0.3px; }
+.login-field { margin-bottom: 16px; }
+.login-field label { display: block; font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 7px; }
+.login-field input { width: 100%; padding: 11px 14px; background: #0f172a; border: 1px solid #1e3a5f; border-radius: 8px; color: white; font-size: 14px; outline: none; transition: border-color 0.15s; }
+.login-field input:focus { border-color: #f97316; }
+.login-field input::placeholder { color: #334155; }
+.login-error { background: #2d0707; border: 1px solid #7f1d1d; border-radius: 8px; padding: 10px 14px; color: #fca5a5; font-size: 12px; margin-bottom: 14px; display: none; }
+.login-btn { width: 100%; padding: 12px; background: #f97316; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: background 0.15s; margin-top: 4px; }
+.login-btn:hover:not(:disabled) { background: #ea6c05; }
+.login-btn:disabled { background: #1e3a5f; color: #475569; cursor: not-allowed; }
 .ai-badge { background: #7c3aed; color: white; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; }
 
 /* SCAN BAR */
@@ -222,6 +242,27 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 </head>
 <body>
 
+<!-- LOGIN OVERLAY -->
+<div id="loginOverlay">
+  <div class="login-card">
+    <div class="login-logo">CGR</div>
+    <h1 class="login-title">Re-Engagement Tool</h1>
+    <p class="login-subtitle">Core Group Resources — Internal Access Only</p>
+    <form id="loginForm" autocomplete="on">
+      <div class="login-field">
+        <label>Email</label>
+        <input type="email" id="loginEmail" placeholder="you@cgrteam.com" autocomplete="email" required>
+      </div>
+      <div class="login-field">
+        <label>Password</label>
+        <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password" required>
+      </div>
+      <div id="loginError" class="login-error"></div>
+      <button type="submit" id="loginBtn" class="login-btn">Sign In</button>
+    </form>
+  </div>
+</div>
+
 <!-- SETUP SCREEN -->
 <div id="setupScreen" style="display:none; padding:20px;">
   <div class="setup-screen">
@@ -273,8 +314,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     </div>
     <div class="header-right">
       <span id="aiBadge" class="ai-badge" style="display:none;">✦ AI Drafts</span>
+      <span id="headerUser" class="header-user"></span>
       <button class="btn-settings" onclick="openSettings()">⚙ Settings</button>
       <button class="btn-scan" id="btnScan" onclick="loadCompanies()">&#9654; Refresh</button>
+      <button class="btn-logout" onclick="logout()">Sign Out</button>
     </div>
   </div>
 
@@ -877,8 +920,63 @@ function esc(str) {
     .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+async function checkAuth() {
+  try {
+    const r = await fetch('/api/me');
+    if (r.ok) {
+      const u = await r.json();
+      document.getElementById('loginOverlay').classList.add('hidden');
+      document.getElementById('headerUser').textContent = u.name;
+      return true;
+    }
+  } catch (_) {}
+  return false;
+}
+
+async function logout() {
+  await fetch('/api/logout', { method: 'POST' });
+  location.reload();
+}
+
+document.getElementById('loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn  = document.getElementById('loginBtn');
+  const err  = document.getElementById('loginError');
+  const email    = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+
+  btn.disabled    = true;
+  btn.textContent = 'Signing in…';
+  err.style.display = 'none';
+
+  try {
+    const r    = await fetch('/api/login', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ email, password }),
+    });
+    const data = await r.json();
+    if (r.ok) {
+      document.getElementById('loginOverlay').classList.add('hidden');
+      document.getElementById('headerUser').textContent = data.name;
+      init();
+    } else {
+      err.textContent   = data.error || 'Login failed. Please try again.';
+      err.style.display = 'block';
+      btn.disabled      = false;
+      btn.textContent   = 'Sign In';
+    }
+  } catch (_) {
+    err.textContent   = 'Network error. Please try again.';
+    err.style.display = 'block';
+    btn.disabled      = false;
+    btn.textContent   = 'Sign In';
+  }
+});
+
 // ─── Start ────────────────────────────────────────────────────────────────────
-init();
+checkAuth().then(authed => { if (authed) init(); });
 </script>
 </body>
 </html>

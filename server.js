@@ -4,15 +4,107 @@ const axios          = require('axios');
 const path           = require('path');
 const { spawn }      = require('child_process');
 const fs             = require('fs');
+const bcrypt         = require('bcryptjs');
+const session        = require('express-session');
+const rateLimit      = require('express-rate-limit');
+
+// ─── User store — parsed once at startup ──────────────────────────────────────
+// Passwords are hashed with bcrypt (cost 10) so plaintext never lives in memory.
+const USERS_MAP = new Map();
+try {
+  const rawUsers = JSON.parse(process.env.USERS || '[]');
+  for (const u of rawUsers) {
+    USERS_MAP.set(u.email.toLowerCase(), {
+      name:         u.name,
+      hash:         bcrypt.hashSync(u.password, 10),
+      overloop_key: u.overloop_key,
+      admin:        !!u.admin,
+    });
+  }
+  console.log(`✅ Auth: ${USERS_MAP.size} users loaded`);
+} catch (e) {
+  console.error('❌ USERS env var parse error:', e.message);
+}
 
 const app = express();
 app.use(express.json());
+
+// ─── Session (30-day, httpOnly, sameSite=none for iframe embedding) ───────────
+app.use(session({
+  name:   'cgr.sid',
+  secret: process.env.SESSION_SECRET || 'change-me-in-production',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    secure:   true,       // HTTPS only (Railway always serves HTTPS)
+    sameSite: 'none',     // Required: iframe is cross-site inside Bullhorn
+    maxAge:   30 * 24 * 60 * 60 * 1000,  // 30 days
+  },
+}));
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use((req, res, next) => {
   res.setHeader('Content-Security-Policy', "frame-ancestors *");
   res.removeHeader('X-Frame-Options');
   next();
+});
+
+// ─── Auth middleware — protects all /api/* except /api/login & /api/logout ────
+app.use('/api', (req, res, next) => {
+  if (req.path === '/login' || req.path === '/logout') return next();
+  if (!req.session?.user) return res.status(401).json({ error: 'Not authenticated' });
+  next();
+});
+
+// ─── Rate limiter — max 5 login attempts per 15 minutes per IP ────────────────
+const loginLimiter = rateLimit({
+  windowMs:       15 * 60 * 1000,
+  max:            5,
+  message:        { error: 'Too many login attempts. Try again in 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders:  false,
+});
+
+// ─── Auth routes ──────────────────────────────────────────────────────────────
+app.post('/api/login', loginLimiter, async (req, res) => {
+  const { email, password } = req.body || {};
+  if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
+
+  const user = USERS_MAP.get(email.toLowerCase().trim());
+  if (!user) {
+    // Run bcrypt anyway to prevent timing-based user enumeration
+    await bcrypt.compare(password, '$2b$10$invalidhashtopreventtimingattack00000000000000000000000');
+    return res.status(401).json({ error: 'Invalid email or password' });
+  }
+
+  const match = await bcrypt.compare(password, user.hash);
+  if (!match) return res.status(401).json({ error: 'Invalid email or password' });
+
+  req.session.regenerate(err => {
+    if (err) return res.status(500).json({ error: 'Session error' });
+    req.session.user = {
+      email:        email.toLowerCase().trim(),
+      name:         user.name,
+      admin:        user.admin,
+      overloop_key: user.overloop_key,
+    };
+    res.json({ ok: true, name: user.name, admin: user.admin });
+  });
+});
+
+app.post('/api/logout', (req, res) => {
+  req.session.destroy(() => {
+    res.clearCookie('cgr.sid');
+    res.json({ ok: true });
+  });
+});
+
+app.get('/api/me', (req, res) => {
+  if (!req.session?.user) return res.status(401).json({ error: 'Not authenticated' });
+  const { email, name, admin } = req.session.user;
+  res.json({ email, name, admin });
 });
 
 const externalJobCache = new Map();
