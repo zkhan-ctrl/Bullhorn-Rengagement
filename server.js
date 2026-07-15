@@ -96,6 +96,98 @@ app.get('/api/me', (req, res) => {
   res.json({ email, name, admin });
 });
 
+// ─── Overloop outreach integration ────────────────────────────────────────────
+const OVERLOOP_BASE = 'https://api.overloop.com/public/v1';
+
+function overloopHeaders(key) {
+  return {
+    'Authorization': `apikey ${key}`,
+    'Content-Type':  'application/vnd.api+json',
+    'Accept':        'application/vnd.api+json',
+  };
+}
+
+// List sequences from the BD's own Overloop account
+app.get('/api/overloop/sequences', async (req, res) => {
+  const key = req.currentUser?.overloop_key;
+  if (!key) return res.status(400).json({ error: 'No Overloop API key configured for your account. Contact your admin.' });
+  try {
+    const r = await axios.get(`${OVERLOOP_BASE}/sequences`, { headers: overloopHeaders(key) });
+    const sequences = (r.data.data || []).map(s => ({
+      id:   s.id,
+      name: s.attributes?.name || s.attributes?.title || `Sequence ${s.id}`,
+    }));
+    res.json({ sequences });
+  } catch (e) {
+    const status = e.response?.status;
+    if (status === 401 || status === 403) return res.status(400).json({ error: 'Invalid Overloop API key. Contact your admin.' });
+    res.status(400).json({ error: e.response?.data?.errors?.[0]?.detail || e.message });
+  }
+});
+
+// Create prospect + enroll in a sequence (single or bulk contacts)
+app.post('/api/overloop/enroll', async (req, res) => {
+  const key = req.currentUser?.overloop_key;
+  if (!key) return res.status(400).json({ error: 'No Overloop API key configured for your account.' });
+
+  const { contacts, sequenceId } = req.body || {};
+  // contacts = [{ firstName, lastName, email, companyName }, ...]
+  if (!Array.isArray(contacts) || !contacts.length) return res.status(400).json({ error: 'No contacts provided.' });
+  if (!sequenceId) return res.status(400).json({ error: 'No sequence selected.' });
+
+  const hdrs = overloopHeaders(key);
+  const results = [];
+
+  for (const ct of contacts) {
+    const { firstName = '', lastName = '', email, companyName = '' } = ct;
+    if (!email) { results.push({ email: '', ok: false, error: 'Missing email' }); continue; }
+
+    try {
+      // Create prospect — Overloop returns 422 if email already exists
+      let prospectId;
+      try {
+        const pRes = await axios.post(`${OVERLOOP_BASE}/prospects`, {
+          data: {
+            type: 'prospects',
+            attributes: { email, first_name: firstName, last_name: lastName, organization_name: companyName },
+          }
+        }, { headers: hdrs });
+        prospectId = pRes.data.data.id;
+      } catch (pErr) {
+        if (pErr.response?.status === 422) {
+          // Already exists — look up by email
+          const search = await axios.get(
+            `${OVERLOOP_BASE}/prospects?filter[email]=${encodeURIComponent(email)}`,
+            { headers: hdrs }
+          );
+          prospectId = search.data?.data?.[0]?.id;
+          if (!prospectId) throw pErr;
+        } else throw pErr;
+      }
+
+      // Enroll in sequence
+      await axios.post(`${OVERLOOP_BASE}/sequence_states`, {
+        data: {
+          type: 'sequence_states',
+          attributes: {},
+          relationships: {
+            prospect: { data: { type: 'prospects', id: String(prospectId) } },
+            sequence:  { data: { type: 'sequences',  id: String(sequenceId)  } },
+          },
+        }
+      }, { headers: hdrs });
+
+      results.push({ email, ok: true, prospectId });
+    } catch (e) {
+      const detail = e.response?.data?.errors?.[0]?.detail || e.message;
+      results.push({ email, ok: false, error: detail });
+    }
+  }
+
+  const failed = results.filter(r => !r.ok);
+  res.json({ results, enrolled: results.length - failed.length, failed: failed.length });
+});
+
 const externalJobCache = new Map();
 
 // ─── CData Connect AI — SQL Query API ─────────────────────────────────────────
@@ -208,6 +300,31 @@ const CSV_SCORE = new Map([
 ]);
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
+
+// Admin-only: check which CData columns contain score data for a specific company
+// GET /api/admin/score-fields?id=47758
+app.get('/api/admin/score-fields', async (req, res) => {
+  if (!req.currentUser?.admin) return res.status(403).json({ error: 'Admin only' });
+  const companyId = parseInt(req.query.id) || 47758;
+  try {
+    const rows = await cdataQuery(
+      `SELECT TOP 1 * FROM ${T('ClientCorporation')} WHERE id = ${companyId}`
+    );
+    if (!rows.length) return res.json({ error: `Company ${companyId} not found` });
+    const row = rows[0];
+    // Return only columns that are non-null and whose name looks like a custom or score field
+    const scoreKeywords = /score|tier|rank|rating|client|dh|contract|custom/i;
+    const relevant = Object.entries(row)
+      .filter(([k, v]) => v != null && v !== '' && scoreKeywords.test(k))
+      .reduce((acc, [k, v]) => { acc[k] = v; return acc; }, {});
+    const allNonNull = Object.entries(row)
+      .filter(([, v]) => v != null && v !== '')
+      .reduce((acc, [k, v]) => { acc[k] = v; return acc; }, {});
+    res.json({ companyId, scoreRelatedColumns: relevant, allNonNullColumns: allNonNull });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 // Debug — inspect any table: GET /api/debug?table=Placement
 app.get('/api/debug', async (req, res) => {

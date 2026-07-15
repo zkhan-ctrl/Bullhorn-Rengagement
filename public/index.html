@@ -238,6 +238,24 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
 .btn-save { background: #6366f1; color: white; border: none; padding: 8px 20px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; }
 .btn-cancel { background: white; border: 1px solid #e2e8f0; color: #64748b; padding: 8px 16px; border-radius: 7px; font-size: 13px; cursor: pointer; }
+
+/* OVERLOOP */
+.btn-overloop { background: #0f172a; color: #e2e8f0; border: 1px solid #334155; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+.btn-overloop:hover { background: #6366f1; border-color: #6366f1; color: white; }
+.btn-overloop.enrolled { background: #d1fae5; border-color: #34d399; color: #065f46; pointer-events: none; }
+.btn-automate { background: transparent; border: 1px solid #334155; color: #94a3b8; padding: 5px 9px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+.btn-automate:hover { border-color: #6366f1; color: #6366f1; }
+.btn-automate.enrolled { background: #eef2ff; border-color: #6366f1; color: #4f46e5; pointer-events: none; }
+.seq-select { width: 100%; border: 1px solid #e2e8f0; border-radius: 7px; padding: 9px 10px; font-size: 13px; outline: none; margin-bottom: 6px; }
+.seq-select:focus { border-color: #6366f1; }
+.enroll-contact-list { margin-bottom: 14px; display: flex; flex-direction: column; gap: 6px; max-height: 160px; overflow-y: auto; }
+.enroll-contact-row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; background: #f8fafc; border-radius: 7px; border: 1px solid #e2e8f0; font-size: 12px; }
+.enroll-contact-row .contact-check { width: 14px; height: 14px; accent-color: #6366f1; }
+.enroll-contact-name { font-weight: 600; color: #0f172a; }
+.enroll-contact-email { color: #64748b; margin-left: auto; font-size: 11px; }
+.enroll-result { font-size: 12px; padding: 8px 12px; border-radius: 7px; margin-top: 10px; }
+.enroll-result.ok  { background: #d1fae5; color: #065f46; }
+.enroll-result.err { background: #fee2e2; color: #991b1b; }
 </style>
 </head>
 <body>
@@ -342,6 +360,16 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   </div>
 
   <div class="company-list" id="companyList"></div>
+</div>
+
+<!-- OVERLOOP SEQUENCE PICKER MODAL -->
+<div class="modal-overlay" id="overloopModal" onclick="if(event.target===this)closeOverloopModal()">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-title" id="overloopModalTitle">Enroll in Overloop Sequence</div>
+    <div id="overloopModalBody">
+      <div style="color:#94a3b8;font-size:12px;padding:12px 0;">Loading sequences…</div>
+    </div>
+  </div>
 </div>
 
 <!-- SETTINGS MODAL -->
@@ -524,6 +552,7 @@ function renderCard(c) {
       </div>
       <div class="card-actions-right">
         <span class="jobs-count-badge ${jcClass}" id="jc-${c.id}" ${jcAttr}>${jcText}</span>
+        ${(sc === 3 || sc === 4) ? `<button class="btn-automate${data?.overloopEnrolled ? ' enrolled' : ''}" onclick="event.stopPropagation();openAutomateModal(${c.id})">${data?.overloopEnrolled ? '✓ Automated' : '⚡ Automate'}</button>` : ''}
         <button class="btn-notify${notified ? ' notified' : ''}" onclick="notifyBD(event,${c.id})">${notified ? '✓ Notified' : '🔔 Notify BD'}</button>
         <div class="expand-icon">&#8964;</div>
       </div>
@@ -622,11 +651,14 @@ function renderCardBody(c, data) {
         ? `<div class="draft-loading" style="color:#94a3b8;">Select a contact above</div>`
         : `<div class="email-draft-text" contenteditable="true" id="draft-${c.id}-${draftKey}">${esc(draftText)}</div>`;
 
+    const contactEmail = selContact?.email || '';
+    const isEnrolled   = !!(data.overloopEnrolledContacts?.has(contactEmail));
     const actionsHtml = draftText
       ? `<div class="email-draft-actions">
-           <button class="btn-send${isSent ? ' sent-ok' : ''}" onclick="sendEmail(${c.id},${draftKey})">${isSent ? '✓ Sent' : '✉ Send'}</button>
+           <button class="btn-send${isSent ? ' sent-ok' : ''}" onclick="sendEmail(${c.id},${draftKey})">${isSent ? '✓ Sent' : '✉ Mark Sent'}</button>
            <button class="btn-copy" onclick="copyEmail(${c.id},${draftKey})">⎘ Copy</button>
            <button class="btn-regen" onclick="regenDraft(${c.id},${draftKey})" title="Generate a new draft">↺ New draft</button>
+           <button class="btn-overloop${isEnrolled ? ' enrolled' : ''}" onclick="openSequencePicker(${c.id},${draftKey})">${isEnrolled ? '✓ Enrolled' : '⚡ Enroll in Overloop'}</button>
          </div>`
       : '';
 
@@ -918,6 +950,176 @@ function esc(str) {
   return String(str)
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ─── Overloop outreach ────────────────────────────────────────────────────────
+let _seqCache     = null;   // cached sequence list for this session
+let _seqContext   = null;   // { mode: 'individual'|'automate', cId, contacts, title }
+
+async function _getSequences() {
+  if (_seqCache) return _seqCache;
+  const r = await fetch('/api/overloop/sequences');
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error || 'Failed to load sequences');
+  _seqCache = d.sequences || [];
+  return _seqCache;
+}
+
+function _seqPickerHtml(sequences, contacts, resultHtml = '') {
+  if (!sequences.length) {
+    return `
+      <p style="color:#64748b;font-size:13px;line-height:1.6;margin-bottom:16px;">
+        No sequences found in your Overloop account.<br>
+        <strong>Create at least one sequence in Overloop first</strong>, then come back here.
+      </p>
+      <div class="modal-actions"><button class="btn-cancel" onclick="closeOverloopModal()">Close</button></div>`;
+  }
+
+  const contactRows = contacts.map((ct, i) => `
+    <div class="enroll-contact-row">
+      <input type="checkbox" class="contact-check" id="ec-${i}" value="${i}" checked>
+      <label for="ec-${i}" style="flex:1;cursor:pointer;">
+        <span class="enroll-contact-name">${esc(ct.name)}</span>
+      </label>
+      <span class="enroll-contact-email">${esc(ct.email || '—')}</span>
+    </div>`).join('');
+
+  const seqOptions = sequences.map(s =>
+    `<option value="${esc(s.id)}">${esc(s.name)}</option>`
+  ).join('');
+
+  return `
+    <div class="modal-label" style="margin-bottom:8px;">Contacts to enroll</div>
+    <div class="enroll-contact-list">${contactRows}</div>
+    <div class="modal-label" style="margin-bottom:6px;">Select sequence</div>
+    <select class="seq-select" id="seqPicker">${seqOptions}</select>
+    <div class="modal-hint" style="margin-bottom:16px;">Sequences are pulled from your Overloop account.</div>
+    ${resultHtml}
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeOverloopModal()">Cancel</button>
+      <button class="btn-save" id="btnEnroll" onclick="submitEnroll()">Enroll</button>
+    </div>`;
+}
+
+async function openSequencePicker(cId, contactId) {
+  // Individual flow: Tier 1/2 — one contact from the card body
+  const data    = cardData[cId];
+  const company = companies.find(c => c.id === cId);
+  const contact = data?.allContacts?.find(ct => ct.id === contactId);
+  if (!contact) return showToast('Select a contact first.');
+  if (!contact.email) return showToast('This contact has no email address — cannot enroll in Overloop.');
+
+  _seqContext = {
+    mode: 'individual',
+    cId,
+    contacts: [{ name: contact.name, email: contact.email, firstName: (contact.name || '').split(' ')[0], lastName: (contact.name || '').split(' ').slice(1).join(' '), companyName: company?.name || '' }],
+  };
+  document.getElementById('overloopModalTitle').textContent = `Enroll ${contact.name} in Sequence`;
+  document.getElementById('overloopModalBody').innerHTML = '<div style="color:#94a3b8;font-size:12px;padding:12px 0;"><span class="spinner"></span> Loading sequences…</div>';
+  document.getElementById('overloopModal').classList.add('open');
+  try {
+    const seqs = await _getSequences();
+    document.getElementById('overloopModalBody').innerHTML = _seqPickerHtml(seqs, _seqContext.contacts);
+  } catch (e) {
+    document.getElementById('overloopModalBody').innerHTML = `<div class="enroll-result err">${esc(e.message)}</div><div class="modal-actions"><button class="btn-cancel" onclick="closeOverloopModal()">Close</button></div>`;
+  }
+}
+
+async function openAutomateModal(cId) {
+  // Automate flow: Tier 3/4 — load contacts then pick sequence
+  const company = companies.find(c => c.id === cId);
+  document.getElementById('overloopModalTitle').textContent = `Automate Outreach — ${company?.name || ''}`;
+  document.getElementById('overloopModalBody').innerHTML = '<div style="color:#94a3b8;font-size:12px;padding:12px 0;"><span class="spinner"></span> Loading contacts &amp; sequences…</div>';
+  document.getElementById('overloopModal').classList.add('open');
+
+  try {
+    const [contactsRes, seqs] = await Promise.all([
+      cardData[cId]?.loaded
+        ? Promise.resolve(cardData[cId].contacts)
+        : fetch(`/api/company/${cId}/contacts`).then(r => r.json()),
+      _getSequences(),
+    ]);
+
+    const CATS = ['Recruiting', 'Sales', 'HR', 'Ops', 'Other'];
+    const allContacts = CATS.flatMap(cat => (contactsRes[cat] || []).map(ct => ({ ...ct, category: cat })))
+      .filter((ct, i, arr) => arr.findIndex(x => x.id === ct.id) === i);
+
+    const contactsWithEmail = allContacts.filter(ct => ct.email);
+    const contacts = contactsWithEmail.map(ct => ({
+      name: ct.name, email: ct.email,
+      firstName: (ct.name || '').split(' ')[0],
+      lastName:  (ct.name || '').split(' ').slice(1).join(' '),
+      companyName: company?.name || '',
+    }));
+
+    _seqContext = { mode: 'automate', cId, contacts };
+
+    if (!contacts.length) {
+      document.getElementById('overloopModalBody').innerHTML = `
+        <p style="color:#64748b;font-size:13px;">No contacts with email addresses found for this company.</p>
+        <div class="modal-actions"><button class="btn-cancel" onclick="closeOverloopModal()">Close</button></div>`;
+      return;
+    }
+    document.getElementById('overloopModalBody').innerHTML = _seqPickerHtml(seqs, contacts);
+  } catch (e) {
+    document.getElementById('overloopModalBody').innerHTML = `<div class="enroll-result err">${esc(e.message)}</div><div class="modal-actions"><button class="btn-cancel" onclick="closeOverloopModal()">Close</button></div>`;
+  }
+}
+
+async function submitEnroll() {
+  const btn = document.getElementById('btnEnroll');
+  const seqId = document.getElementById('seqPicker')?.value;
+  if (!seqId || !_seqContext) return;
+
+  // Gather checked contacts
+  const checked = [...document.querySelectorAll('.contact-check:checked')].map(cb => parseInt(cb.value));
+  const contacts = checked.map(i => _seqContext.contacts[i]).filter(Boolean);
+  if (!contacts.length) return showToast('Select at least one contact.');
+
+  btn.disabled = true;
+  btn.textContent = 'Enrolling…';
+
+  try {
+    const r = await fetch('/api/overloop/enroll', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contacts, sequenceId: seqId }),
+    });
+    const d = await r.json();
+
+    if (!r.ok) throw new Error(d.error || 'Enrollment failed');
+
+    const resultMsg = d.failed > 0
+      ? `<div class="enroll-result err">Enrolled ${d.enrolled}, failed ${d.failed}: ${d.results.filter(x=>!x.ok).map(x=>x.error).join('; ')}</div>`
+      : `<div class="enroll-result ok">✓ ${d.enrolled} contact${d.enrolled !== 1 ? 's' : ''} enrolled in sequence successfully.</div>`;
+
+    // Mark card as automated so the button state updates
+    if (_seqContext.cId) {
+      if (!cardData[_seqContext.cId]) cardData[_seqContext.cId] = {};
+      cardData[_seqContext.cId].overloopEnrolled = true;
+      if (_seqContext.mode === 'individual' && _seqContext.contacts[0]) {
+        if (!cardData[_seqContext.cId].overloopEnrolledContacts) cardData[_seqContext.cId].overloopEnrolledContacts = new Set();
+        cardData[_seqContext.cId].overloopEnrolledContacts.add(_seqContext.contacts[0].email);
+      }
+      if (expandedIds.has(_seqContext.cId)) refreshCard(_seqContext.cId);
+      else refreshCard(_seqContext.cId);
+    }
+
+    // Reload picker with result shown
+    const seqs = _seqCache || [];
+    document.getElementById('overloopModalBody').innerHTML = _seqPickerHtml(seqs, _seqContext.contacts, resultMsg);
+    document.getElementById('btnEnroll').textContent   = 'Enroll Again';
+    document.getElementById('btnEnroll').disabled      = false;
+  } catch (e) {
+    document.getElementById('overloopModalBody').innerHTML += `<div class="enroll-result err">${esc(e.message)}</div>`;
+    btn.disabled = false;
+    btn.textContent = 'Retry';
+  }
+}
+
+function closeOverloopModal() {
+  document.getElementById('overloopModal').classList.remove('open');
+  _seqContext = null;
 }
 
 // ─── Auth — bearer token stored in localStorage (works in iframe + proxy) ──────
