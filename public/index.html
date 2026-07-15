@@ -256,6 +256,25 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .enroll-result { font-size: 12px; padding: 8px 12px; border-radius: 7px; margin-top: 10px; }
 .enroll-result.ok  { background: #d1fae5; color: #065f46; }
 .enroll-result.err { background: #fee2e2; color: #991b1b; }
+
+/* SECTION TABS */
+.section-tabs { display: flex; gap: 2px; background: #f1f5f9; border-radius: 8px; padding: 2px; flex-shrink: 0; }
+.section-tab { border: none; background: transparent; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; color: #64748b; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+.section-tab.active { background: white; color: #0f172a; box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+.section-tab:not(.active):hover { color: #0f172a; }
+
+/* SECTION GROUP LABEL IN HEADER */
+.stat-group { display: flex; align-items: center; gap: 8px; }
+.stat-section-lbl { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; padding: 3px 6px; border-radius: 4px; align-self: center; white-space: nowrap; }
+.stat-section-lbl.lbl-dh { background: #1e3a5f; color: #60a5fa; }
+.stat-section-lbl.lbl-ct { background: #431407; color: #fb923c; }
+
+/* DUAL SCORE CHIPS ON CARDS */
+.card-scores { display: flex; gap: 5px; margin-top: 4px; flex-wrap: wrap; }
+.score-chip { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; display: inline-flex; align-items: center; gap: 2px; }
+.score-chip-dh { background: #dbeafe; color: #1e40af; }
+.score-chip-ct { background: #fff7ed; color: #9a3412; }
+.score-chip-dim { opacity: 0.45; }
 </style>
 </head>
 <body>
@@ -302,33 +321,27 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       <div class="header-logo">CGR</div>
       <div>
         <div class="header-title">Re-Engagement Tool</div>
-        <div class="header-subtitle">Active Account clients — sorted by engagement score</div>
+        <div class="header-subtitle">Active Account clients — Direct Hire &amp; Contract Labor</div>
       </div>
     </div>
     <div class="header-stats">
-      <div class="stat">
-        <div class="stat-num" id="statCompanies">—</div>
-        <div class="stat-label" id="statCompaniesLabel">Companies</div>
+      <div class="stat-group">
+        <span class="stat-section-lbl lbl-dh">DH</span>
+        <div class="stat"><div class="stat-num stat-t1" id="dhStatT1">—</div><div class="stat-label">T1</div></div>
+        <div class="stat"><div class="stat-num stat-t2" id="dhStatT2">—</div><div class="stat-label">T2</div></div>
+        <div class="stat"><div class="stat-num stat-t3" id="dhStatT3">—</div><div class="stat-label">T3</div></div>
+        <div class="stat"><div class="stat-num stat-t4" id="dhStatT4">—</div><div class="stat-label">T4</div></div>
       </div>
       <div class="stat-divider"></div>
-      <div class="stat">
-        <div class="stat-num stat-t1" id="statT1">—</div>
-        <div class="stat-label">Tier 1</div>
-      </div>
-      <div class="stat">
-        <div class="stat-num stat-t2" id="statT2">—</div>
-        <div class="stat-label">Tier 2</div>
-      </div>
-      <div class="stat">
-        <div class="stat-num stat-t3" id="statT3">—</div>
-        <div class="stat-label">Tier 3</div>
-      </div>
-      <div class="stat">
-        <div class="stat-num stat-t4" id="statT4">—</div>
-        <div class="stat-label">Tier 4</div>
+      <div class="stat-group">
+        <span class="stat-section-lbl lbl-ct">CT</span>
+        <div class="stat"><div class="stat-num stat-t1" id="ctStatT1">—</div><div class="stat-label">T1</div></div>
+        <div class="stat"><div class="stat-num stat-t2" id="ctStatT2">—</div><div class="stat-label">T2</div></div>
+        <div class="stat"><div class="stat-num stat-t3" id="ctStatT3">—</div><div class="stat-label">T3</div></div>
+        <div class="stat"><div class="stat-num stat-t4" id="ctStatT4">—</div><div class="stat-label">T4</div></div>
       </div>
       <div class="stat-divider"></div>
-      <div class="stat"><div class="stat-num" id="statNotified">0</div><div class="stat-label">BD Notified</div></div>
+      <div class="stat"><div class="stat-num" id="statNotified">0</div><div class="stat-label">Notified</div></div>
     </div>
     <div class="header-right">
       <span id="aiBadge" class="ai-badge" style="display:none;">✦ AI Drafts</span>
@@ -342,7 +355,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   <div id="errorBanner" class="error-banner" style="display:none;"></div>
 
   <div class="filters">
-    <span class="filter-label">Filter:</span>
+    <div class="section-tabs">
+      <button class="section-tab active" data-section="dh" onclick="switchSection('dh')">Direct Hire</button>
+      <button class="section-tab" data-section="ct" onclick="switchSection('ct')">Contract Labor</button>
+    </div>
+    <span class="filter-label" style="margin-left:4px;">Filter:</span>
     <select class="filter-select" id="filterScore" onchange="applyFilters()">
       <option value="">All Tiers</option>
       <option value="1">Tier 1 — Best</option>
@@ -392,14 +409,42 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 // ─── State ────────────────────────────────────────────────────────────────────
 const cfg = {};
 
-let companies    = [];
-let cardData     = {};
-let expandedIds  = new Set();
+let allCompanies  = [];
+let cardData      = {};
+let expandedIds   = new Set();
 let notifiedCount = 0;
-let aiEnabled    = false;
+let aiEnabled     = false;
 let adzunaEnabled = false;
-let jobCounts    = {};       // { companyId: count }
+let jobCounts     = {};
 let filterHasJobs = false;
+let activeSection = 'dh';   // 'dh' | 'ct'
+
+// ─── Section helpers ──────────────────────────────────────────────────────────
+function getDHCompanies() {
+  return allCompanies
+    .filter(c => c.dhTier != null && c.dhTier > 0)
+    .sort((a, b) => a.dhTier !== b.dhTier ? a.dhTier - b.dhTier : (a.name || '').localeCompare(b.name || ''));
+}
+
+function getCTCompanies() {
+  return allCompanies
+    .filter(c => c.contractingTier != null && c.contractingTier > 0)
+    .sort((a, b) => a.contractingTier !== b.contractingTier ? a.contractingTier - b.contractingTier : (a.name || '').localeCompare(b.name || ''));
+}
+
+function getActiveCompanies() {
+  return activeSection === 'dh' ? getDHCompanies() : getCTCompanies();
+}
+
+function switchSection(section) {
+  if (activeSection === section) return;
+  activeSection = section;
+  document.querySelectorAll('.section-tab').forEach(t =>
+    t.classList.toggle('active', t.dataset.section === section)
+  );
+  renderList();
+  updateHeaderStats();
+}
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 async function init() {
@@ -428,11 +473,9 @@ async function loadCompanies() {
     const data = await res.json();
     if (data.error) throw new Error(data.error);
 
-    companies = data.data || [];
-    cardData  = {};
+    allCompanies = data.data || [];
+    cardData     = {};
     expandedIds.clear();
-
-    document.getElementById('statCompanies').textContent = companies.length;
 
     // Populate BD owner dropdown, preserving previous selection
     const bdSel  = document.getElementById('filterBD');
@@ -442,6 +485,12 @@ async function loadCompanies() {
       owners.map(bd => `<option value="${esc(bd)}">${esc(bd)}</option>`).join('');
     if (prevBD && owners.includes(prevBD)) bdSel.value = prevBD;
 
+    // Update section tab labels with live counts
+    const dhTab = document.querySelector('.section-tab[data-section="dh"]');
+    const ctTab = document.querySelector('.section-tab[data-section="ct"]');
+    if (dhTab) dhTab.textContent = `Direct Hire (${getDHCompanies().length})`;
+    if (ctTab) ctTab.textContent = `Contract Labor (${getCTCompanies().length})`;
+
     renderList();
     updateHeaderStats();
 
@@ -450,52 +499,61 @@ async function loadCompanies() {
     const entityType = params.get('EntityType');
     const entityId   = parseInt(params.get('EntityID'));
     if (entityType === 'ClientCorporation' && entityId) {
-      setTimeout(() => {
-        const card = document.getElementById(`card-${entityId}`);
-        if (card) { card.scrollIntoView({ behavior: 'smooth', block: 'center' }); toggleCard(entityId); }
-        else showToast('This company has recent activity and is not currently stale.');
-      }, 400);
+      const company = allCompanies.find(c => c.id === entityId);
+      if (company) {
+        if (company.dhTier) switchSection('dh');
+        else if (company.contractingTier) switchSection('ct');
+        setTimeout(() => {
+          const card = document.getElementById(`card-${entityId}`);
+          if (card) { card.scrollIntoView({ behavior: 'smooth', block: 'center' }); toggleCard(entityId); }
+          else showToast('This company has recent activity and is not currently stale.');
+        }, 400);
+      }
     }
   } catch (e) {
     showError(e.message);
   } finally {
     setScanState(false);
-    // Load job counts asynchronously (don't block the main render)
     loadJobCounts();
   }
 }
 
 // ─── Async job counts ─────────────────────────────────────────────────────────
 async function loadJobCounts() {
-  if (!companies.length) return;
-  const ids = companies.map(c => c.id).join(',');
+  if (!allCompanies.length) return;
+  const ids = allCompanies.map(c => c.id).join(',');
   try {
     const counts = await fetch(`/api/job-counts?ids=${ids}`).then(r => r.json());
     if (counts.error) return;
     jobCounts = counts;
-    // Update badges in the DOM without re-rendering cards
-    companies.forEach(c => {
+    allCompanies.forEach(c => {
       const badge = document.getElementById(`jc-${c.id}`);
       if (!badge) return;
       const n = counts[c.id] || 0;
-      badge.textContent = n > 0 ? `${n} role${n !== 1 ? 's' : ''}` : '—';
-      badge.className   = `jobs-count-badge ${n > 0 ? 'has-jobs' : 'no-jobs'}`;
+      badge.textContent   = n > 0 ? `${n} role${n !== 1 ? 's' : ''}` : '—';
+      badge.className     = `jobs-count-badge ${n > 0 ? 'has-jobs' : 'no-jobs'}`;
       badge.dataset.count = n;
     });
-    // Re-apply filters so "has open jobs" toggle works
     applyFilters();
   } catch (_) {}
 }
 
 // ─── Render ───────────────────────────────────────────────────────────────────
 function renderList() {
-  const list = document.getElementById('companyList');
-  if (!companies.length) {
-    list.innerHTML = `<div class="empty-state"><div class="empty-icon">🎉</div><div class="empty-title">No Active Account Companies Found</div><div class="empty-desc">No companies with Status = 'Active Account' were found in Bullhorn.</div></div>`;
+  const list        = document.getElementById('companyList');
+  const activeComps = getActiveCompanies();
+  const sectionName = activeSection === 'dh' ? 'Direct Hire' : 'Contract Labor';
+
+  if (!activeComps.length) {
+    list.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">📊</div>
+      <div class="empty-title">No ${sectionName} Companies Scored</div>
+      <div class="empty-desc">No Active Account companies have ${activeSection === 'dh' ? 'DH Tier' : 'Contracting Tier'} scores set in Bullhorn yet.</div>
+    </div>`;
     document.getElementById('resultCount').textContent = '';
     return;
   }
-  list.innerHTML = companies.map(c => renderCard(c)).join('');
+  list.innerHTML = activeComps.map(c => renderCard(c, activeSection)).join('');
   applyFilters();
 }
 
@@ -504,16 +562,25 @@ function nameInitials(name) {
   return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
 }
 
-function renderCard(c) {
-  const sc = c.score;
-  const scoreClass = `score-${sc ?? 4}`;
-  const pipClass   = `pip-${sc ?? 4}`;
-  const scoreLabel = sc ?? 4;
-  const scoreBadgeLabel = `T${sc ?? 4}`;
+function renderCard(c, section) {
+  const tier = section === 'dh' ? c.dhTier : c.contractingTier;
 
+  const scoreClass      = tier ? `score-${tier}` : 'score-null';
+  const pipClass        = tier ? `pip-${tier}` : 'pip-null';
+  const tierLabel       = tier ?? '—';
+  const scoreBadgeLabel = tier ? `T${tier}` : '—';
 
-  // Job count badge (loading state until loadJobCounts fires)
-  const jc = jobCounts[c.id];
+  // Raw score chips (both always shown; active section's chip is full-opacity)
+  const dhStr    = c.dhScore          != null ? c.dhScore.toFixed(2)          : '—';
+  const ctStr    = c.contractingScore != null ? c.contractingScore.toFixed(2) : '—';
+  const scoresHtml = `
+    <div class="card-scores">
+      <span class="score-chip score-chip-dh${section !== 'dh' ? ' score-chip-dim' : ''}">DH ${dhStr}</span>
+      <span class="score-chip score-chip-ct${section !== 'ct' ? ' score-chip-dim' : ''}">CT ${ctStr}</span>
+    </div>`;
+
+  // Job count badge
+  const jc      = jobCounts[c.id];
   const jcClass = jc === undefined ? 'jobs-loading' : jc > 0 ? 'has-jobs' : 'no-jobs';
   const jcText  = jc === undefined ? '···' : jc > 0 ? `${jc} role${jc !== 1 ? 's' : ''}` : '—';
   const jcAttr  = jc !== undefined ? `data-count="${jc}"` : '';
@@ -544,15 +611,16 @@ function renderCard(c) {
       <div class="card-info">
         <div class="card-company-name">${esc(c.name)}</div>
         <div class="card-meta-row">
-          <span class="score-pip ${pipClass}">Tier ${scoreLabel}</span>
+          <span class="score-pip ${pipClass}">Tier ${tierLabel}</span>
           <span class="card-industry">${esc(c.industry)}</span>
           ${c.website ? `<a class="card-website" href="${esc(c.website)}" target="_blank" onclick="event.stopPropagation()">↗ Site</a>` : ''}
         </div>
+        ${scoresHtml}
         ${ownerRowHtml}
       </div>
       <div class="card-actions-right">
         <span class="jobs-count-badge ${jcClass}" id="jc-${c.id}" ${jcAttr}>${jcText}</span>
-        ${(sc === 3 || sc === 4) ? `<button class="btn-automate${data?.overloopEnrolled ? ' enrolled' : ''}" onclick="event.stopPropagation();openAutomateModal(${c.id})">${data?.overloopEnrolled ? '✓ Automated' : '⚡ Automate'}</button>` : ''}
+        ${(tier === 3 || tier === 4) ? `<button class="btn-automate${data?.overloopEnrolled ? ' enrolled' : ''}" onclick="event.stopPropagation();openAutomateModal(${c.id})">${data?.overloopEnrolled ? '✓ Automated' : '⚡ Automate'}</button>` : ''}
         <button class="btn-notify${notified ? ' notified' : ''}" onclick="notifyBD(event,${c.id})">${notified ? '✓ Notified' : '🔔 Notify BD'}</button>
         <div class="expand-icon">&#8964;</div>
       </div>
@@ -712,7 +780,7 @@ async function toggleCard(id) {
 
   if (cardData[id]?.loaded) return;
 
-  const company = companies.find(c => c.id === id);
+  const company = allCompanies.find(c => c.id === id);
 
   // Load contacts and Bullhorn jobs immediately (fast CData queries)
   const [contactsRes, jobsRes] = await Promise.all([
@@ -777,7 +845,7 @@ async function generateContactDraft(cId, contact) {
   data.contactDrafts[contact.id] = null; // null = loading
   if (expandedIds.has(cId)) refreshCard(cId);
 
-  const company  = companies.find(x => x.id === cId);
+  const company  = allCompanies.find(x => x.id === cId);
   const firstJob = (data.jobs || [])[0] || (data.externalJobs || [])[0];
 
   try {
@@ -825,11 +893,11 @@ function regenDraft(cId, contactId) {
 }
 
 function refreshCard(id) {
-  const c  = companies.find(x => x.id === id);
+  const c  = allCompanies.find(x => x.id === id);
   const el = document.getElementById(`card-${id}`);
   if (!c || !el) return;
   const tmp = document.createElement('div');
-  tmp.innerHTML = renderCard(c);
+  tmp.innerHTML = renderCard(c, activeSection);
   el.replaceWith(tmp.firstElementChild);
 }
 
@@ -838,7 +906,7 @@ function sendEmail(cId, contactId) {
   cardData[cId].sent = cardData[cId].sent || {};
   cardData[cId].sent[contactId] = true;
   refreshCard(cId);
-  const c  = companies.find(x => x.id === cId);
+  const c  = allCompanies.find(x => x.id === cId);
   const ct = cardData[cId]?.allContacts?.find(x => x.id === contactId);
   showToast(`Draft for ${ct?.name || 'contact'} at ${c?.name} marked as sent`);
 }
@@ -857,7 +925,7 @@ function saveNote(cId, text) {
 function copyNote(cId) {
   const el = document.getElementById(`note-${cId}`);
   if (!el) return;
-  const c        = companies.find(x => x.id === cId);
+  const c        = allCompanies.find(x => x.id === cId);
   const dateStr  = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   const noteText = el.value || '';
   navigator.clipboard.writeText(`Company: ${c?.name || ''}\nDate: ${dateStr}\n\n${noteText}`).catch(() => {});
@@ -871,23 +939,28 @@ function notifyBD(e, id) {
   cardData[id].notified = true;
   notifiedCount++;
   document.getElementById('statNotified').textContent = notifiedCount;
-  const c = companies.find(x => x.id === id);
+  const c = allCompanies.find(x => x.id === id);
   refreshCard(id);
   showToast(`${c?.bdOwner || 'BD Owner'} notified about ${c?.name}`);
 }
 
-// ─── Header stats (reactive to BD filter) ────────────────────────────────────
+// ─── Header stats (reactive to BD filter, always shows both DH + CT) ─────────
 function updateHeaderStats() {
   const bd  = document.getElementById('filterBD').value;
-  const src = bd ? companies.filter(c => c.bdOwner === bd) : companies;
+  const src = bd ? allCompanies.filter(c => c.bdOwner === bd) : allCompanies;
 
-  document.getElementById('statCompanies').textContent    = src.length || '—';
-  document.getElementById('statCompaniesLabel').textContent =
-    bd ? bd.split(' ')[0] : 'Companies';
-  document.getElementById('statT1').textContent = src.filter(c => c.score === 1).length || '0';
-  document.getElementById('statT2').textContent = src.filter(c => c.score === 2).length || '0';
-  document.getElementById('statT3').textContent = src.filter(c => c.score === 3).length || '0';
-  document.getElementById('statT4').textContent = src.filter(c => c.score === 4).length || '0';
+  const dhList = src.filter(c => c.dhTier != null && c.dhTier > 0);
+  const ctList = src.filter(c => c.contractingTier != null && c.contractingTier > 0);
+
+  document.getElementById('dhStatT1').textContent = dhList.filter(c => c.dhTier === 1).length || '0';
+  document.getElementById('dhStatT2').textContent = dhList.filter(c => c.dhTier === 2).length || '0';
+  document.getElementById('dhStatT3').textContent = dhList.filter(c => c.dhTier === 3).length || '0';
+  document.getElementById('dhStatT4').textContent = dhList.filter(c => c.dhTier === 4).length || '0';
+
+  document.getElementById('ctStatT1').textContent = ctList.filter(c => c.contractingTier === 1).length || '0';
+  document.getElementById('ctStatT2').textContent = ctList.filter(c => c.contractingTier === 2).length || '0';
+  document.getElementById('ctStatT3').textContent = ctList.filter(c => c.contractingTier === 3).length || '0';
+  document.getElementById('ctStatT4').textContent = ctList.filter(c => c.contractingTier === 4).length || '0';
 }
 
 // ─── Filters ──────────────────────────────────────────────────────────────────
@@ -903,12 +976,14 @@ function applyFilters() {
   const search = document.getElementById('filterSearch').value.toLowerCase();
   let visible  = 0;
 
-  companies.forEach(c => {
+  const activeComps = getActiveCompanies();
+  activeComps.forEach(c => {
     const el = document.getElementById(`card-${c.id}`);
     if (!el) return;
-    const jc = jobCounts[c.id];
+    const jc          = jobCounts[c.id];
+    const sectionTier = activeSection === 'dh' ? c.dhTier : c.contractingTier;
     const show =
-      (!score  || String(c.score) === score)
+      (!score  || String(sectionTier) === score)
       && (!bd     || c.bdOwner === bd)
       && (!filterHasJobs || (jc !== undefined ? jc > 0 : true))
       && (!search || c.name.toLowerCase().includes(search) || (c.industry || '').toLowerCase().includes(search));
@@ -916,7 +991,7 @@ function applyFilters() {
     if (show) visible++;
   });
 
-  document.getElementById('resultCount').textContent = `Showing ${visible} of ${companies.length}`;
+  document.getElementById('resultCount').textContent = `Showing ${visible} of ${activeComps.length}`;
   updateHeaderStats();
 }
 
@@ -1004,7 +1079,7 @@ function _seqPickerHtml(sequences, contacts, resultHtml = '') {
 async function openSequencePicker(cId, contactId) {
   // Individual flow: Tier 1/2 — one contact from the card body
   const data    = cardData[cId];
-  const company = companies.find(c => c.id === cId);
+  const company = allCompanies.find(c => c.id === cId);
   const contact = data?.allContacts?.find(ct => ct.id === contactId);
   if (!contact) return showToast('Select a contact first.');
   if (!contact.email) return showToast('This contact has no email address — cannot enroll in Overloop.');
@@ -1027,7 +1102,7 @@ async function openSequencePicker(cId, contactId) {
 
 async function openAutomateModal(cId) {
   // Automate flow: Tier 3/4 — load contacts then pick sequence
-  const company = companies.find(c => c.id === cId);
+  const company = allCompanies.find(c => c.id === cId);
   document.getElementById('overloopModalTitle').textContent = `Automate Outreach — ${company?.name || ''}`;
   document.getElementById('overloopModalBody').innerHTML = '<div style="color:#94a3b8;font-size:12px;padding:12px 0;"><span class="spinner"></span> Loading contacts &amp; sequences…</div>';
   document.getElementById('overloopModal').classList.add('open');
