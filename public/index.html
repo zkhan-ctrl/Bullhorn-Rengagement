@@ -275,6 +275,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .score-chip-dh { background: #dbeafe; color: #1e40af; }
 .score-chip-ct { background: #fff7ed; color: #9a3412; }
 .score-chip-dim { opacity: 0.45; }
+
+/* STALE / UNSCORED */
+.stat-section-lbl.lbl-stale { background: #450a0a; color: #fca5a5; }
+.stat-stale { color: #ef4444; }
+.section-tab.tab-stale.active { background: #fef2f2; color: #991b1b; }
+.pip-stale { background: #fee2e2; color: #991b1b; }
 </style>
 </head>
 <body>
@@ -341,6 +347,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
         <div class="stat"><div class="stat-num stat-t4" id="ctStatT4">—</div><div class="stat-label">T4</div></div>
       </div>
       <div class="stat-divider"></div>
+      <div class="stat-group">
+        <span class="stat-section-lbl lbl-stale">Stale</span>
+        <div class="stat"><div class="stat-num stat-stale" id="staleStatCount">—</div><div class="stat-label">Unscored</div></div>
+      </div>
+      <div class="stat-divider"></div>
       <div class="stat"><div class="stat-num" id="statNotified">0</div><div class="stat-label">Notified</div></div>
     </div>
     <div class="header-right">
@@ -358,6 +369,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     <div class="section-tabs">
       <button class="section-tab active" data-section="dh" onclick="switchSection('dh')">Direct Hire</button>
       <button class="section-tab" data-section="ct" onclick="switchSection('ct')">Contract Labor</button>
+      <button class="section-tab tab-stale" data-section="stale" onclick="switchSection('stale')">Stale Clients</button>
     </div>
     <span class="filter-label" style="margin-left:4px;">Filter:</span>
     <select class="filter-select" id="filterScore" onchange="applyFilters()">
@@ -432,8 +444,16 @@ function getCTCompanies() {
     .sort((a, b) => a.contractingTier !== b.contractingTier ? a.contractingTier - b.contractingTier : (a.name || '').localeCompare(b.name || ''));
 }
 
+function getStaleCompanies() {
+  return allCompanies
+    .filter(c => !(c.dhTier > 0) && !(c.contractingTier > 0))
+    .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+}
+
 function getActiveCompanies() {
-  return activeSection === 'dh' ? getDHCompanies() : getCTCompanies();
+  if (activeSection === 'dh')    return getDHCompanies();
+  if (activeSection === 'ct')    return getCTCompanies();
+  return getStaleCompanies();
 }
 
 function switchSection(section) {
@@ -488,8 +508,10 @@ async function loadCompanies() {
     // Update section tab labels with live counts
     const dhTab = document.querySelector('.section-tab[data-section="dh"]');
     const ctTab = document.querySelector('.section-tab[data-section="ct"]');
-    if (dhTab) dhTab.textContent = `Direct Hire (${getDHCompanies().length})`;
-    if (ctTab) ctTab.textContent = `Contract Labor (${getCTCompanies().length})`;
+    const staleTab = document.querySelector('.section-tab[data-section="stale"]');
+    if (dhTab)    dhTab.textContent    = `Direct Hire (${getDHCompanies().length})`;
+    if (ctTab)    ctTab.textContent    = `Contract Labor (${getCTCompanies().length})`;
+    if (staleTab) staleTab.textContent = `Stale Clients (${getStaleCompanies().length})`;
 
     renderList();
     updateHeaderStats();
@@ -542,13 +564,16 @@ async function loadJobCounts() {
 function renderList() {
   const list        = document.getElementById('companyList');
   const activeComps = getActiveCompanies();
-  const sectionName = activeSection === 'dh' ? 'Direct Hire' : 'Contract Labor';
+  const sectionName = activeSection === 'dh' ? 'Direct Hire' : activeSection === 'ct' ? 'Contract Labor' : 'Stale Clients';
 
   if (!activeComps.length) {
+    const emptyDesc = activeSection === 'stale'
+      ? 'All Active Account companies have scores — great work!'
+      : `No Active Account companies have ${activeSection === 'dh' ? 'DH Tier' : 'Contracting Tier'} scores set in Bullhorn yet.`;
     list.innerHTML = `<div class="empty-state">
       <div class="empty-icon">📊</div>
-      <div class="empty-title">No ${sectionName} Companies Scored</div>
-      <div class="empty-desc">No Active Account companies have ${activeSection === 'dh' ? 'DH Tier' : 'Contracting Tier'} scores set in Bullhorn yet.</div>
+      <div class="empty-title">No ${sectionName} Companies</div>
+      <div class="empty-desc">${emptyDesc}</div>
     </div>`;
     document.getElementById('resultCount').textContent = '';
     return;
@@ -563,11 +588,11 @@ function nameInitials(name) {
 }
 
 function renderCard(c, section) {
-  const tier = section === 'dh' ? c.dhTier : c.contractingTier;
+  const tier = section === 'dh' ? c.dhTier : section === 'ct' ? c.contractingTier : null;
 
   const scoreClass      = tier ? `score-${tier}` : 'score-null';
-  const pipClass        = tier ? `pip-${tier}` : 'pip-null';
-  const tierLabel       = tier ?? '—';
+  const pipClass        = tier ? `pip-${tier}` : section === 'stale' ? 'pip-stale' : 'pip-null';
+  const pipText         = section === 'stale' ? 'No Score' : `Tier ${tier ?? '—'}`;
   const scoreBadgeLabel = tier ? `T${tier}` : '—';
 
   // Raw score chips (both always shown; active section's chip is full-opacity)
@@ -611,7 +636,7 @@ function renderCard(c, section) {
       <div class="card-info">
         <div class="card-company-name">${esc(c.name)}</div>
         <div class="card-meta-row">
-          <span class="score-pip ${pipClass}">Tier ${tierLabel}</span>
+          <span class="score-pip ${pipClass}">${pipText}</span>
           <span class="card-industry">${esc(c.industry)}</span>
           ${c.website ? `<a class="card-website" href="${esc(c.website)}" target="_blank" onclick="event.stopPropagation()">↗ Site</a>` : ''}
         </div>
@@ -961,6 +986,9 @@ function updateHeaderStats() {
   document.getElementById('ctStatT2').textContent = ctList.filter(c => c.contractingTier === 2).length || '0';
   document.getElementById('ctStatT3').textContent = ctList.filter(c => c.contractingTier === 3).length || '0';
   document.getElementById('ctStatT4').textContent = ctList.filter(c => c.contractingTier === 4).length || '0';
+
+  const staleList = src.filter(c => !(c.dhTier > 0) && !(c.contractingTier > 0));
+  document.getElementById('staleStatCount').textContent = staleList.length || '0';
 }
 
 // ─── Filters ──────────────────────────────────────────────────────────────────
@@ -981,9 +1009,9 @@ function applyFilters() {
     const el = document.getElementById(`card-${c.id}`);
     if (!el) return;
     const jc          = jobCounts[c.id];
-    const sectionTier = activeSection === 'dh' ? c.dhTier : c.contractingTier;
+    const sectionTier = activeSection === 'dh' ? c.dhTier : activeSection === 'ct' ? c.contractingTier : null;
     const show =
-      (!score  || String(sectionTier) === score)
+      (activeSection === 'stale' || !score || String(sectionTier) === score)
       && (!bd     || c.bdOwner === bd)
       && (!filterHasJobs || (jc !== undefined ? jc > 0 : true))
       && (!search || c.name.toLowerCase().includes(search) || (c.industry || '').toLowerCase().includes(search));
