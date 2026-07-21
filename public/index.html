@@ -281,6 +281,17 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .stat-stale { color: #ef4444; }
 .section-tab.tab-stale.active { background: #fef2f2; color: #991b1b; }
 .pip-stale { background: #fee2e2; color: #991b1b; }
+
+/* BULK BLAST */
+.btn-bulk-blast { background: #92400e; color: #fde68a; border: 1px solid #b45309; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.15s; white-space: nowrap; letter-spacing: 0.2px; }
+.btn-bulk-blast:hover { background: #b45309; color: #fef3c7; }
+.bulk-company-list { max-height: 200px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 7px; margin-bottom: 4px; }
+.bulk-company-row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; font-size: 12px; border-bottom: 1px solid #f1f5f9; }
+.bulk-company-row:last-child { border-bottom: none; }
+.bulk-company-row input[type=checkbox] { accent-color: #6366f1; width: 13px; height: 13px; flex-shrink: 0; }
+.bulk-company-name { font-weight: 600; color: #0f172a; }
+.bulk-progress { height: 4px; background: #e2e8f0; border-radius: 4px; margin-top: 8px; overflow: hidden; }
+.bulk-progress-bar { height: 100%; background: #6366f1; border-radius: 4px; transition: width 0.3s; }
 </style>
 </head>
 <body>
@@ -385,6 +396,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     <button class="filter-toggle" id="btnHasJobs" onclick="toggleHasJobs(this)">&#9679; Has Open Jobs</button>
     <input class="filter-search" id="filterSearch" type="text" placeholder="Search company..." oninput="applyFilters()">
     <div class="filter-spacer"></div>
+    <button class="btn-bulk-blast" id="btnBulkBlast" onclick="openBulkBlastModal()">&#9889; Bulk Blast T3/T4</button>
     <span class="result-count" id="resultCount"></span>
   </div>
 
@@ -397,6 +409,16 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     <div class="modal-title" id="overloopModalTitle">Enroll in Overloop Sequence</div>
     <div id="overloopModalBody">
       <div style="color:#94a3b8;font-size:12px;padding:12px 0;">Loading sequences…</div>
+    </div>
+  </div>
+</div>
+
+<!-- BULK BLAST MODAL -->
+<div class="modal-overlay" id="bulkBlastModal" onclick="if(event.target===this)closeBulkBlastModal()">
+  <div class="modal" style="max-width:520px;max-height:92vh;overflow-y:auto;">
+    <div class="modal-title" id="bulkBlastTitle">Bulk Blast — T3/T4</div>
+    <div id="bulkBlastBody">
+      <div style="color:#94a3b8;font-size:12px;padding:12px 0;"><span class="spinner"></span> Loading…</div>
     </div>
   </div>
 </div>
@@ -462,6 +484,8 @@ function switchSection(section) {
   document.querySelectorAll('.section-tab').forEach(t =>
     t.classList.toggle('active', t.dataset.section === section)
   );
+  const bulkBtn = document.getElementById('btnBulkBlast');
+  if (bulkBtn) bulkBtn.style.display = section === 'stale' ? 'none' : '';
   renderList();
   updateHeaderStats();
 }
@@ -1223,6 +1247,152 @@ async function submitEnroll() {
 function closeOverloopModal() {
   document.getElementById('overloopModal').classList.remove('open');
   _seqContext = null;
+}
+
+// ─── Bulk Blast (T3/T4 multi-company enrollment) ──────────────────────────────
+function _bulkBlastHtml(seqs, companies, section) {
+  if (!seqs.length) {
+    return `<p style="color:#64748b;font-size:13px;line-height:1.6;">No Overloop sequences found. Create one in Overloop first.</p>
+      <div class="modal-actions"><button class="btn-cancel" onclick="closeBulkBlastModal()">Close</button></div>`;
+  }
+  if (!companies.length) {
+    return `<p style="color:#64748b;font-size:13px;">No T3 or T4 companies found for the current filter.</p>
+      <div class="modal-actions"><button class="btn-cancel" onclick="closeBulkBlastModal()">Close</button></div>`;
+  }
+
+  const companyRows = companies.map((c) => {
+    const tier = section === 'dh' ? c.dhTier : c.contractingTier;
+    return `
+      <div class="bulk-company-row">
+        <input type="checkbox" class="bulk-company-check" id="bc-${c.id}" value="${c.id}" data-name="${esc(c.name)}" checked onchange="_updateBulkCount()">
+        <label for="bc-${c.id}" style="flex:1;cursor:pointer;display:flex;align-items:center;gap:7px;">
+          <span class="bulk-company-name">${esc(c.name)}</span>
+          <span class="pip pip-${tier}" style="font-size:10px;padding:1px 5px;">T${tier}</span>
+        </label>
+        <span style="font-size:11px;color:#94a3b8;">${esc(c.bdOwner)}</span>
+      </div>`;
+  }).join('');
+
+  const seqOptions = seqs.map(s => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');
+
+  return `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <div class="modal-label">Companies (${companies.length} T3/T4)</div>
+      <div style="display:flex;gap:5px;">
+        <button class="btn-cancel" style="padding:2px 8px;font-size:11px;" onclick="_bulkSelectAll(true)">Select all</button>
+        <button class="btn-cancel" style="padding:2px 8px;font-size:11px;" onclick="_bulkSelectAll(false)">None</button>
+      </div>
+    </div>
+    <div class="bulk-company-list">${companyRows}</div>
+
+    <div class="modal-label" style="margin-top:14px;margin-bottom:4px;">
+      Job Reference
+      <span style="font-weight:400;color:#94a3b8;font-size:10px;margin-left:4px;">optional — injected as Overloop prospect variables</span>
+    </div>
+    <input class="modal-input" id="bulkJobTitle" placeholder="Job title  (use {{job_title}} in your sequence template)" style="margin-bottom:6px;">
+    <input class="modal-input" id="bulkJobUrl" placeholder="Job URL  (use {{website}} in your sequence template)">
+    <div class="modal-hint" style="margin-bottom:14px;">Both optional. Your Overloop sequence must reference these variable names for them to appear in emails.</div>
+
+    <div class="modal-label" style="margin-bottom:6px;">Sequence</div>
+    <select class="seq-select" id="bulkSeqPicker">${seqOptions}</select>
+    <div class="modal-hint" style="margin-bottom:14px;">All active contacts with email addresses from each selected company will be enrolled.</div>
+
+    <div id="bulkBlastResult"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeBulkBlastModal()">Cancel</button>
+      <button class="btn-save" id="btnBulkEnroll" onclick="submitBulkBlast()">Blast ${companies.length} companies</button>
+    </div>`;
+}
+
+function _updateBulkCount() {
+  const n = document.querySelectorAll('.bulk-company-check:checked').length;
+  const btn = document.getElementById('btnBulkEnroll');
+  if (btn) btn.textContent = `Blast ${n} ${n === 1 ? 'company' : 'companies'}`;
+}
+
+function _bulkSelectAll(on) {
+  document.querySelectorAll('.bulk-company-check').forEach(cb => { cb.checked = on; });
+  _updateBulkCount();
+}
+
+async function openBulkBlastModal() {
+  const section = activeSection;
+  if (section === 'stale') return;
+  const label = section === 'dh' ? 'Direct Hire' : 'Contract Labor';
+
+  document.getElementById('bulkBlastTitle').textContent = `Bulk Blast — ${label} T3/T4`;
+  document.getElementById('bulkBlastModal').classList.add('open');
+  document.getElementById('bulkBlastBody').innerHTML = '<div style="color:#94a3b8;font-size:12px;padding:12px 0;"><span class="spinner"></span> Loading sequences…</div>';
+
+  const bdFilter = document.getElementById('filterBD').value;
+  const base = getActiveCompanies().filter(c => {
+    const tier = section === 'dh' ? c.dhTier : c.contractingTier;
+    return tier === 3 || tier === 4;
+  });
+  const companies = bdFilter ? base.filter(c => c.bdOwner === bdFilter) : base;
+
+  try {
+    const seqs = await _getSequences();
+    document.getElementById('bulkBlastBody').innerHTML = _bulkBlastHtml(seqs, companies, section);
+  } catch (e) {
+    document.getElementById('bulkBlastBody').innerHTML = `<div class="enroll-result err">${esc(e.message)}</div><div class="modal-actions"><button class="btn-cancel" onclick="closeBulkBlastModal()">Close</button></div>`;
+  }
+}
+
+function closeBulkBlastModal() {
+  document.getElementById('bulkBlastModal').classList.remove('open');
+}
+
+async function submitBulkBlast() {
+  const seqId = document.getElementById('bulkSeqPicker')?.value;
+  if (!seqId) return showToast('Select a sequence first.');
+
+  const checked = [...document.querySelectorAll('.bulk-company-check:checked')];
+  if (!checked.length) return showToast('Select at least one company.');
+
+  const companies  = checked.map(cb => ({ id: parseInt(cb.value), name: cb.dataset.name }));
+  const jobTitle   = (document.getElementById('bulkJobTitle')?.value || '').trim();
+  const jobUrl     = (document.getElementById('bulkJobUrl')?.value || '').trim();
+
+  const btn = document.getElementById('btnBulkEnroll');
+  btn.disabled    = true;
+  btn.textContent = 'Blasting…';
+  document.getElementById('bulkBlastResult').innerHTML = `
+    <div class="enroll-result" style="background:#f1f5f9;color:#475569;margin-top:10px;">
+      <span class="spinner"></span> Enrolling contacts across ${companies.length} ${companies.length === 1 ? 'company' : 'companies'} — this may take a minute…
+    </div>`;
+
+  try {
+    const body = { companies, sequenceId: seqId };
+    if (jobTitle) body.jobTitle = jobTitle;
+    if (jobUrl)   body.jobUrl   = jobUrl;
+
+    const r = await fetch('/api/overloop/bulk-enroll', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Bulk enrollment failed');
+
+    for (const co of companies) {
+      if (!cardData[co.id]) cardData[co.id] = {};
+      cardData[co.id].overloopEnrolled = true;
+      refreshCard(co.id);
+    }
+
+    const cls = d.failed > 0 ? 'err' : 'ok';
+    let msg = `&#10003; ${d.enrolled} contact${d.enrolled !== 1 ? 's' : ''} enrolled across ${companies.length - (d.skippedNoContacts || 0)} companies.`;
+    if (d.failed)             msg += ` ${d.failed} enrollment${d.failed !== 1 ? 's' : ''} failed.`;
+    if (d.skippedNoContacts)  msg += ` ${d.skippedNoContacts} companies had no contactable emails.`;
+    document.getElementById('bulkBlastResult').innerHTML = `<div class="enroll-result ${cls}" style="margin-top:10px;">${msg}</div>`;
+    btn.textContent = 'Blast Again';
+    btn.disabled    = false;
+  } catch (e) {
+    document.getElementById('bulkBlastResult').innerHTML = `<div class="enroll-result err" style="margin-top:10px;">${esc(e.message)}</div>`;
+    btn.textContent = 'Retry';
+    btn.disabled    = false;
+  }
 }
 
 // ─── Auth — bearer token stored in localStorage (works in iframe + proxy) ──────
