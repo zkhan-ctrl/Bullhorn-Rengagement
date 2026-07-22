@@ -282,16 +282,39 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .section-tab.tab-stale.active { background: #fef2f2; color: #991b1b; }
 .pip-stale { background: #fee2e2; color: #991b1b; }
 
-/* BULK BLAST */
+/* CAMPAIGN BUILDER */
 .btn-bulk-blast { background: #92400e; color: #fde68a; border: 1px solid #b45309; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.15s; white-space: nowrap; letter-spacing: 0.2px; }
 .btn-bulk-blast:hover { background: #b45309; color: #fef3c7; }
-.bulk-company-list { max-height: 200px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 7px; margin-bottom: 4px; }
-.bulk-company-row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; font-size: 12px; border-bottom: 1px solid #f1f5f9; }
-.bulk-company-row:last-child { border-bottom: none; }
-.bulk-company-row input[type=checkbox] { accent-color: #6366f1; width: 13px; height: 13px; flex-shrink: 0; }
-.bulk-company-name { font-weight: 600; color: #0f172a; }
-.bulk-progress { height: 4px; background: #e2e8f0; border-radius: 4px; margin-top: 8px; overflow: hidden; }
-.bulk-progress-bar { height: 100%; background: #6366f1; border-radius: 4px; transition: width 0.3s; }
+.campaign-modal { max-width: 660px; max-height: 92vh; overflow-y: auto; }
+.campaign-steps { display: flex; margin-bottom: 18px; border-radius: 7px; overflow: hidden; background: #f1f5f9; }
+.campaign-step { flex: 1; text-align: center; padding: 7px 4px; font-size: 11px; font-weight: 600; color: #94a3b8; white-space: nowrap; }
+.campaign-step.cs-active { background: #6366f1; color: white; }
+.campaign-step.cs-done { background: #e0e7ff; color: #4f46e5; }
+.campaign-nav { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+.cb-company-list { max-height: 230px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 7px; margin-bottom: 4px; }
+.cb-company-row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; font-size: 12px; border-bottom: 1px solid #f1f5f9; }
+.cb-company-row:last-child { border-bottom: none; }
+.cb-company-row input[type=checkbox] { accent-color: #6366f1; width: 13px; height: 13px; flex-shrink: 0; }
+.cb-co-name { font-weight: 600; color: #0f172a; flex: 1; }
+.job-review-list { border: 1px solid #e2e8f0; border-radius: 7px; overflow: hidden; max-height: 300px; overflow-y: auto; }
+.job-review-row { display: grid; grid-template-columns: 170px 1fr 90px; gap: 8px; align-items: center; padding: 8px 12px; border-bottom: 1px solid #f1f5f9; font-size: 12px; }
+.job-review-row:last-child { border-bottom: none; }
+.jr-company { font-weight: 600; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jr-summary { color: #334155; font-style: italic; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.jr-status { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; white-space: nowrap; text-align: center; }
+.jr-status.jrs-loading { background: #f1f5f9; color: #94a3b8; }
+.jr-status.jrs-done { background: #d1fae5; color: #065f46; }
+.jr-status.jrs-none { background: #fee2e2; color: #991b1b; }
+.jr-edit-btn { font-size: 10px; cursor: pointer; color: #6366f1; background: none; border: none; padding: 0; text-decoration: underline; flex-shrink: 0; }
+.scrape-progress { font-size: 12px; color: #64748b; padding: 8px 0 6px; display: flex; align-items: center; gap: 6px; }
+.seq-preview-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 7px; padding: 14px; font-size: 12px; line-height: 1.8; color: #334155; margin-top: 8px; }
+.launch-stat { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #f1f5f9; font-size: 12px; }
+.launch-stat:last-child { border-bottom: none; }
+.launch-stat-label { color: #64748b; }
+.launch-stat-value { font-weight: 600; color: #0f172a; }
+.btn-launch { background: #16a34a; color: white; border: none; padding: 10px 24px; border-radius: 7px; font-size: 13px; font-weight: 700; cursor: pointer; }
+.btn-launch:hover { background: #15803d; }
+.btn-launch:disabled { background: #94a3b8; cursor: not-allowed; }
 </style>
 </head>
 <body>
@@ -396,7 +419,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     <button class="filter-toggle" id="btnHasJobs" onclick="toggleHasJobs(this)">&#9679; Has Open Jobs</button>
     <input class="filter-search" id="filterSearch" type="text" placeholder="Search company..." oninput="applyFilters()">
     <div class="filter-spacer"></div>
-    <button class="btn-bulk-blast" id="btnBulkBlast" onclick="openBulkBlastModal()">&#9889; Bulk Blast T3/T4</button>
+    <button class="btn-bulk-blast" id="btnBulkBlast" onclick="openCampaignBuilder()">&#9889; Bulk Blast T3/T4</button>
     <span class="result-count" id="resultCount"></span>
   </div>
 
@@ -413,13 +436,17 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   </div>
 </div>
 
-<!-- BULK BLAST MODAL -->
-<div class="modal-overlay" id="bulkBlastModal" onclick="if(event.target===this)closeBulkBlastModal()">
-  <div class="modal" style="max-width:520px;max-height:92vh;overflow-y:auto;">
-    <div class="modal-title" id="bulkBlastTitle">Bulk Blast — T3/T4</div>
-    <div id="bulkBlastBody">
-      <div style="color:#94a3b8;font-size:12px;padding:12px 0;"><span class="spinner"></span> Loading…</div>
+<!-- CAMPAIGN BUILDER MODAL -->
+<div class="modal-overlay" id="campaignModal" onclick="if(event.target===this)closeCampaignBuilder()">
+  <div class="modal campaign-modal">
+    <div class="campaign-steps">
+      <div class="campaign-step cs-active" id="cstep-1">1 · Companies</div>
+      <div class="campaign-step" id="cstep-2">2 · Job Review</div>
+      <div class="campaign-step" id="cstep-3">3 · Sequence</div>
+      <div class="campaign-step" id="cstep-4">4 · Launch</div>
     </div>
+    <div class="modal-title" id="campaignTitle">Select Companies</div>
+    <div id="campaignBody"></div>
   </div>
 </div>
 
@@ -488,6 +515,13 @@ function switchSection(section) {
   if (bulkBtn) bulkBtn.style.display = section === 'stale' ? 'none' : '';
   renderList();
   updateHeaderStats();
+  if (section !== 'stale' && allCompanies.length) {
+    const t34 = getActiveCompanies().filter(c => {
+      const tier = section === 'dh' ? c.dhTier : c.contractingTier;
+      return tier === 3 || tier === 4;
+    });
+    if (t34.length) setTimeout(() => _backgroundPreScrape(t34), 3000);
+  }
 }
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
@@ -539,6 +573,15 @@ async function loadCompanies() {
 
     renderList();
     updateHeaderStats();
+
+    // Warm the job cache for T3/T4 companies in the current section
+    if (activeSection !== 'stale') {
+      const t34 = getActiveCompanies().filter(c => {
+        const tier = activeSection === 'dh' ? c.dhTier : c.contractingTier;
+        return tier === 3 || tier === 4;
+      });
+      if (t34.length) setTimeout(() => _backgroundPreScrape(t34), 5000);
+    }
 
     // Auto-expand if launched from a specific company inside Bullhorn
     const params     = new URLSearchParams(window.location.search);
@@ -1249,7 +1292,411 @@ function closeOverloopModal() {
   _seqContext = null;
 }
 
-// ─── Bulk Blast (T3/T4 multi-company enrollment) ──────────────────────────────
+// ─── Campaign Builder ─────────────────────────────────────────────────────────
+
+// Shared state for the multi-step flow
+const cb = {
+  step: 1, section: null,
+  allT34: [], selected: [],
+  jobData: {},   // id → { status, jobs, summary, primaryUrl, override }
+  sequences: [], sequenceId: null,
+};
+
+// Consolidate multiple scraped job titles into a natural phrase for {{job_title}}
+function consolidateJobTitles(jobs) {
+  if (!jobs || !jobs.length) return { summary: null, url: null };
+
+  const normalize = t => t
+    .replace(/\b(senior|sr\.?|junior|jr\.?|lead|principal|staff|chief|head of|associate|assistant|executive|vp|vice president)\b/gi, '')
+    .replace(/\b(level|lvl)?\s*(?:[IVX]{1,4}|\d+)\b/g, '')
+    .replace(/[-–]\s*[\w\s,]*$/, '')
+    .replace(/\([^)]*\)/g, '')
+    .replace(/\s+/g, ' ').trim().toLowerCase();
+
+  const pluralize = w => {
+    if (!w) return w;
+    if (w.endsWith('man')) return w.slice(0, -3) + 'men';
+    if (/[sxz]$/.test(w)) return w + 'es';
+    return w + 's';
+  };
+
+  const seen = new Set();
+  const families = [];
+  for (const job of jobs) {
+    const base = normalize(job.title);
+    if (!base || seen.has(base)) continue;
+    seen.add(base);
+    families.push({ base, title: job.title });
+  }
+
+  const n = families.length;
+  const primaryUrl = jobs[0]?.url || null;
+
+  if (n === 0) return { summary: null, url: null };
+  if (n === 1 && jobs.length === 1) return { summary: `a ${families[0].title}`, url: primaryUrl };
+  if (n === 1) return { summary: pluralize(families[0].base), url: primaryUrl };
+  if (n === 2) return { summary: `${pluralize(families[0].base)} and ${pluralize(families[1].base)}`, url: primaryUrl };
+
+  if (n <= 5) {
+    const names = families.map(f => pluralize(f.base));
+    const last = names.pop();
+    return { summary: `a variety of ${names.join(', ')}, and ${last}`, url: primaryUrl };
+  }
+
+  // 6+ families: keyword-based department grouping
+  const DEPTS = [
+    ['engineering',       /engineer|technician|mechanic|electrician|instrumentation|controls/i],
+    ['operations',        /operat|supervisor|superintendent|foreman|coordinator/i],
+    ['field & craft',     /welder|pipefitter|rigger|inspector|NDT|non.destructive/i],
+    ['safety',            /HSE|safety|environmental|compliance/i],
+    ['management',        /director|VP|manager|chief|head of/i],
+    ['project management',/project manager|planner|scheduler/i],
+  ];
+  const depts = new Set();
+  for (const f of families) {
+    for (const [dept, rx] of DEPTS) { if (rx.test(f.title)) { depts.add(dept); break; } }
+  }
+  const dl = [...depts].slice(0, 3);
+  if (dl.length >= 2) {
+    const last = dl.pop();
+    return { summary: `a range of ${dl.join(', ')}, and ${last} roles`, url: primaryUrl };
+  }
+  const top3 = families.slice(0, 3).map(f => pluralize(f.base));
+  const last = top3.pop();
+  return { summary: `a variety of ${top3.join(', ')}, and ${last} positions`, url: primaryUrl };
+}
+
+// ── Step helpers ──────────────────────────────────────────────────────────────
+
+function openCampaignBuilder() {
+  const section = activeSection;
+  if (section === 'stale') return;
+  const label = section === 'dh' ? 'Direct Hire' : 'Contract Labor';
+
+  Object.assign(cb, { step: 1, section, allT34: [], selected: [], jobData: {}, sequenceId: null });
+  const bdFilter = document.getElementById('filterBD').value;
+  const base = getActiveCompanies().filter(c => {
+    const tier = section === 'dh' ? c.dhTier : c.contractingTier;
+    return tier === 3 || tier === 4;
+  });
+  cb.allT34 = bdFilter ? base.filter(c => c.bdOwner === bdFilter) : base;
+  cb.selected = [...cb.allT34];
+
+  document.getElementById('campaignTitle').textContent = `Campaign Builder — ${label} T3/T4`;
+  document.getElementById('campaignModal').classList.add('open');
+  _cbRenderStep1();
+}
+
+function closeCampaignBuilder() {
+  document.getElementById('campaignModal').classList.remove('open');
+}
+
+function _cbSetStep(n) {
+  cb.step = n;
+  [1, 2, 3, 4].forEach(i => {
+    const el = document.getElementById(`cstep-${i}`);
+    if (!el) return;
+    el.classList.remove('cs-active', 'cs-done');
+    if (i === n) el.classList.add('cs-active');
+    else if (i < n) el.classList.add('cs-done');
+  });
+}
+
+// ── Step 1: Company Selection ─────────────────────────────────────────────────
+
+function _cbRenderStep1() {
+  _cbSetStep(1);
+  if (!cb.allT34.length) {
+    document.getElementById('campaignBody').innerHTML =
+      `<p style="color:#64748b;font-size:13px;">No T3/T4 companies found for the current filter.</p>
+       <div class="campaign-nav"><button class="btn-cancel" onclick="closeCampaignBuilder()">Close</button></div>`;
+    return;
+  }
+  const rows = cb.allT34.map(c => {
+    const tier = cb.section === 'dh' ? c.dhTier : c.contractingTier;
+    const chk  = cb.selected.some(s => s.id === c.id) ? 'checked' : '';
+    return `<div class="cb-company-row">
+      <input type="checkbox" class="cb-co-check" id="cbco-${c.id}" value="${c.id}" ${chk} onchange="_cbToggle(${c.id})">
+      <label for="cbco-${c.id}" style="flex:1;cursor:pointer;display:flex;align-items:center;gap:7px;">
+        <span class="cb-co-name">${esc(c.name)}</span>
+        <span class="pip pip-${tier}" style="font-size:10px;padding:1px 5px;">T${tier}</span>
+      </label>
+      <span style="font-size:11px;color:#94a3b8;">${esc(c.bdOwner)}</span>
+    </div>`;
+  }).join('');
+
+  document.getElementById('campaignBody').innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <div class="modal-label" id="cbCount">${cb.selected.length} of ${cb.allT34.length} selected</div>
+      <div style="display:flex;gap:5px;">
+        <button class="btn-cancel" style="padding:2px 8px;font-size:11px;" onclick="_cbSelectAll(true)">All</button>
+        <button class="btn-cancel" style="padding:2px 8px;font-size:11px;" onclick="_cbSelectAll(false)">None</button>
+      </div>
+    </div>
+    <div class="cb-company-list">${rows}</div>
+    <div class="campaign-nav">
+      <button class="btn-cancel" onclick="closeCampaignBuilder()">Cancel</button>
+      <button class="btn-save" id="cbNext1" onclick="_cbGoStep2()">Next: Review Jobs ›</button>
+    </div>`;
+  _cbUpdateCount();
+}
+
+function _cbToggle(id) {
+  const idx = cb.selected.findIndex(c => c.id === id);
+  if (idx >= 0) cb.selected.splice(idx, 1);
+  else { const co = cb.allT34.find(c => c.id === id); if (co) cb.selected.push(co); }
+  _cbUpdateCount();
+}
+
+function _cbSelectAll(on) {
+  cb.selected = on ? [...cb.allT34] : [];
+  document.querySelectorAll('.cb-co-check').forEach(el => { el.checked = on; });
+  _cbUpdateCount();
+}
+
+function _cbUpdateCount() {
+  const el = document.getElementById('cbCount');
+  if (el) el.textContent = `${cb.selected.length} of ${cb.allT34.length} selected`;
+  const btn = document.getElementById('cbNext1');
+  if (btn) btn.disabled = !cb.selected.length;
+}
+
+// ── Step 2: Job Scraping & Review ─────────────────────────────────────────────
+
+async function _cbGoStep2() {
+  if (!cb.selected.length) return showToast('Select at least one company.');
+  _cbSetStep(2);
+
+  cb.selected.forEach(c => {
+    if (!cb.jobData[c.id]) cb.jobData[c.id] = { status: 'pending', jobs: [], summary: null, primaryUrl: null, override: null };
+  });
+  _cbRenderStep2();
+
+  const toScrape = cb.selected.filter(c => cb.jobData[c.id].status === 'pending');
+  let done = 0;
+  const BATCH = 4;
+
+  for (let i = 0; i < toScrape.length; i += BATCH) {
+    const batch = toScrape.slice(i, i + BATCH);
+    _cbScrapeProgress(done, toScrape.length);
+    await Promise.all(batch.map(async c => {
+      try {
+        const p = new URLSearchParams({ name: c.name });
+        if (c.website) p.set('website', c.website);
+        const r = await fetch(`/api/company/${c.id}/external-jobs?${p}`);
+        const d = await r.json();
+        const jobs = d.data || [];
+        const { summary, url } = consolidateJobTitles(jobs);
+        cb.jobData[c.id] = { status: jobs.length ? 'done' : 'none', jobs, summary, primaryUrl: url, override: null };
+      } catch {
+        cb.jobData[c.id] = { status: 'error', jobs: [], summary: null, primaryUrl: null, override: null };
+      }
+      done++;
+      _cbUpdateRow(c.id);
+    }));
+    _cbScrapeProgress(done, toScrape.length);
+  }
+  _cbScrapeProgress(done, toScrape.length, true);
+}
+
+function _cbRenderStep2() {
+  const rows = cb.selected.map(c => _cbRowHtml(c, cb.jobData[c.id] || { status: 'pending' })).join('');
+  document.getElementById('campaignBody').innerHTML = `
+    <div class="scrape-progress" id="cbProgress">Checking job postings…</div>
+    <div class="job-review-list">${rows}</div>
+    <div class="modal-hint" style="margin-top:8px;">Companies with no jobs found are automatically excluded from the blast.</div>
+    <div class="campaign-nav">
+      <button class="btn-cancel" onclick="_cbRenderStep1()">‹ Back</button>
+      <button class="btn-save" id="cbNext2" onclick="_cbGoStep3()" disabled>Next: Sequence ›</button>
+    </div>`;
+}
+
+function _cbRowHtml(c, d) {
+  const tier = cb.section === 'dh' ? c.dhTier : c.contractingTier;
+  let stHtml = '', sumHtml = '';
+  if (d.status === 'pending') {
+    stHtml  = `<span class="jr-status jrs-loading"><span class="spinner" style="width:8px;height:8px;border-width:2px;margin-right:3px;"></span>…</span>`;
+    sumHtml = `<span style="color:#94a3b8;">Scraping…</span>`;
+  } else if (d.status === 'done') {
+    stHtml  = `<span class="jr-status jrs-done">${d.jobs.length} job${d.jobs.length !== 1 ? 's' : ''}</span>`;
+    const disp = esc(d.override || d.summary || '—');
+    sumHtml = `<span>${disp}</span><button class="jr-edit-btn" onclick="_cbEdit(${c.id})">edit</button>`;
+  } else {
+    stHtml  = `<span class="jr-status jrs-none">No jobs</span>`;
+    sumHtml = `<span style="color:#94a3b8;font-size:11px;">Excluded from blast</span>`;
+  }
+  return `<div class="job-review-row" id="jrrow-${c.id}">
+    <div class="jr-company"><span class="pip pip-${tier}" style="font-size:9px;padding:1px 4px;margin-right:4px;">T${tier}</span>${esc(c.name)}</div>
+    <div class="jr-summary" id="jrsum-${c.id}">${sumHtml}</div>
+    <div id="jrst-${c.id}">${stHtml}</div>
+  </div>`;
+}
+
+function _cbUpdateRow(id) {
+  const c = cb.selected.find(x => x.id === id);
+  const d = cb.jobData[id];
+  if (!c || !d) return;
+  const sumEl = document.getElementById(`jrsum-${id}`);
+  const stEl  = document.getElementById(`jrst-${id}`);
+  if (!sumEl || !stEl) return;
+  const tmp = document.createElement('div');
+  tmp.innerHTML = _cbRowHtml(c, d);
+  const newRow = tmp.querySelector('.job-review-row');
+  if (!newRow) return;
+  const ns = newRow.querySelector(`#jrsum-${id}`);
+  const nt = newRow.querySelector(`#jrst-${id}`);
+  if (ns) sumEl.innerHTML = ns.innerHTML;
+  if (nt) stEl.innerHTML  = nt.innerHTML;
+  const anyDone = cb.selected.some(x => cb.jobData[x.id]?.status === 'done');
+  const btn = document.getElementById('cbNext2');
+  if (btn) btn.disabled = !anyDone;
+}
+
+function _cbScrapeProgress(done, total, finished = false) {
+  const el = document.getElementById('cbProgress');
+  if (!el) return;
+  if (finished) {
+    const found = cb.selected.filter(c => cb.jobData[c.id]?.status === 'done').length;
+    const none  = cb.selected.filter(c => cb.jobData[c.id]?.status !== 'done').length;
+    el.innerHTML = `<span style="color:#16a34a;font-weight:600;">✓ Complete — ${found} with jobs, ${none} excluded</span>`;
+  } else {
+    el.innerHTML = `<span class="spinner" style="width:10px;height:10px;border-width:2px;"></span> Scraping… ${done}/${total}`;
+  }
+}
+
+function _cbEdit(id) {
+  const d = cb.jobData[id];
+  if (!d) return;
+  const val = window.prompt('Edit job summary (becomes {{job_title}} in your sequence):', d.override || d.summary || '');
+  if (val === null) return;
+  cb.jobData[id].override = val.trim() || null;
+  _cbUpdateRow(id);
+}
+
+// ── Step 3: Sequence Picker ───────────────────────────────────────────────────
+
+async function _cbGoStep3() {
+  const eligible = cb.selected.filter(c => cb.jobData[c.id]?.status === 'done');
+  if (!eligible.length) return showToast('No companies with jobs found — cannot proceed.');
+  _cbSetStep(3);
+  document.getElementById('campaignBody').innerHTML =
+    `<div style="color:#94a3b8;font-size:12px;padding:12px 0;"><span class="spinner"></span> Loading sequences…</div>`;
+  try {
+    const seqs = await _getSequences();
+    cb.sequences = seqs;
+    if (!seqs.length) {
+      document.getElementById('campaignBody').innerHTML = `
+        <p style="color:#64748b;font-size:13px;">No sequences found in Overloop. Create one first.</p>
+        <div class="campaign-nav"><button class="btn-cancel" onclick="_cbGoStep2()">‹ Back</button></div>`;
+      return;
+    }
+    if (!cb.sequenceId) cb.sequenceId = seqs[0].id;
+    const opts    = seqs.map(s => `<option value="${esc(s.id)}"${s.id == cb.sequenceId ? ' selected' : ''}>${esc(s.name)}</option>`).join('');
+    const sample  = cb.jobData[eligible[0].id];
+    const sampleSum = esc(sample.override || sample.summary || '…');
+    const excluded  = cb.selected.length - eligible.length;
+
+    document.getElementById('campaignBody').innerHTML = `
+      <div class="modal-label" style="margin-bottom:6px;">Sequence</div>
+      <select class="seq-select" id="cbSeqPicker" onchange="cb.sequenceId=this.value">${opts}</select>
+      <div class="modal-hint" style="margin-bottom:12px;">Sequences are from your Overloop account. The email body is defined inside Overloop — use <code>{{job_title}}</code> where you want the job summary to appear.</div>
+
+      <div class="modal-label" style="margin-bottom:6px;">Sample Email Preview <span style="font-weight:400;color:#94a3b8;font-size:10px;">using ${esc(eligible[0].name)}</span></div>
+      <div class="seq-preview-box">Hey {{first_name}},<br><br>I noticed you had positions available for <strong>${sampleSum}</strong>. Considering we still have an active working agreement together, would you have availability to discuss these positions and how we can help you fill them?<br><br><span style="color:#94a3b8;font-size:11px;">(Actual copy comes from your Overloop sequence template.)</span></div>
+      ${excluded ? `<div class="modal-hint" style="margin-top:10px;">&#x2139; ${excluded} compan${excluded !== 1 ? 'ies' : 'y'} excluded (no jobs scraped). ${eligible.length} will be enrolled.</div>` : ''}
+      <div class="campaign-nav">
+        <button class="btn-cancel" onclick="_cbGoStep2()">‹ Back</button>
+        <button class="btn-save" onclick="_cbGoStep4()">Next: Launch ›</button>
+      </div>`;
+  } catch (e) {
+    document.getElementById('campaignBody').innerHTML =
+      `<div class="enroll-result err">${esc(e.message)}</div>
+       <div class="campaign-nav"><button class="btn-cancel" onclick="_cbGoStep2()">‹ Back</button></div>`;
+  }
+}
+
+// ── Step 4: Confirm & Launch ──────────────────────────────────────────────────
+
+function _cbGoStep4() {
+  const seqId = document.getElementById('cbSeqPicker')?.value || cb.sequenceId;
+  if (!seqId) return showToast('Select a sequence first.');
+  cb.sequenceId = seqId;
+  const eligible = cb.selected.filter(c => cb.jobData[c.id]?.status === 'done');
+  const excluded  = cb.selected.length - eligible.length;
+  const seqName   = cb.sequences.find(s => s.id == seqId)?.name || seqId;
+  _cbSetStep(4);
+  document.getElementById('campaignBody').innerHTML = `
+    <div style="border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:14px;">
+      <div class="launch-stat"><span class="launch-stat-label">Companies to blast</span><span class="launch-stat-value">${eligible.length}</span></div>
+      <div class="launch-stat"><span class="launch-stat-label">Excluded (no jobs found)</span><span class="launch-stat-value" style="color:#ef4444;">${excluded}</span></div>
+      <div class="launch-stat"><span class="launch-stat-label">Sequence</span><span class="launch-stat-value">${esc(seqName)}</span></div>
+      <div class="launch-stat"><span class="launch-stat-label">Job variable</span><span class="launch-stat-value">{{job_title}} — per company</span></div>
+    </div>
+    <div class="modal-hint" style="margin-bottom:14px;">All active contacts with email addresses from each company will be enrolled. Contacts without email are skipped automatically.</div>
+    <div id="cbLaunchResult"></div>
+    <div class="campaign-nav">
+      <button class="btn-cancel" onclick="_cbGoStep3()">‹ Back</button>
+      <button class="btn-launch" id="btnLaunch" onclick="submitCampaign()">Launch Campaign (${eligible.length} companies)</button>
+    </div>`;
+}
+
+async function submitCampaign() {
+  const eligible = cb.selected.filter(c => cb.jobData[c.id]?.status === 'done');
+  if (!eligible.length || !cb.sequenceId) return;
+  const btn = document.getElementById('btnLaunch');
+  btn.disabled = true; btn.textContent = 'Launching…';
+  document.getElementById('cbLaunchResult').innerHTML =
+    `<div class="enroll-result" style="background:#f1f5f9;color:#475569;margin-bottom:12px;">
+       <span class="spinner"></span> Enrolling contacts across ${eligible.length} companies — this may take a minute…
+     </div>`;
+  const companies = eligible.map(c => {
+    const d = cb.jobData[c.id];
+    return { id: c.id, name: c.name, jobSummary: d.override || d.summary || null, primaryJobUrl: d.primaryUrl || null };
+  });
+  try {
+    const r = await fetch('/api/overloop/campaign-enroll', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ companies, sequenceId: cb.sequenceId }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Campaign launch failed');
+    for (const co of eligible) {
+      if (!cardData[co.id]) cardData[co.id] = {};
+      cardData[co.id].overloopEnrolled = true;
+      refreshCard(co.id);
+    }
+    const cls = d.failed > 0 ? 'err' : 'ok';
+    let msg = `✓ ${d.enrolled} contact${d.enrolled !== 1 ? 's' : ''} enrolled across ${eligible.length} companies.`;
+    if (d.failed) msg += ` ${d.failed} enrollment${d.failed !== 1 ? 's' : ''} failed.`;
+    if (d.skippedNoContacts) msg += ` ${d.skippedNoContacts} companies had no contactable emails.`;
+    document.getElementById('cbLaunchResult').innerHTML = `<div class="enroll-result ${cls}" style="margin-bottom:12px;">${msg}</div>`;
+    btn.textContent = 'Done';
+  } catch (e) {
+    document.getElementById('cbLaunchResult').innerHTML = `<div class="enroll-result err" style="margin-bottom:12px;">${esc(e.message)}</div>`;
+    btn.disabled = false; btn.textContent = 'Retry';
+  }
+}
+
+// ── Background pre-scraping (warms cache silently after tab switch) ───────────
+let _preScraping = false;
+
+async function _backgroundPreScrape(companies) {
+  if (_preScraping) return;
+  _preScraping = true;
+  const BATCH = 3;
+  const list  = companies.slice(0, 45);
+  for (let i = 0; i < list.length; i += BATCH) {
+    list.slice(i, i + BATCH).forEach(c => {
+      const p = new URLSearchParams({ name: c.name });
+      if (c.website) p.set('website', c.website);
+      fetch(`/api/company/${c.id}/external-jobs?${p}`).catch(() => {});
+    });
+    if (i + BATCH < list.length) await new Promise(r => setTimeout(r, 10000));
+  }
+  _preScraping = false;
+}
+
+// legacy stub — old bulk blast modal removed
 function _bulkBlastHtml(seqs, companies, section) {
   if (!seqs.length) {
     return `<p style="color:#64748b;font-size:13px;line-height:1.6;">No Overloop sequences found. Create one in Overloop first.</p>

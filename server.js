@@ -283,6 +283,97 @@ app.post('/api/overloop/bulk-enroll', async (req, res) => {
   res.json({ enrolled, failed, skippedNoContacts });
 });
 
+// Campaign Builder enrollment — per-company job summaries pre-computed client-side
+app.post('/api/overloop/campaign-enroll', async (req, res) => {
+  const key = req.currentUser?.overloop_key;
+  if (!key) return res.status(400).json({ error: 'No Overloop API key configured for your account.' });
+
+  const { companies, sequenceId } = req.body || {};
+  // companies = [{ id, name, jobSummary, primaryJobUrl }, ...]
+  if (!Array.isArray(companies) || !companies.length) return res.status(400).json({ error: 'No companies provided.' });
+  if (!sequenceId) return res.status(400).json({ error: 'No sequence selected.' });
+
+  const hdrs = overloopHeaders(key);
+  let enrolled = 0, failed = 0, skippedNoContacts = 0;
+
+  const idList    = companies.map(c => parseInt(c.id)).filter(Boolean).join(',');
+  const companyMap = Object.fromEntries(companies.map(c => [String(c.id), c]));
+
+  let contactRows = [];
+  try {
+    contactRows = await cdataQuery(
+      `SELECT TOP 2000 Companyid, FirstName, LastName, Email1
+       FROM ${T('ClientContact')}
+       WHERE Companyid IN (${idList}) AND Email1 IS NOT NULL AND Email1 <> ''
+       ORDER BY Companyid`
+    );
+  } catch (e) {
+    return res.status(500).json({ error: `Failed to fetch contacts: ${e.message}` });
+  }
+
+  const byCompany = {};
+  for (const row of contactRows) {
+    const cid = String(row.Companyid);
+    if (!byCompany[cid]) byCompany[cid] = [];
+    const email = (row.Email1 || '').trim();
+    if (email) byCompany[cid].push({ email, firstName: row.FirstName || '', lastName: row.LastName || '' });
+  }
+
+  for (const co of companies) {
+    const cid      = String(co.id);
+    const contacts = byCompany[cid] || [];
+    if (!contacts.length) { skippedNoContacts++; continue; }
+
+    for (const ct of contacts) {
+      try {
+        const attrs = {
+          email: ct.email, first_name: ct.firstName, last_name: ct.lastName,
+          organization_name: co.name || '',
+        };
+        if (co.jobSummary)    attrs.job_title = co.jobSummary;
+        if (co.primaryJobUrl) attrs.website   = co.primaryJobUrl;
+
+        let prospectId;
+        try {
+          const pRes = await axios.post(`${OVERLOOP_BASE}/prospects`,
+            { data: { type: 'prospects', attributes: attrs } }, { headers: hdrs });
+          prospectId = pRes.data.data.id;
+        } catch (pErr) {
+          if (pErr.response?.status === 422) {
+            const search = await axios.get(
+              `${OVERLOOP_BASE}/prospects?filter[email]=${encodeURIComponent(ct.email)}`,
+              { headers: hdrs }
+            );
+            prospectId = search.data?.data?.[0]?.id;
+            if (prospectId) {
+              await axios.patch(`${OVERLOOP_BASE}/prospects/${prospectId}`,
+                { data: { type: 'prospects', id: String(prospectId), attributes: attrs } },
+                { headers: hdrs }).catch(() => {});
+            }
+            if (!prospectId) throw pErr;
+          } else throw pErr;
+        }
+
+        await axios.post(`${OVERLOOP_BASE}/sequence_states`, {
+          data: {
+            type: 'sequence_states', attributes: {},
+            relationships: {
+              prospect: { data: { type: 'prospects', id: String(prospectId) } },
+              sequence:  { data: { type: 'sequences',  id: String(sequenceId)  } },
+            },
+          }
+        }, { headers: hdrs });
+
+        enrolled++;
+      } catch (e) {
+        failed++;
+      }
+    }
+  }
+
+  res.json({ enrolled, failed, skippedNoContacts });
+});
+
 const externalJobCache = new Map();
 
 // ─── CData Connect AI — SQL Query API ─────────────────────────────────────────

@@ -689,6 +689,79 @@ def fetch_paylocity(cfg, company_name):
     return jobs or scrape_with_playwright(url, company_name)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# STAGE 2.5 — Indeed RSS (free, no API key required)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def fetch_indeed_rss(company_name):
+    """Query Indeed's free public RSS feed for jobs matching the company name."""
+    try:
+        from urllib.parse import quote as urlquote
+    except ImportError:
+        from urllib import quote as urlquote
+
+    query = f'"{company_name}"'
+    url   = (f'https://www.indeed.com/rss?q={urlquote(query)}'
+             f'&sort=date&limit=15&fromage=30')
+    html, _ = http_get(url, timeout=10)
+    if not html:
+        return []
+
+    # Significant words from company name used for relevance filtering
+    co_words = [w for w in company_name.lower().split() if len(w) > 3]
+    jobs = []
+
+    for item_m in re.finditer(r'<item>(.*?)</item>', html, re.DOTALL):
+        item_text = item_m.group(1)
+
+        # Title — handle CDATA and plain
+        title_m = (re.search(r'<title><!\[CDATA\[(.*?)\]\]></title>', item_text, re.DOTALL)
+                   or re.search(r'<title>(.*?)</title>', item_text, re.DOTALL))
+        if not title_m:
+            continue
+        raw_title = title_m.group(1).strip()
+
+        # Indeed format: "Job Title - Company Name - City, ST"
+        parts     = [p.strip() for p in raw_title.split(' - ')]
+        job_title = parts[0] if parts else raw_title
+
+        # Verify listing belongs to our target company
+        match_target = ' '.join(parts[1:]).lower() if len(parts) > 1 else ''
+        desc_m = (re.search(r'<description><!\[CDATA\[(.*?)\]\]></description>',
+                             item_text, re.DOTALL)
+                  or re.search(r'<description>(.*?)</description>', item_text, re.DOTALL))
+        search_text = match_target + ' ' + (desc_m.group(1) if desc_m else '').lower()
+
+        if co_words and not any(w in search_text for w in co_words):
+            continue
+        if not job_title or len(job_title) < 3:
+            continue
+
+        link_m = re.search(r'<link>(.*?)</link>', item_text)
+        guid_m = re.search(r'<guid[^>]*>(.*?)</guid>', item_text)
+        link   = ((link_m.group(1) if link_m else '') or
+                  (guid_m.group(1) if guid_m else '')).strip()
+
+        date_str = None
+        date_m = re.search(r'<pubDate>(.*?)</pubDate>', item_text)
+        if date_m:
+            try:
+                from email.utils import parsedate
+                t = parsedate(date_m.group(1).strip())
+                if t:
+                    date_str = f'{t[0]}-{t[1]:02d}-{t[2]:02d}'
+            except Exception:
+                pass
+
+        jobs.append(make_job(
+            title=job_title, company=company_name,
+            url=link, date_posted=date_str,
+            source='Indeed',
+        ))
+
+    return jobs
+
+
 ATS_HANDLERS = {
     'Greenhouse':      fetch_greenhouse,
     'Lever':           fetch_lever,
@@ -1085,6 +1158,13 @@ def scrape_company(company_name, homepage_url):
                 method = ats_name
         except Exception:
             jobs = []
+
+    # Stage 2.5: Indeed RSS — free secondary source when ATS/careers page found nothing
+    if not jobs:
+        indeed_jobs = fetch_indeed_rss(company_name)
+        if indeed_jobs:
+            jobs   = indeed_jobs
+            method = 'indeed_rss'
 
     # Stage 3a: plain HTML parse
     if not jobs and careers_html:
