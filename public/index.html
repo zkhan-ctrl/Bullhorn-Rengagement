@@ -362,6 +362,22 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .btn-launch { background: #16a34a; color: white; border: none; padding: 10px 24px; border-radius: 7px; font-size: 13px; font-weight: 700; cursor: pointer; }
 .btn-launch:hover { background: #15803d; }
 .btn-launch:disabled { background: #94a3b8; cursor: not-allowed; }
+/* Clickable done step pills */
+.cb-step-pill { cursor: default; }
+.cb-step-pill.cs-done { cursor: pointer; }
+.cb-step-pill.cs-done:hover { background: #c7d2fe; border-color: #a5b4fc; color: #3730a3; }
+/* Sender badge */
+.cb-sender-bar { display:flex; align-items:center; gap:8px; background:#fff7ed; border:1px solid #fed7aa; border-radius:7px; padding:7px 12px; margin-bottom:14px; font-size:12px; }
+.cb-sender-label { font-weight:700; color:#9a3412; font-size:10px; text-transform:uppercase; letter-spacing:0.5px; flex-shrink:0; }
+.cb-sender-name { font-weight:600; color:#7c2d12; }
+/* Variable autocomplete dropdown */
+#cbVarMenu { position:fixed; background:white; border:1px solid #e2e8f0; border-radius:8px; box-shadow:0 4px 20px rgba(0,0,0,0.14); z-index:9990; display:none; min-width:220px; overflow:hidden; }
+#cbVarMenu.open { display:block; }
+.cb-var-opt { padding:9px 14px; font-size:12px; cursor:pointer; display:flex; align-items:center; gap:10px; color:#334155; border-bottom:1px solid #f1f5f9; }
+.cb-var-opt:last-child { border-bottom:none; }
+.cb-var-opt:hover { background:#f8faff; color:#6366f1; }
+.cb-var-opt code { background:#eef2ff; color:#4f46e5; padding:1px 6px; border-radius:3px; font-size:11px; white-space:nowrap; }
+.cb-var-opt span { color:#94a3b8; font-size:11px; }
 </style>
 </head>
 <body>
@@ -500,6 +516,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 
 <div class="toast" id="toast"></div>
 
+<!-- VARIABLE AUTOCOMPLETE MENU -->
+<div id="cbVarMenu">
+  <div class="cb-var-opt" onmousedown="event.preventDefault();_cbInsertVar('{{first_name}}')"><code>{{first_name}}</code><span>Contact's first name</span></div>
+  <div class="cb-var-opt" onmousedown="event.preventDefault();_cbInsertVar('{{last_name}}')"><code>{{last_name}}</code><span>Contact's last name</span></div>
+  <div class="cb-var-opt" onmousedown="event.preventDefault();_cbInsertVar('{{company_name}}')"><code>{{company_name}}</code><span>Company name</span></div>
+  <div class="cb-var-opt" onmousedown="event.preventDefault();_cbInsertVar('{{job_title}}')"><code>{{job_title}}</code><span>Job summary (unique per company)</span></div>
+</div>
+
 <script>
 // ─── State ────────────────────────────────────────────────────────────────────
 const cfg = {};
@@ -514,6 +538,7 @@ let jobCounts     = {};
 let filterHasJobs = false;
 let activeSection = 'dh';   // 'dh' | 'ct' | 'stale' | 'campaign'
 let _lastSection  = 'dh';   // last non-campaign section (used by campaign builder)
+let currentUser   = { name: '', email: '', admin: false };
 
 // ─── Section helpers ──────────────────────────────────────────────────────────
 function getDHCompanies() {
@@ -771,6 +796,7 @@ function renderCard(c, section) {
 }
 
 function renderCardBody(c, data) {
+  const cardTier = activeSection === 'dh' ? c.dhTier : activeSection === 'ct' ? c.contractingTier : null;
   // ── Jobs (internal + external) ─────────────────────────────────────────
   const internalHtml = (data.jobs || []).map(j => `
     <div class="job-item">
@@ -862,12 +888,17 @@ function renderCardBody(c, data) {
 
     const contactEmail = selContact?.email || '';
     const isEnrolled   = !!(data.overloopEnrolledContacts?.has(contactEmail));
+    const mailtoHref = contactEmail
+      ? `mailto:${encodeURIComponent(contactEmail)}?subject=${encodeURIComponent('Following up — ' + (c.name || ''))}`
+      : '';
     const actionsHtml = draftText
       ? `<div class="email-draft-actions">
            <button class="btn-send${isSent ? ' sent-ok' : ''}" onclick="sendEmail(${c.id},${draftKey})">${isSent ? '✓ Sent' : '✉ Mark Sent'}</button>
            <button class="btn-copy" onclick="copyEmail(${c.id},${draftKey})">⎘ Copy</button>
            <button class="btn-regen" onclick="regenDraft(${c.id},${draftKey})" title="Generate a new draft">↺ New draft</button>
-           <button class="btn-overloop${isEnrolled ? ' enrolled' : ''}" onclick="openSequencePicker(${c.id},${draftKey})">${isEnrolled ? '✓ Enrolled' : '⚡ Enroll in Overloop'}</button>
+           ${(cardTier === 1 || cardTier === 2) && mailtoHref
+             ? `<a class="btn-copy" href="${esc(mailtoHref)}" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px;">&#128231; Open in Outlook</a>`
+             : `<button class="btn-overloop${isEnrolled ? ' enrolled' : ''}" onclick="openSequencePicker(${c.id},${draftKey})">${isEnrolled ? '✓ Enrolled' : '⚡ Enroll in Overloop'}</button>`}
          </div>`
       : '';
 
@@ -1433,16 +1464,41 @@ function consolidateJobTitles(jobs) {
 
 function openCampaignBuilder() { switchSection('campaign'); }
 
+function _cbNavToStep(n) {
+  if (n === cb.step || n > cb.step) return; // can't skip forward
+  switch (n) {
+    case 1: _cbRenderStep1(); break;
+    case 2: _cbRenderStep2(); break;
+    case 3: _cbRenderStep3(); break;
+    case 4: _cbRenderStep4(); break;
+  }
+}
+
 function _cbInitTab() {
   const section = _lastSection === 'stale' ? 'dh' : _lastSection;
   const label   = section === 'dh' ? 'Direct Hire' : 'Contract Labor';
 
-  const bdFilter = document.getElementById('filterBD').value;
-  const base     = (section === 'dh' ? getDHCompanies() : getCTCompanies()).filter(c => {
+  // T3/T4 companies from the active section + all unscored companies
+  const sectionCos = (section === 'dh' ? getDHCompanies() : getCTCompanies()).filter(c => {
     const tier = section === 'dh' ? c.dhTier : c.contractingTier;
     return tier === 3 || tier === 4;
   });
-  const allT34 = bdFilter ? base.filter(c => c.bdOwner === bdFilter) : base;
+  const unscoredCos = getStaleCompanies();
+  const combined = [...sectionCos, ...unscoredCos];
+
+  // Restrict to current BD's companies unless admin
+  const myBD     = currentUser.name;
+  const bdFilter = document.getElementById('filterBD').value;
+  let allT34;
+  if (!currentUser.admin && myBD) {
+    allT34 = combined.filter(c => c.bdOwner === myBD);
+    // If no match (name mismatch between login and Bullhorn), fall back to all
+    if (!allT34.length) allT34 = combined;
+  } else if (bdFilter) {
+    allT34 = combined.filter(c => c.bdOwner === bdFilter);
+  } else {
+    allT34 = combined;
+  }
 
   Object.assign(cb, {
     step: 1, section, allT34, selected: [...allT34], previewIdx: 0,
@@ -1451,17 +1507,25 @@ function _cbInitTab() {
     // jobData and contactData NOT reset — cache survives re-entry
   });
 
+  const senderBar = myBD ? `
+    <div class="cb-sender-bar">
+      <span class="cb-sender-label">Sending as</span>
+      <span class="cb-sender-name">${esc(myBD)}</span>
+      <span style="color:#94a3b8;font-size:10px;margin-left:6px;">· Sequences created in your Overloop account</span>
+    </div>` : '';
+
   document.getElementById('campaignView').innerHTML = `
     <div class="cb-view-header">
-      <div style="font-size:15px;font-weight:700;color:#0f172a;margin-bottom:8px;">&#9889; Campaign Builder — ${label} T3/T4</div>
+      <div style="font-size:15px;font-weight:700;color:#0f172a;margin-bottom:8px;">&#9889; Campaign Builder — ${label} T3/T4 &amp; Unscored</div>
       <div class="cb-steps-bar">
-        <div class="cb-step-pill cs-active" id="cstep-1">1 · Companies</div>
-        <div class="cb-step-pill" id="cstep-2">2 · Job Review</div>
-        <div class="cb-step-pill" id="cstep-3">3 · Sequence</div>
-        <div class="cb-step-pill" id="cstep-4">4 · Review</div>
-        <div class="cb-step-pill" id="cstep-5">5 · Launch</div>
+        <div class="cb-step-pill cs-active" id="cstep-1" onclick="_cbNavToStep(1)">1 · Companies</div>
+        <div class="cb-step-pill" id="cstep-2" onclick="_cbNavToStep(2)">2 · Job Review</div>
+        <div class="cb-step-pill" id="cstep-3" onclick="_cbNavToStep(3)">3 · Sequence</div>
+        <div class="cb-step-pill" id="cstep-4" onclick="_cbNavToStep(4)">4 · Review</div>
+        <div class="cb-step-pill" id="cstep-5" onclick="_cbNavToStep(5)">5 · Launch</div>
       </div>
     </div>
+    ${senderBar}
     <div id="cbBody"></div>`;
 
   _cbRenderStep1();
@@ -1599,12 +1663,17 @@ async function _cbGoStep2() {
 }
 
 async function _cbFetchContacts(companies) {
+  const CATS = ['Recruiting', 'Sales', 'HR', 'Ops', 'Other'];
   for (let i = 0; i < companies.length; i += 5) {
     await Promise.all(companies.slice(i, i + 5).map(async c => {
       try {
         const r = await fetch(`/api/company/${c.id}/contacts`);
         const d = await r.json();
-        cb.contactData[c.id] = { status: 'done', contacts: (d.contacts || []).filter(x => x.email) };
+        // API returns { Recruiting:[], Sales:[], HR:[], Ops:[], Other:[] }
+        const contacts = CATS.flatMap(cat => (d[cat] || []).map(ct => ({ ...ct, category: cat })))
+          .filter((ct, idx, arr) => arr.findIndex(x => x.id === ct.id) === idx)
+          .filter(ct => ct.email);
+        cb.contactData[c.id] = { status: 'done', contacts };
       } catch {
         cb.contactData[c.id] = { status: 'done', contacts: [] };
       }
@@ -1619,9 +1688,9 @@ function _cbRecipientsHtml(id) {
   if (!cd || cd.status === 'pending') {
     return `<span class="spinner" style="width:8px;height:8px;border-width:2px;"></span>`;
   }
-  if (!cd.contacts.length) return `<span style="color:#ef4444;font-size:11px;">No emails</span>`;
+  if (!cd.contacts.length) return `<span style="color:#ef4444;font-size:11px;">No emails found</span>`;
   return cd.contacts.slice(0, 3).map(ct =>
-    `<span style="display:block;font-size:10.5px;color:#334155;">${esc(ct.name)}</span>`
+    `<span style="display:block;font-size:10.5px;color:#334155;line-height:1.5;">${esc(ct.name)}<br><span style="color:#6366f1;font-size:10px;">${esc(ct.email)}</span></span>`
   ).join('') + (cd.contacts.length > 3
     ? `<span style="font-size:10px;color:#94a3b8;">+${cd.contacts.length - 3} more</span>`
     : '');
@@ -1810,6 +1879,11 @@ function _cbRenderStep3() {
     </div>`;
 
   _cbUpdatePreview();
+  // Wire up {{ autocomplete after DOM settles
+  setTimeout(() => {
+    _cbSetupVarAutocomplete(document.getElementById('cbEmailSubject'));
+    _cbSetupVarAutocomplete(document.getElementById('cbEmailBody'));
+  }, 50);
 }
 
 function _cbEmailStepEditorHtml(step, eligibleCount) {
@@ -1893,9 +1967,14 @@ function _cbUpdatePreview() {
   const liveSubj = document.getElementById('cbEmailSubject')?.value ?? step.subject;
   const liveBod  = document.getElementById('cbEmailBody')?.value    ?? step.body;
 
+  const previewContacts = cb.contactData[co.id]?.contacts || [];
+  const previewCt = previewContacts[0];
+  const previewFirst = previewCt ? (previewCt.name || '').split(' ')[0] || '[First Name]' : '[First Name]';
+  const previewLast  = previewCt ? (previewCt.name || '').split(' ').slice(1).join(' ') || '[Last Name]' : '[Last Name]';
+
   const fill = text => (text || '')
-    .replace(/\{\{first_name\}\}/g, '[First Name]')
-    .replace(/\{\{last_name\}\}/g,  '[Last Name]')
+    .replace(/\{\{first_name\}\}/g, previewFirst)
+    .replace(/\{\{last_name\}\}/g,  previewLast)
     .replace(/\{\{company_name\}\}/g, co.name)
     .replace(/\{\{job_title\}\}/g,  jt);
 
@@ -1966,12 +2045,15 @@ function _cbRenderStep4() {
         + (contacts.length > 2 ? ` +${contacts.length - 2} more` : '')
       : '—';
 
+    const rv_ct    = contacts[0];
+    const rv_first = rv_ct ? (rv_ct.name || '').split(' ')[0] || '[First Name]' : '[First Name]';
+    const rv_last  = rv_ct ? (rv_ct.name || '').split(' ').slice(1).join(' ') || '[Last Name]' : '[Last Name]';
     const fill = (text, stepIdx) => {
       const ovr = cb.companyEmailOverrides[co.id]?.[stepIdx];
       if (ovr !== undefined && ovr !== null) return ovr;
       return (text || '')
-        .replace(/\{\{first_name\}\}/g, '[First Name]')
-        .replace(/\{\{last_name\}\}/g,  '[Last Name]')
+        .replace(/\{\{first_name\}\}/g, rv_first)
+        .replace(/\{\{last_name\}\}/g,  rv_last)
         .replace(/\{\{company_name\}\}/g, co.name)
         .replace(/\{\{job_title\}\}/g, jt);
     };
@@ -2271,6 +2353,51 @@ async function submitBulkBlast() {
   }
 }
 
+// ─── Variable autocomplete for campaign email editor ─────────────────────────
+let _cbVarTarget = null;
+
+function _cbSetupVarAutocomplete(el) {
+  if (!el) return;
+  el.addEventListener('keyup', function() {
+    const val = this.value;
+    const pos = this.selectionStart;
+    if (pos >= 2 && val.slice(pos - 2, pos) === '{{') {
+      _cbVarTarget = this;
+      const rect = this.getBoundingClientRect();
+      const menu = document.getElementById('cbVarMenu');
+      if (menu) {
+        menu.style.left = Math.min(rect.left, window.innerWidth - 240) + 'px';
+        menu.style.top  = (rect.top + rect.height + 4) + 'px';
+        menu.classList.add('open');
+      }
+    } else {
+      _cbHideVarMenu();
+    }
+  });
+  el.addEventListener('blur', () => setTimeout(_cbHideVarMenu, 200));
+}
+
+function _cbHideVarMenu() {
+  document.getElementById('cbVarMenu')?.classList.remove('open');
+  _cbVarTarget = null;
+}
+
+function _cbInsertVar(variable) {
+  const el = _cbVarTarget;
+  _cbHideVarMenu();
+  if (!el) return;
+  const start = el.selectionStart;
+  const end   = el.selectionEnd;
+  const val   = el.value;
+  // Replace the '{{' we just typed with the full variable
+  const insertAt = Math.max(0, start - 2);
+  el.value = val.slice(0, insertAt) + variable + val.slice(end);
+  const newPos = insertAt + variable.length;
+  el.selectionStart = el.selectionEnd = newPos;
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+  el.focus();
+}
+
 // ─── Auth — bearer token stored in localStorage (works in iframe + proxy) ──────
 const _origFetch = window.fetch.bind(window);
 window.fetch = (url, opts = {}) => {
@@ -2288,6 +2415,7 @@ async function checkAuth() {
     const r = await fetch('/api/me');
     if (r.ok) {
       const u = await r.json();
+      currentUser = { name: u.name || '', email: u.email || '', admin: !!u.admin };
       document.getElementById('loginOverlay').classList.add('hidden');
       document.getElementById('headerUser').textContent = u.name;
       return true;
@@ -2322,6 +2450,7 @@ document.getElementById('loginForm').addEventListener('submit', async e => {
     });
     const data = await r.json();
     if (r.ok) {
+      currentUser = { name: data.name || '', email: email, admin: !!data.admin };
       localStorage.setItem('cgr_token', data.token);
       document.getElementById('loginOverlay').classList.add('hidden');
       document.getElementById('headerUser').textContent = data.name;
