@@ -374,6 +374,139 @@ app.post('/api/overloop/campaign-enroll', async (req, res) => {
   res.json({ enrolled, failed, skippedNoContacts });
 });
 
+// Create a new Overloop sequence with custom email copy, then enroll all company contacts
+app.post('/api/overloop/create-and-enroll', async (req, res) => {
+  const key = req.currentUser?.overloop_key;
+  if (!key) return res.status(400).json({ error: 'No Overloop API key configured for your account.' });
+
+  const { companies, campaignName, emailSubject, emailBody } = req.body || {};
+  if (!Array.isArray(companies) || !companies.length) return res.status(400).json({ error: 'No companies provided.' });
+  if (!emailSubject) return res.status(400).json({ error: 'Email subject is required.' });
+  if (!emailBody)    return res.status(400).json({ error: 'Email body is required.' });
+
+  const hdrs = overloopHeaders(key);
+  const seqName = (campaignName || '').trim() ||
+    `CGR Campaign — ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+
+  // Step 1: Create the sequence
+  let sequenceId;
+  try {
+    const seqRes = await axios.post(`${OVERLOOP_BASE}/sequences`, {
+      data: { type: 'sequences', attributes: { name: seqName } }
+    }, { headers: hdrs });
+    sequenceId = seqRes.data?.data?.id;
+    if (!sequenceId) throw new Error('No sequence ID returned from Overloop');
+  } catch (e) {
+    const detail = e.response?.data?.errors?.[0]?.detail || e.message;
+    return res.status(400).json({ error: `Could not create Overloop sequence: ${detail}` });
+  }
+
+  // Step 2: Add the email step to the sequence
+  try {
+    await axios.post(`${OVERLOOP_BASE}/sequence_steps`, {
+      data: {
+        type: 'sequence_steps',
+        attributes: {
+          type:          'email',
+          delay_amount:  0,
+          delay_period:  'day',
+          subject:       emailSubject,
+          body:          emailBody,
+        },
+        relationships: {
+          sequence: { data: { type: 'sequences', id: String(sequenceId) } }
+        }
+      }
+    }, { headers: hdrs });
+  } catch (e) {
+    const detail = e.response?.data?.errors?.[0]?.detail || e.message;
+    return res.status(400).json({
+      sequenceId,
+      error: `Sequence "${seqName}" created (ID: ${sequenceId}) but failed to add email step: ${detail}. Add the step manually in Overloop.`,
+    });
+  }
+
+  // Step 3: Fetch contacts from CData
+  const idList     = companies.map(c => parseInt(c.id)).filter(Boolean).join(',');
+  const companyMap = Object.fromEntries(companies.map(c => [String(c.id), c]));
+  let contactRows  = [];
+  try {
+    contactRows = await cdataQuery(
+      `SELECT TOP 2000 Companyid, FirstName, LastName, Email1
+       FROM ${T('ClientContact')}
+       WHERE Companyid IN (${idList}) AND Email1 IS NOT NULL AND Email1 <> ''
+       ORDER BY Companyid`
+    );
+  } catch (e) {
+    return res.status(500).json({ sequenceId, error: `Sequence created but failed to fetch contacts: ${e.message}` });
+  }
+
+  const byCompany = {};
+  for (const row of contactRows) {
+    const cid = String(row.Companyid);
+    if (!byCompany[cid]) byCompany[cid] = [];
+    const email = (row.Email1 || '').trim();
+    if (email) byCompany[cid].push({ email, firstName: row.FirstName || '', lastName: row.LastName || '' });
+  }
+
+  // Step 4: Create/find prospects and enroll them in the new sequence
+  let enrolled = 0, failed = 0, skippedNoContacts = 0;
+
+  for (const co of companies) {
+    const cid      = String(co.id);
+    const contacts = byCompany[cid] || [];
+    if (!contacts.length) { skippedNoContacts++; continue; }
+
+    for (const ct of contacts) {
+      try {
+        const attrs = {
+          email: ct.email, first_name: ct.firstName, last_name: ct.lastName,
+          organization_name: co.name || '',
+        };
+        if (co.jobSummary)    attrs.job_title = co.jobSummary;
+        if (co.primaryJobUrl) attrs.website   = co.primaryJobUrl;
+
+        let prospectId;
+        try {
+          const pRes = await axios.post(`${OVERLOOP_BASE}/prospects`,
+            { data: { type: 'prospects', attributes: attrs } }, { headers: hdrs });
+          prospectId = pRes.data.data.id;
+        } catch (pErr) {
+          if (pErr.response?.status === 422) {
+            const search = await axios.get(
+              `${OVERLOOP_BASE}/prospects?filter[email]=${encodeURIComponent(ct.email)}`,
+              { headers: hdrs }
+            );
+            prospectId = search.data?.data?.[0]?.id;
+            if (prospectId) {
+              await axios.patch(`${OVERLOOP_BASE}/prospects/${prospectId}`,
+                { data: { type: 'prospects', id: String(prospectId), attributes: attrs } },
+                { headers: hdrs }).catch(() => {});
+            }
+            if (!prospectId) throw pErr;
+          } else throw pErr;
+        }
+
+        await axios.post(`${OVERLOOP_BASE}/sequence_states`, {
+          data: {
+            type: 'sequence_states', attributes: {},
+            relationships: {
+              prospect: { data: { type: 'prospects', id: String(prospectId) } },
+              sequence: { data: { type: 'sequences',  id: String(sequenceId)  } },
+            },
+          }
+        }, { headers: hdrs });
+
+        enrolled++;
+      } catch (e) {
+        failed++;
+      }
+    }
+  }
+
+  res.json({ sequenceId, sequenceName: seqName, enrolled, failed, skippedNoContacts });
+});
+
 const externalJobCache = new Map();
 
 // ─── CData Connect AI — SQL Query API ─────────────────────────────────────────
