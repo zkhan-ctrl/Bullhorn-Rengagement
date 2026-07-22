@@ -720,19 +720,17 @@ app.get('/api/company/:id/contacts', async (req, res) => {
   const id = parseInt(req.params.id);
   if (!id) return res.status(400).json({ error: 'Invalid ID' });
   try {
-    // ClientContact FK to ClientCorporation is 'Companyid' in CData's Bullhorn connector.
-    // Email field is 'Email1', direct phone is 'DirectPhone'.
+    // Fetch Email1 AND Email2 — some BH instances store primary email in Email2.
     let rows = await cdataQuery(
       `SELECT TOP 50 ID, FirstName, LastName, Title,
-              Email1 AS EmailAddress, DirectPhone AS Phone, MobilePhone
+              Email1, Email2, DirectPhone AS Phone, MobilePhone
        FROM ${T('ClientContact')}
        WHERE Companyid = ${id} AND Status = 'Active'`
     );
-    // .catch() only fires on errors, not empty results — check length explicitly
     if (!rows.length) {
       rows = await cdataQuery(
         `SELECT TOP 50 ID, FirstName, LastName, Title,
-                Email1 AS EmailAddress, DirectPhone AS Phone, MobilePhone
+                Email1, Email2, DirectPhone AS Phone, MobilePhone
          FROM ${T('ClientContact')}
          WHERE Companyid = ${id}`
       );
@@ -745,19 +743,29 @@ app.get('/api/company/:id/contacts', async (req, res) => {
       ['HR',         /human res|\bhr\b|people ops|personnel/i],
       ['Ops',        /operat|\bcoo\b|chief operat|logistics/i]
     ];
+    const isEmailStr = s => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((s || '').trim());
 
     rows.forEach(c => {
-      const name = `${c.FirstName || ''} ${c.LastName || ''}`.trim();
-      // Skip Bullhorn auto-generated placeholder contacts
+      const lastIsEmail = isEmailStr(c.LastName);
+      // When LastName contains an email (common BH data-entry error), exclude it from display name
+      const name = lastIsEmail
+        ? (c.FirstName || '').trim()
+        : `${c.FirstName || ''} ${c.LastName || ''}`.trim();
       if (!name || /default\s*contact/i.test(name)) return;
+
+      // Resolve email: Email1 → Email2 → LastName (if it's an email) → ''
+      const email = (c.Email1 || c.Email2 || (lastIsEmail ? c.LastName : '') || '').trim();
+
       const match = rules.find(([, rx]) => rx.test(c.Title || ''));
       cats[match ? match[0] : 'Other'].push({
         id:       c.ID,
         name,
         title:    c.Title || 'Contact',
-        email:    c.EmailAddress || '',
+        email,
         phone:    c.Phone || c.MobilePhone || '',
-        initials: `${(c.FirstName || '?')[0]}${(c.LastName || '?')[0]}`.toUpperCase()
+        initials: lastIsEmail
+          ? `${(c.FirstName || '??').slice(0, 2)}`.toUpperCase()
+          : `${(c.FirstName || '?')[0]}${(c.LastName || '?')[0]}`.toUpperCase(),
       });
     });
 
