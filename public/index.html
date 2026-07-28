@@ -3,35 +3,82 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Re-Engagement Tool — CGR Team</title>
+<title>CGR Re-Engagement Tool</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #1e2a3a; font-size: 13px; }
+body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f4f8; color: #1e2a3a; font-size: 13px; }
 
-/* HEADER */
-.header { background: #1a2744; color: white; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.25); }
-.header-left { display: flex; align-items: center; gap: 12px; }
-.header-logo { width: 32px; height: 32px; background: #f97316; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; flex-shrink: 0; }
-.header-title { font-size: 15px; font-weight: 700; }
-.header-subtitle { font-size: 11px; color: #94a3b8; margin-top: 1px; }
-.header-stats { display: flex; gap: 20px; }
-.stat { text-align: center; }
-.stat-num { font-size: 20px; font-weight: 700; color: #f97316; line-height: 1; }
-.stat-label { font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
-.stat-divider { width: 1px; background: #334155; align-self: stretch; margin: 0 4px; }
-.stat-t1 { color: #fbbf24; }
-.stat-t2 { color: #60a5fa; }
-.stat-t3 { color: #34d399; }
-.stat-t4 { color: #94a3b8; }
-.header-right { display: flex; align-items: center; gap: 8px; }
-.btn-scan { background: #f97316; color: white; border: none; padding: 7px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
-.btn-scan:hover { background: #ea6c05; }
-.btn-scan:disabled { background: #475569; cursor: default; }
-.btn-settings { background: transparent; border: 1px solid #334155; color: #94a3b8; padding: 6px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; }
-.btn-settings:hover { border-color: #94a3b8; color: white; }
-.btn-logout { background: transparent; border: 1px solid #334155; color: #94a3b8; padding: 6px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; transition: all 0.15s; }
-.btn-logout:hover { border-color: #f97316; color: #f97316; }
-.header-user { font-size: 11px; color: #64748b; white-space: nowrap; }
+/* SIDEBAR LAYOUT */
+#mainApp { display: flex; min-height: 100vh; }
+#sidebar { width: 224px; background: #1a2744; flex-shrink: 0; display: flex; flex-direction: column; position: fixed; left: 0; top: 0; bottom: 0; z-index: 100; overflow: hidden; }
+#mainContent { margin-left: 224px; flex: 1; display: flex; flex-direction: column; min-height: 100vh; background: #f0f4f8; }
+
+/* SIDEBAR LOGO */
+.sb-logo { padding: 16px 14px 13px; border-bottom: 1px solid rgba(255,255,255,0.07); display: flex; align-items: center; gap: 10px; }
+.sb-logo-mark { width: 38px; height: 38px; background: linear-gradient(135deg, #f97316, #ea580c); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 12px; color: white; flex-shrink: 0; letter-spacing: -0.5px; box-shadow: 0 2px 8px rgba(249,115,22,0.35); }
+.sb-logo-text { font-size: 13px; font-weight: 700; color: white; line-height: 1.2; }
+.sb-logo-sub { font-size: 10px; color: #475569; font-weight: 500; margin-top: 1px; }
+
+/* SIDEBAR NAV */
+.sb-nav { flex: 1; padding: 10px 8px; overflow-y: auto; }
+.sb-section-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.9px; color: #475569; padding: 8px 8px 4px; }
+.nav-item { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 8px; border: none; background: transparent; color: #94a3b8; font-size: 12px; font-weight: 600; cursor: pointer; width: 100%; text-align: left; transition: all 0.15s; font-family: inherit; white-space: nowrap; }
+.nav-item:hover { background: rgba(255,255,255,0.07); color: #e2e8f0; }
+.nav-item.active { background: rgba(99,102,241,0.2); color: #a5b4fc; }
+.nav-item.active .nav-icon { color: #818cf8; }
+.nav-item.tab-stale.active { background: rgba(239,68,68,0.15); color: #fca5a5; }
+.nav-item.tab-stale.active .nav-icon { color: #f87171; }
+.nav-item.tab-campaign { margin-top: 4px; }
+.nav-item.tab-campaign.active { background: rgba(180,83,9,0.25); color: #fbbf24; }
+.nav-item.tab-campaign.active .nav-icon { color: #f97316; }
+.nav-icon { width: 15px; height: 15px; flex-shrink: 0; opacity: 0.8; }
+.nav-item.active .nav-icon { opacity: 1; }
+.nav-label { flex: 1; }
+.nav-badge { background: rgba(255,255,255,0.08); color: #64748b; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 10px; min-width: 22px; text-align: center; }
+.nav-item.active .nav-badge { background: rgba(99,102,241,0.3); color: #a5b4fc; }
+.nav-item.tab-stale.active .nav-badge { background: rgba(239,68,68,0.2); color: #fca5a5; }
+.nav-item.tab-campaign.active .nav-badge { background: rgba(249,115,22,0.25); color: #fb923c; }
+.sb-divider { height: 1px; background: rgba(255,255,255,0.07); margin: 6px 8px; }
+
+/* SIDEBAR STATS MINI (hidden IDs) */
+.sb-stats-mini { padding: 8px 12px 4px; }
+.sb-stat-row { display: flex; align-items: center; justify-content: space-between; padding: 3px 0; }
+.sb-stat-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.sb-stat-lbl { font-size: 10px; color: #64748b; flex: 1; margin-left: 5px; }
+.sb-stat-val { font-size: 11px; font-weight: 700; }
+
+/* SIDEBAR BOTTOM */
+.sb-bottom { padding: 8px 8px 14px; border-top: 1px solid rgba(255,255,255,0.07); }
+.sb-user { display: flex; align-items: center; gap: 8px; padding: 6px 10px 8px; }
+.sb-avatar { width: 28px; height: 28px; background: linear-gradient(135deg,#f97316,#ea580c); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: white; flex-shrink: 0; }
+.sb-user-name { font-size: 11px; font-weight: 600; color: #cbd5e1; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sb-action { display: flex; align-items: center; gap: 9px; padding: 7px 10px; border-radius: 8px; border: none; background: transparent; color: #64748b; font-size: 11px; font-weight: 600; cursor: pointer; width: 100%; text-align: left; transition: all 0.15s; font-family: inherit; }
+.sb-action:hover { background: rgba(255,255,255,0.06); color: #94a3b8; }
+.sb-action svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+/* TOPBAR */
+.topbar { background: white; padding: 9px 20px; display: flex; gap: 7px; align-items: center; border-bottom: 1px solid #e2e8f0; flex-wrap: wrap; position: sticky; top: 0; z-index: 50; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+.topbar-title { font-size: 15px; font-weight: 700; color: #0f172a; white-space: nowrap; margin-right: 4px; }
+.topbar-stats { display: flex; align-items: center; gap: 6px; padding: 3px 10px; background: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0; }
+.ts-chip { display: flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; }
+.ts-dot { width: 7px; height: 7px; border-radius: 50%; }
+.ts-1 { background: #fbbf24; } .ts-2 { background: #60a5fa; } .ts-3 { background: #34d399; } .ts-4 { background: #94a3b8; }
+.ts-val-1 { color: #92400e; } .ts-val-2 { color: #1e40af; } .ts-val-3 { color: #065f46; } .ts-val-4 { color: #475569; }
+.topbar-divider { width: 1px; height: 20px; background: #e2e8f0; flex-shrink: 0; }
+.topbar-spacer { flex: 1; }
+
+/* Kept for compat — hidden off-screen */
+.stat-num, .stat-label, .stat { display: none; }
+.header-stats { display: none; }
+
+/* BTN SCAN (topbar version) */
+.btn-scan { background: #6366f1; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; transition: background 0.15s; display: flex; align-items: center; gap: 5px; }
+.btn-scan:hover { background: #4f46e5; }
+.btn-scan:disabled { background: #94a3b8; cursor: default; }
+.ai-badge { background: #7c3aed; color: white; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; }
 
 /* LOGIN OVERLAY */
 #loginOverlay { position: fixed; inset: 0; z-index: 9999; background: #0a0f1e; display: flex; align-items: center; justify-content: center; }
@@ -418,75 +465,109 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 
 <!-- MAIN APP -->
 <div id="mainApp" style="display:none;">
-  <div class="scan-bar" id="scanBar"></div>
-  <div class="header">
-    <div class="header-left">
-      <div class="header-logo">CGR</div>
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-mark">CGR</div>
       <div>
-        <div class="header-title">Re-Engagement Tool</div>
-        <div class="header-subtitle">Active Account clients — Direct Hire &amp; Contract Labor</div>
+        <div class="sb-logo-text">CGR Team</div>
+        <div class="sb-logo-sub">Re-Engagement</div>
       </div>
     </div>
-    <div class="header-stats">
-      <div class="stat-group">
-        <span class="stat-section-lbl lbl-dh">DH</span>
-        <div class="stat"><div class="stat-num stat-t1" id="dhStatT1">—</div><div class="stat-label">T1</div></div>
-        <div class="stat"><div class="stat-num stat-t2" id="dhStatT2">—</div><div class="stat-label">T2</div></div>
-        <div class="stat"><div class="stat-num stat-t3" id="dhStatT3">—</div><div class="stat-label">T3</div></div>
-        <div class="stat"><div class="stat-num stat-t4" id="dhStatT4">—</div><div class="stat-label">T4</div></div>
-      </div>
-      <div class="stat-divider"></div>
-      <div class="stat-group">
-        <span class="stat-section-lbl lbl-ct">CT</span>
-        <div class="stat"><div class="stat-num stat-t1" id="ctStatT1">—</div><div class="stat-label">T1</div></div>
-        <div class="stat"><div class="stat-num stat-t2" id="ctStatT2">—</div><div class="stat-label">T2</div></div>
-        <div class="stat"><div class="stat-num stat-t3" id="ctStatT3">—</div><div class="stat-label">T3</div></div>
-        <div class="stat"><div class="stat-num stat-t4" id="ctStatT4">—</div><div class="stat-label">T4</div></div>
-      </div>
-      <div class="stat-divider"></div>
-      <div class="stat-group">
-        <span class="stat-section-lbl lbl-stale">Stale</span>
-        <div class="stat"><div class="stat-num stat-stale" id="staleStatCount">—</div><div class="stat-label">Unscored</div></div>
-      </div>
-      <div class="stat-divider"></div>
-      <div class="stat"><div class="stat-num" id="statNotified">0</div><div class="stat-label">Notified</div></div>
+    <div class="sb-nav">
+      <div class="sb-section-label">Pipelines</div>
+      <button class="nav-item active" data-section="dh" onclick="switchSection('dh')">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+        <span class="nav-label">Direct Hire</span>
+        <span class="nav-badge" id="sbBadgeDh">—</span>
+      </button>
+      <button class="nav-item" data-section="ct" onclick="switchSection('ct')">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <span class="nav-label">Contract Labor</span>
+        <span class="nav-badge" id="sbBadgeCt">—</span>
+      </button>
+      <button class="nav-item tab-stale" data-section="stale" onclick="switchSection('stale')">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span class="nav-label">Stale Clients</span>
+        <span class="nav-badge" id="sbBadgeStale">—</span>
+      </button>
+      <div class="sb-divider"></div>
+      <div class="sb-section-label">Outreach</div>
+      <button class="nav-item tab-campaign" data-section="campaign" onclick="switchSection('campaign')">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        <span class="nav-label">Campaign Builder</span>
+      </button>
     </div>
-    <div class="header-right">
+    <div class="sb-bottom">
+      <div class="sb-user">
+        <div class="sb-avatar" id="sbAvatar">?</div>
+        <span class="sb-user-name" id="sbUserName"></span>
+      </div>
+      <button class="sb-action" onclick="openSettings()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </button>
+      <button class="sb-action" onclick="logout()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Sign Out
+      </button>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div id="mainContent">
+    <div class="scan-bar" id="scanBar"></div>
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <span class="topbar-title" id="topbarTitle">Direct Hire</span>
+      <div class="topbar-divider"></div>
+      <div class="topbar-stats" id="topbarStats">
+        <div class="ts-chip"><div class="ts-dot ts-1"></div><span class="ts-val-1" id="tbT1">—</span><span style="color:#94a3b8;font-size:10px;margin-left:2px;">T1</span></div>
+        <div class="ts-chip"><div class="ts-dot ts-2"></div><span class="ts-val-2" id="tbT2">—</span><span style="color:#94a3b8;font-size:10px;margin-left:2px;">T2</span></div>
+        <div class="ts-chip"><div class="ts-dot ts-3"></div><span class="ts-val-3" id="tbT3">—</span><span style="color:#94a3b8;font-size:10px;margin-left:2px;">T3</span></div>
+        <div class="ts-chip"><div class="ts-dot ts-4"></div><span class="ts-val-4" id="tbT4">—</span><span style="color:#94a3b8;font-size:10px;margin-left:2px;">T4</span></div>
+      </div>
+      <div id="topbarFilters" style="display:contents;">
+      <div class="topbar-divider"></div>
+      <select class="filter-select" id="filterScore" onchange="applyFilters()">
+        <option value="">All Tiers</option>
+        <option value="1">Tier 1 — Best</option>
+        <option value="2">Tier 2</option>
+        <option value="3">Tier 3</option>
+        <option value="4">Tier 4 — Lowest</option>
+      </select>
+      <select class="filter-select" id="filterBD" onchange="applyFilters()">
+        <option value="">All BD Owners</option>
+      </select>
+      <button class="filter-toggle" id="btnHasJobs" onclick="toggleHasJobs(this)">&#9679; Has Open Jobs</button>
+      <input class="filter-search" id="filterSearch" type="text" placeholder="Search company..." oninput="applyFilters()">
+      <span class="result-count" id="resultCount"></span>
+      </div>
+      <div class="topbar-spacer"></div>
       <span id="aiBadge" class="ai-badge" style="display:none;">✦ AI Drafts</span>
-      <span id="headerUser" class="header-user"></span>
-      <button class="btn-settings" onclick="openSettings()">⚙ Settings</button>
       <button class="btn-scan" id="btnScan" onclick="loadCompanies()">&#9654; Refresh</button>
-      <button class="btn-logout" onclick="logout()">Sign Out</button>
     </div>
+
+    <!-- Hidden IDs kept for JS compatibility -->
+    <div style="display:none;">
+      <span id="dhStatT1"></span><span id="dhStatT2"></span><span id="dhStatT3"></span><span id="dhStatT4"></span>
+      <span id="ctStatT1"></span><span id="ctStatT2"></span><span id="ctStatT3"></span><span id="ctStatT4"></span>
+      <span id="staleStatCount"></span><span id="statNotified">0</span><span id="headerUser"></span>
+      <div class="section-tabs" style="display:none;">
+        <button class="section-tab active" data-section="dh">Direct Hire</button>
+        <button class="section-tab" data-section="ct">Contract Labor</button>
+        <button class="section-tab tab-stale" data-section="stale">Stale Clients</button>
+        <button class="section-tab tab-campaign" data-section="campaign">Campaign Builder</button>
+      </div>
+    </div>
+
+    <div id="errorBanner" class="error-banner" style="display:none;"></div>
+    <div class="company-list" id="companyList"></div>
+    <div id="campaignView" style="display:none;"></div>
   </div>
 
-  <div id="errorBanner" class="error-banner" style="display:none;"></div>
-
-  <div class="filters">
-    <div class="section-tabs">
-      <button class="section-tab active" data-section="dh" onclick="switchSection('dh')">Direct Hire</button>
-      <button class="section-tab" data-section="ct" onclick="switchSection('ct')">Contract Labor</button>
-      <button class="section-tab tab-stale" data-section="stale" onclick="switchSection('stale')">Stale Clients</button>
-      <button class="section-tab tab-campaign" data-section="campaign" onclick="switchSection('campaign')">&#9889; Campaign Builder</button>
-    </div>
-    <span class="filter-label" style="margin-left:4px;">Filter:</span>
-    <select class="filter-select" id="filterScore" onchange="applyFilters()">
-      <option value="">All Tiers</option>
-      <option value="1">Tier 1 — Best</option>
-      <option value="2">Tier 2</option>
-      <option value="3">Tier 3</option>
-      <option value="4">Tier 4 — Lowest</option>
-    </select>
-    <select class="filter-select" id="filterBD" onchange="applyFilters()">
-      <option value="">All BD Owners</option>
-    </select>
-    <button class="filter-toggle" id="btnHasJobs" onclick="toggleHasJobs(this)">&#9679; Has Open Jobs</button>
-    <input class="filter-search" id="filterSearch" type="text" placeholder="Search company..." oninput="applyFilters()">
-    <span class="result-count" id="resultCount"></span>
-  </div>
-
-  <div class="company-list" id="companyList"></div>
-  <div id="campaignView" style="display:none;"></div>
 </div>
 
 <!-- OVERLOOP SEQUENCE PICKER MODAL -->
@@ -540,6 +621,13 @@ let activeSection = 'dh';   // 'dh' | 'ct' | 'stale' | 'campaign'
 let _lastSection  = 'dh';   // last non-campaign section (used by campaign builder)
 let currentUser   = { name: '', email: '', admin: false };
 
+function _updateSidebarUser(name) {
+  const el = document.getElementById('sbUserName');
+  const av = document.getElementById('sbAvatar');
+  if (el) el.textContent = name || '';
+  if (av) av.textContent = name ? name.trim().charAt(0).toUpperCase() : '?';
+}
+
 // ─── Section helpers ──────────────────────────────────────────────────────────
 function getDHCompanies() {
   return allCompanies
@@ -573,6 +661,16 @@ function switchSection(section) {
   document.querySelectorAll('.section-tab').forEach(t =>
     t.classList.toggle('active', t.dataset.section === section)
   );
+  document.querySelectorAll('.nav-item[data-section]').forEach(t =>
+    t.classList.toggle('active', t.dataset.section === section)
+  );
+  const titles = { dh: 'Direct Hire', ct: 'Contract Labor', stale: 'Stale Clients', campaign: 'Campaign Builder' };
+  const titleEl = document.getElementById('topbarTitle');
+  if (titleEl) titleEl.textContent = titles[section] || section;
+  const statsEl = document.getElementById('topbarStats');
+  if (statsEl) statsEl.style.display = (section === 'stale' || section === 'campaign') ? 'none' : '';
+  const filtersEl = document.getElementById('topbarFilters');
+  if (filtersEl) filtersEl.style.display = section === 'campaign' ? 'none' : 'contents';
 
   const companyList  = document.getElementById('companyList');
   const campaignView = document.getElementById('campaignView');
@@ -610,7 +708,7 @@ async function init() {
   aiEnabled     = !!res.aiEnabled;
   adzunaEnabled = !!res.adzunaEnabled;
   if (aiEnabled) document.getElementById('aiBadge').style.display = 'inline';
-  document.getElementById('mainApp').style.display = 'block';
+  document.getElementById('mainApp').style.display = 'flex';
   loadCompanies();
 }
 
@@ -644,6 +742,14 @@ async function loadCompanies() {
     if (dhTab)    dhTab.textContent    = `Direct Hire (${getDHCompanies().length})`;
     if (ctTab)    ctTab.textContent    = `Contract Labor (${getCTCompanies().length})`;
     if (staleTab) staleTab.textContent = `Stale Clients (${getStaleCompanies().length})`;
+
+    // Update sidebar nav badges
+    const sbDh = document.getElementById('sbBadgeDh');
+    const sbCt = document.getElementById('sbBadgeCt');
+    const sbStale = document.getElementById('sbBadgeStale');
+    if (sbDh) sbDh.textContent = getDHCompanies().length;
+    if (sbCt) sbCt.textContent = getCTCompanies().length;
+    if (sbStale) sbStale.textContent = getStaleCompanies().length;
 
     renderList();
     updateHeaderStats();
@@ -1123,6 +1229,7 @@ function updateHeaderStats() {
 
   const dhList = src.filter(c => c.dhTier != null && c.dhTier > 0);
   const ctList = src.filter(c => c.contractingTier != null && c.contractingTier > 0);
+  const staleList = src.filter(c => !(c.dhTier > 0) && !(c.contractingTier > 0));
 
   document.getElementById('dhStatT1').textContent = dhList.filter(c => c.dhTier === 1).length || '0';
   document.getElementById('dhStatT2').textContent = dhList.filter(c => c.dhTier === 2).length || '0';
@@ -1134,8 +1241,29 @@ function updateHeaderStats() {
   document.getElementById('ctStatT3').textContent = ctList.filter(c => c.contractingTier === 3).length || '0';
   document.getElementById('ctStatT4').textContent = ctList.filter(c => c.contractingTier === 4).length || '0';
 
-  const staleList = src.filter(c => !(c.dhTier > 0) && !(c.contractingTier > 0));
   document.getElementById('staleStatCount').textContent = staleList.length || '0';
+
+  // Sidebar badges
+  const sbDh = document.getElementById('sbBadgeDh');
+  const sbCt = document.getElementById('sbBadgeCt');
+  const sbStale = document.getElementById('sbBadgeStale');
+  if (sbDh) sbDh.textContent = dhList.length;
+  if (sbCt) sbCt.textContent = ctList.length;
+  if (sbStale) sbStale.textContent = staleList.length;
+
+  // Topbar tier chips — show for active section
+  if (activeSection === 'dh' || activeSection === 'ct') {
+    const tierList = activeSection === 'dh' ? dhList : ctList;
+    const key = activeSection === 'dh' ? 'dhTier' : 'contractingTier';
+    const t1el = document.getElementById('tbT1');
+    const t2el = document.getElementById('tbT2');
+    const t3el = document.getElementById('tbT3');
+    const t4el = document.getElementById('tbT4');
+    if (t1el) t1el.textContent = tierList.filter(c => c[key] === 1).length || '0';
+    if (t2el) t2el.textContent = tierList.filter(c => c[key] === 2).length || '0';
+    if (t3el) t3el.textContent = tierList.filter(c => c[key] === 3).length || '0';
+    if (t4el) t4el.textContent = tierList.filter(c => c[key] === 4).length || '0';
+  }
 }
 
 // ─── Filters ──────────────────────────────────────────────────────────────────
@@ -2418,6 +2546,7 @@ async function checkAuth() {
       currentUser = { name: u.name || '', email: u.email || '', admin: !!u.admin };
       document.getElementById('loginOverlay').classList.add('hidden');
       document.getElementById('headerUser').textContent = u.name;
+      _updateSidebarUser(u.name);
       return true;
     }
   } catch (_) {}
@@ -2454,6 +2583,7 @@ document.getElementById('loginForm').addEventListener('submit', async e => {
       localStorage.setItem('cgr_token', data.token);
       document.getElementById('loginOverlay').classList.add('hidden');
       document.getElementById('headerUser').textContent = data.name;
+      _updateSidebarUser(data.name);
       init();
     } else {
       err.textContent   = data.error || 'Login failed. Please try again.';
