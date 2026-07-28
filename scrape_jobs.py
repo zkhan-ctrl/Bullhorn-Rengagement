@@ -166,10 +166,38 @@ def base_url(url):
     p = urlparse(url)
     return f"{p.scheme}://{p.netloc}"
 
+_EMPTYPE_PREFIX_RE = re.compile(
+    r'^\s*(?:PRN|FT|PT|PD|PER\s*DIEM|FULL[\s\-]TIME|PART[\s\-]TIME|TEMP|FLEX|CASUAL|RELIEF|ON[\s\-]CALL)'
+    r'[-–\s]+',
+    re.I
+)
+_LOCATION_PAREN_RE = re.compile(
+    r'\s*\([^)]*(?:locations?|campus(?:es)?|region|facility|facilities|site)\s*[^)]*\)\s*$',
+    re.I
+)
+_UI_SUFFIX_RE = re.compile(r'\s*\b(edit|apply|view|submit)\s*$', re.I)
+_CAPS_THRESHOLD = 0.7  # fraction of alpha chars that must be uppercase to trigger titlecase
+
+
+def _normalize_job_title(t: str) -> str:
+    t = t.strip()
+    # ALL-CAPS → Title Case (e.g. "PANAMA CANAL FIXED PILOT UNIT")
+    alpha = [c for c in t if c.isalpha()]
+    if alpha and sum(1 for c in alpha if c.isupper()) / len(alpha) >= _CAPS_THRESHOLD:
+        t = t.title()
+    # Strip employment-type prefix codes: "PRN-", "FT-", "PT-", "Per Diem -"
+    t = _EMPTYPE_PREFIX_RE.sub('', t).strip()
+    # Strip location parentheticals at end: "(Bellville, Crockett, El Campo Locations)"
+    t = _LOCATION_PAREN_RE.sub('', t).strip()
+    # Strip trailing UI element words: "edit", "apply"
+    t = _UI_SUFFIX_RE.sub('', t).strip()
+    return t
+
+
 def make_job(title, company='', location='', dept='', job_type='',
              url='', date_posted=None, salary='', remote_type='Unknown', source=''):
     return {
-        'title':      title.strip(),
+        'title':      _normalize_job_title(title),
         'company':    company.strip(),
         'location':   location.strip(),
         'department': dept.strip(),
@@ -811,7 +839,11 @@ NON_JOB_TERMS = re.compile(
     r'career fair|talent network|talent community|stay connected|'
     # Instruction text
     r'click here to|click to apply|apply now and|apply today|'
-    r'find your next|explore our|discover your)\b',
+    r'find your next|explore our|discover your|'
+    # Section headings / page titles scraped as fake job titles
+    r'license requirements|captain\'s license|pilot recruiting|'
+    r'general requirements|qualifications required|requirements for|'
+    r'managing a team|managing up to)\b',
     re.I
 )
 

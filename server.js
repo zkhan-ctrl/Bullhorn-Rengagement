@@ -769,21 +769,15 @@ app.get('/api/company/:id/contacts', async (req, res) => {
   const id = parseInt(req.params.id);
   if (!id) return res.status(400).json({ error: 'Invalid ID' });
   try {
-    // Fetch Email1 AND Email2 — some BH instances store primary email in Email2.
-    let rows = await cdataQuery(
-      `SELECT TOP 50 ID, FirstName, LastName, Title,
-              Email1, Email2, DirectPhone AS Phone, MobilePhone
+    // Fetch all contacts regardless of Status — filtering by Status='Active' first
+    // caused companies with New Lead contacts (who have emails) to return empty
+    // when the Active contacts happened to have no emails.
+    const rows = await cdataQuery(
+      `SELECT TOP 200 ID, FirstName, LastName, Title,
+              Email1, Email2, DirectPhone AS Phone, MobilePhone, Status
        FROM ${T('ClientContact')}
-       WHERE Companyid = ${id} AND Status = 'Active'`
+       WHERE Companyid = ${id}`
     );
-    if (!rows.length) {
-      rows = await cdataQuery(
-        `SELECT TOP 50 ID, FirstName, LastName, Title,
-                Email1, Email2, DirectPhone AS Phone, MobilePhone
-         FROM ${T('ClientContact')}
-         WHERE Companyid = ${id}`
-      );
-    }
 
     const cats  = { Recruiting: [], Sales: [], HR: [], Ops: [], Other: [] };
     const rules = [

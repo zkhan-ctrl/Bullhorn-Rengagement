@@ -1004,7 +1004,7 @@ function renderCardBody(c, data) {
            <button class="btn-copy" onclick="copyEmail(${c.id},${draftKey})">⎘ Copy</button>
            <button class="btn-regen" onclick="regenDraft(${c.id},${draftKey})" title="Generate a new draft">↺ New draft</button>
            ${(cardTier === 1 || cardTier === 2) && mailtoHref
-             ? `<a class="btn-copy" href="${esc(mailtoHref)}" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px;">&#128231; Open in Outlook</a>`
+             ? `<a class="btn-copy" href="${esc(mailtoHref)}" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px;">&#128231; Open in Outlook</a>`
              : `<button class="btn-overloop${isEnrolled ? ' enrolled' : ''}" onclick="openSequencePicker(${c.id},${draftKey})">${isEnrolled ? '✓ Enrolled' : '⚡ Enroll in Overloop'}</button>`}
          </div>`
       : '';
@@ -1783,9 +1783,10 @@ async function _cbGoStep2() {
   _cbFetchContacts(toLoadConts);
 
   if (!toScrape.length) {
+    const allScraped = cb.selected.every(x => { const s = cb.jobData[x.id]?.status; return s && s !== 'pending'; });
     const anyDone = cb.selected.some(x => cb.jobData[x.id]?.status === 'done');
     const btn = document.getElementById('cbNext2');
-    if (btn) btn.disabled = !anyDone;
+    if (btn) btn.disabled = !(allScraped && anyDone);
     _cbScrapeProgress(0, 0, true);
     return;
   }
@@ -1817,22 +1818,28 @@ async function _cbGoStep2() {
   }
 
   _cbScrapeProgress(done, toScrape.length, true);
+  const allScraped = cb.selected.every(x => { const s = cb.jobData[x.id]?.status; return s && s !== 'pending'; });
   const anyDone = cb.selected.some(x => cb.jobData[x.id]?.status === 'done');
   const btn = document.getElementById('cbNext2');
-  if (btn) btn.disabled = !anyDone;
+  if (btn) btn.disabled = !(allScraped && anyDone);
 }
 
 async function _cbFetchContacts(companies) {
-  const CATS = ['Recruiting', 'Sales', 'HR', 'Ops', 'Other'];
+  // Priority: Sales (business dev contacts) → Recruiting → HR → Ops → Other
+  const CAT_PRIORITY = ['Sales', 'Recruiting', 'HR', 'Ops', 'Other'];
   for (let i = 0; i < companies.length; i += 5) {
     await Promise.all(companies.slice(i, i + 5).map(async c => {
       try {
         const r = await fetch(`/api/company/${c.id}/contacts`);
         const d = await r.json();
-        // API returns { Recruiting:[], Sales:[], HR:[], Ops:[], Other:[] }
-        const contacts = CATS.flatMap(cat => (d[cat] || []).map(ct => ({ ...ct, category: cat })))
-          .filter((ct, idx, arr) => arr.findIndex(x => x.id === ct.id) === idx)
-          .filter(ct => ct.email);
+        // Find the highest-priority category that has contacts with email
+        let contacts = [];
+        for (const cat of CAT_PRIORITY) {
+          const catContacts = (d[cat] || []).map(ct => ({ ...ct, category: cat })).filter(ct => ct.email);
+          if (catContacts.length) { contacts = catContacts; break; }
+        }
+        // Dedupe by id (shouldn't happen but safety net)
+        contacts = contacts.filter((ct, idx, arr) => arr.findIndex(x => x.id === ct.id) === idx);
         cb.contactData[c.id] = { status: 'done', contacts };
       } catch {
         cb.contactData[c.id] = { status: 'done', contacts: [] };
@@ -1945,9 +1952,10 @@ function _cbUpdateRow(id) {
   if (jobsEl) jobsEl.innerHTML = jobsHtml;
   if (sumEl)  sumEl.innerHTML  = sumHtml;
 
+  const allScraped = cb.selected.every(x => { const s = cb.jobData[x.id]?.status; return s && s !== 'pending'; });
   const anyDone = cb.selected.some(x => cb.jobData[x.id]?.status === 'done');
   const btn = document.getElementById('cbNext2');
-  if (btn) btn.disabled = !anyDone;
+  if (btn) btn.disabled = !(allScraped && anyDone);
 }
 
 function _cbScrapeProgress(done, total, finished = false) {
@@ -1994,8 +2002,13 @@ function _cbCancelEditInline(id) { _cbUpdateRow(id); }
 // ── Step 3: Multi-step Email Sequence Composer ────────────────────────────────
 
 function _cbGoStep3() {
+  const pending = cb.selected.filter(c => {
+    const s = cb.jobData[c.id]?.status;
+    return !s || s === 'pending';
+  });
+  if (pending.length) return showToast(`Still scraping ${pending.length} ${pending.length === 1 ? 'company' : 'companies'} — please wait.`);
   const eligible = cb.selected.filter(c => cb.jobData[c.id]?.status === 'done');
-  if (!eligible.length) return showToast('No companies with jobs found — cannot proceed.');
+  if (!eligible.length) return showToast('No companies with open jobs found — cannot proceed.');
   _cbSetStep(3);
   cb.previewIdx = 0;
   _cbRenderStep3();
