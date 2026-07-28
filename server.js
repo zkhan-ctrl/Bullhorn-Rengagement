@@ -383,8 +383,18 @@ app.post('/api/overloop/create-and-enroll', async (req, res) => {
   if (!Array.isArray(companies) || !companies.length) return res.status(400).json({ error: 'No companies provided.' });
   if (!Array.isArray(emailSteps) || !emailSteps.length) return res.status(400).json({ error: 'At least one email step is required.' });
 
-  const validSteps = emailSteps.filter(s => s.subject?.trim() && s.body?.trim());
-  if (!validSteps.length) return res.status(400).json({ error: 'At least one email step must have a subject and body.' });
+  // Only body is required; subject can be blank for reply-thread follow-ups
+  const validSteps = emailSteps.filter(s => s.body?.trim());
+  if (!validSteps.length) return res.status(400).json({ error: 'At least one email step must have a body.' });
+
+  // Substitute {{sender_name}} with the logged-in BD's name
+  const senderName = req.currentUser?.name || '';
+  validSteps.forEach(s => {
+    if (senderName) {
+      s.subject = (s.subject || '').replace(/\{\{sender_name\}\}/g, senderName);
+      s.body    = (s.body    || '').replace(/\{\{sender_name\}\}/g, senderName);
+    }
+  });
 
   const hdrs = overloopHeaders(key);
   const baseName = (campaignName || '').trim() ||

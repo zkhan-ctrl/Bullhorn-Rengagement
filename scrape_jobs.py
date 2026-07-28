@@ -800,9 +800,30 @@ NON_JOB_TERMS = re.compile(
     r'reimbursement|competitive|paid time|pto|parental leave|product|service|'
     r'solution|equipment|system|pump|valve|gauge|sensor|fabrication|about|'
     r'contact us|privacy|copyright|newsletter|learn more|read more|click here|'
-    r'download|follow us|sign up|log in|subscribe|terms|cookie)\b',
+    r'download|follow us|sign up|log in|log out|subscribe|terms|cookie|'
+    # Navigation / UI elements
+    r'login|sign in|register|directory|site map|search all|new search|'
+    r'all openings|all jobs|all positions|view all|browse all|'
+    r'job order contract|job order|contract division|'
+    # Marketing / slogans
+    r'empowering|excellence|join our team|join our|join the team|'
+    r'our team|our culture|our mission|our values|who we are|'
+    r'career fair|talent network|talent community|stay connected|'
+    # Instruction text
+    r'click here to|click to apply|apply now and|apply today|'
+    r'find your next|explore our|discover your)\b',
     re.I
 )
+
+# Address-like text: starts with street number or looks like a physical address
+ADDRESS_RE = re.compile(
+    r'^\d+[\w\s]*(?:suite|ste|floor|fl|blvd|boulevard|rd\.?|road|st\.?|street|'
+    r'ave\.?|avenue|dr\.?|drive|ln\.?|lane|way|pkwy|parkway|hwy|highway|'
+    r'plaza|court|ct\.?|circle|cir\.?)[\s,]',
+    re.I
+)
+# Also catch text containing US state+zip patterns (e.g. "LA 70037", "TX 77001")
+ZIP_STATE_RE = re.compile(r'\b[A-Z]{2}\s+\d{5}\b')
 
 
 def _collect_jsonld_jobs(node):
@@ -863,15 +884,22 @@ def parse_html_jobs(html, page_url, company_name, source='Company Website'):
         soup = parse_html(html)
         seen = set()
 
+        # Build a word-boundary regex for JOB_TITLE_WORDS to avoid substring false-positives
+        # (e.g. "director" matching "directory", "engineer" matching "Engineers Rd.")
+        _JOB_TITLE_RE = re.compile(
+            r'\b(' + '|'.join(re.escape(kw.strip()) for kw in JOB_TITLE_WORDS) + r')\b', re.I
+        )
+
         # Pass 1: heading + li + anchor heuristic (strict — requires JOB_TITLE_WORDS)
         for tag in soup.find_all(['h1', 'h2', 'h3', 'h4', 'li', 'a']):
             text  = tag.get_text(' ', strip=True)
             words = text.split()
-            tl    = text.lower()
             if (2 <= len(words) <= 9          # real job titles are 2–9 words
                     and 8 <= len(text) <= 75   # not too short, not too long
-                    and any(kw in tl for kw in JOB_TITLE_WORDS)
+                    and _JOB_TITLE_RE.search(text)
                     and not NON_JOB_TERMS.search(text)
+                    and not ADDRESS_RE.search(text)
+                    and not ZIP_STATE_RE.search(text)
                     and text not in seen):
                 seen.add(text)
                 href = tag.get('href', '') if tag.name == 'a' else ''
@@ -884,7 +912,7 @@ def parse_html_jobs(html, page_url, company_name, source='Company Website'):
 
         # Pass 2: job-link extraction — catches pages like Bray where job titles
         # are plain <a> links pointing at individual job-application/detail pages.
-        # We require the href to look like a job-posting URL but relax the title rules.
+        # Requires href to look like a job-posting URL AND at least one job-title word.
         for a in soup.find_all('a', href=True):
             href = a['href'].strip()
             text = a.get_text(' ', strip=True)
@@ -895,6 +923,11 @@ def parse_html_jobs(html, page_url, company_name, source='Company Website'):
                 continue
             if NON_JOB_TERMS.search(text):
                 continue
+            if ADDRESS_RE.search(text) or ZIP_STATE_RE.search(text):
+                continue
+            # Require at least one real job-function word to filter nav/promo links
+            if not _JOB_TITLE_RE.search(text):
+                continue
             if text in seen:
                 continue
             seen.add(text)
@@ -903,13 +936,18 @@ def parse_html_jobs(html, page_url, company_name, source='Company Website'):
         return jobs[:25]
 
     # Regex fallback (no BS4)
+    _JOB_TITLE_RE_FB = re.compile(
+        r'\b(' + '|'.join(re.escape(kw.strip()) for kw in JOB_TITLE_WORDS) + r')\b', re.I
+    )
     seen = set()
     for m in re.finditer(r'<h[1-4][^>]*>([^<]{8,75})</h[1-4]>', html, re.I):
         text  = re.sub(r'\s+', ' ', m.group(1)).strip()
         words = text.split()
         if (2 <= len(words) <= 9
-                and any(kw in text.lower() for kw in JOB_TITLE_WORDS)
+                and _JOB_TITLE_RE_FB.search(text)
                 and not NON_JOB_TERMS.search(text)
+                and not ADDRESS_RE.search(text)
+                and not ZIP_STATE_RE.search(text)
                 and text not in seen):
             seen.add(text)
             jobs.append(make_job(title=text, company=company_name,

@@ -601,6 +601,7 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 <div id="cbVarMenu">
   <div class="cb-var-opt" onmousedown="event.preventDefault();_cbInsertVar('{{first_name}}')"><code>{{first_name}}</code><span>Contact's first name</span></div>
   <div class="cb-var-opt" onmousedown="event.preventDefault();_cbInsertVar('{{last_name}}')"><code>{{last_name}}</code><span>Contact's last name</span></div>
+  <div class="cb-var-opt" onmousedown="event.preventDefault();_cbInsertVar('{{sender_name}}')"><code>{{sender_name}}</code><span>Your name (BD sender)</span></div>
   <div class="cb-var-opt" onmousedown="event.preventDefault();_cbInsertVar('{{company_name}}')"><code>{{company_name}}</code><span>Company name</span></div>
   <div class="cb-var-opt" onmousedown="event.preventDefault();_cbInsertVar('{{job_title}}')"><code>{{job_title}}</code><span>Job summary (unique per company)</span></div>
 </div>
@@ -1502,12 +1503,37 @@ function closeOverloopModal() {
 
 // ─── Campaign Builder ─────────────────────────────────────────────────────────
 
+function _cbDefaultSteps() {
+  return [
+    {
+      subject: 'CGR – Support with Your Open Positions',
+      body: 'I noticed that your team is currently hiring for {{job_title}} and wanted to see whether we could provide support. We do have an active agreement already in place, and can quickly assist with qualified personnel through either direct hire or contract staffing, depending on your needs.\n\nPlease let me know if any of these positions would be appropriate for us to support, or if there is someone else on your team I should reach out to. Any feedback would be greatly appreciated.\n\nThank you for your time.\n\nBest regards,\n{{sender_name}} | [Your Title]',
+      delayDays: 0
+    },
+    {
+      subject: '',
+      body: 'Hi {{first_name}},\n\nJust wanted to follow up on the positions I mentioned below. We specialize in filling hard-to-find roles, so if any of these have been particularly challenging, we would welcome the opportunity to assist.\n\nBest regards,\n{{sender_name}} | [Your Title]',
+      delayDays: 3
+    },
+    {
+      subject: '',
+      body: 'Hi {{first_name}},\n\nI don\'t want to pester you, and I understand you may not need any support right now. Would you mind confirming whether you\'re the right person for me to keep in touch with, or if there\'s someone else we should contact?\n\nI just want to make sure the appropriate person knows CGR is an approved resource, if needed.\n\nThank you,\n{{sender_name}}',
+      delayDays: 8
+    },
+    {
+      subject: '',
+      body: 'Hi {{first_name}},\n\nI understand you must be busy, so I won\'t keep reaching out. If you have any personnel needs arise, please feel free to reach out.\n\nBest regards,\n{{sender_name}} | [Your Title]',
+      delayDays: 13
+    }
+  ];
+}
+
 const cb = {
   step: 1, section: null,
   allT34: [], selected: [],
   jobData: {},     // id → { status, jobs, summary, primaryUrl, override }
   contactData: {}, // id → { status, contacts }
-  emailSteps: [{ subject: '', body: '', delayDays: 0 }],
+  emailSteps: _cbDefaultSteps ? _cbDefaultSteps() : [{ subject: '', body: '', delayDays: 0 }],
   activeStepIdx: 0,
   companyEmailOverrides: {}, // id → [bodyStr per step index]
   campaignName: '',
@@ -1536,9 +1562,15 @@ function consolidateJobTitles(jobs) {
     if (/man$/.test(w)) return w.slice(0, -3) + 'men';
     if (/person$/.test(w)) return w.replace(/person$/, 'people');
     if (/[^aeiou]y$/.test(w)) return w.slice(0, -1) + 'ies';
+    if (/[^aeiou]s$/.test(w) && !/ss$/.test(w)) return w; // already plural (managers, coordinators…)
     if (/[sxz]$/.test(w) || /[cs]h$/.test(w)) return w + 'es';
     return w + 's';
   };
+
+  const cleanDisplayTitle = t => t
+    .replace(/^\s*\([\d]+-\s*(?:month|week|year|mo\.?)\s*(?:contract|temp|assignment|engagement)?[^)]*\)\s*/i, '')
+    .replace(/^\s*\(\s*(?:contract|temp|temporary|part.?time|full.?time|seasonal|interim)[^)]*\)\s*/i, '')
+    .trim();
 
   const seen = new Set();
   const families = [];
@@ -1546,7 +1578,7 @@ function consolidateJobTitles(jobs) {
     const base = normalize(job.title);
     if (!base || seen.has(base)) continue;
     seen.add(base);
-    families.push({ base, title: job.title });
+    families.push({ base, title: cleanDisplayTitle(job.title) });
   }
 
   const n = families.length;
@@ -1630,7 +1662,7 @@ function _cbInitTab() {
 
   Object.assign(cb, {
     step: 1, section, allT34, selected: [...allT34], previewIdx: 0,
-    emailSteps: [{ subject: '', body: '', delayDays: 0 }], activeStepIdx: 0,
+    emailSteps: _cbDefaultSteps(), activeStepIdx: 0,
     campaignName: '', companyEmailOverrides: {},
     // jobData and contactData NOT reset — cache survives re-entry
   });
@@ -2029,7 +2061,7 @@ function _cbEmailStepEditorHtml(step, eligibleCount) {
                   placeholder="Hey {{first_name}},&#10;&#10;I noticed your team is actively hiring for {{job_title}}. Since we still have a working agreement together, I wanted to reach out and see if there&#39;s an opportunity to discuss how we can help fill these positions.&#10;&#10;Would you have 15 minutes this week?"
                   oninput="cb.emailSteps[cb.activeStepIdx].body=this.value;_cbUpdatePreview()">${esc(step.body)}</textarea>
         <div class="cb-var-hints">
-          Variables: <code>{{first_name}}</code> <code>{{last_name}}</code> <code>{{company_name}}</code> <code>{{job_title}}</code>
+          Type <code>{{</code> to insert — <code>{{first_name}}</code> <code>{{last_name}}</code> <code>{{company_name}}</code> <code>{{job_title}}</code> <code>{{sender_name}}</code>
         </div>
       </div>
       <div>
@@ -2104,7 +2136,8 @@ function _cbUpdatePreview() {
     .replace(/\{\{first_name\}\}/g, previewFirst)
     .replace(/\{\{last_name\}\}/g,  previewLast)
     .replace(/\{\{company_name\}\}/g, co.name)
-    .replace(/\{\{job_title\}\}/g,  jt);
+    .replace(/\{\{job_title\}\}/g,  jt)
+    .replace(/\{\{sender_name\}\}/g, currentUser.name || '[Your Name]');
 
   const subj = document.getElementById('cbPreviewSubject');
   const body = document.getElementById('cbPreviewBody');
