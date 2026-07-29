@@ -34,6 +34,20 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 .nav-item.tab-campaign { margin-top: 4px; }
 .nav-item.tab-campaign.active { background: rgba(180,83,9,0.25); color: #fbbf24; }
 .nav-item.tab-campaign.active .nav-icon { color: #f97316; }
+.nav-item.tab-queue.active { background: rgba(99,102,241,0.2); color: #a5b4fc; }
+.nav-item.tab-queue.active .nav-icon { color: #818cf8; }
+/* CAMPAIGN QUEUE VIEW */
+.cq-card { background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
+.cq-card.cq-done { border-color: #bbf7d0; background: #f0fdf4; }
+.cq-card.cq-failed { border-color: #fecaca; background: #fef2f2; }
+.cq-card.cq-launching { border-color: #bfdbfe; background: #eff6ff; }
+.cq-info { flex: 1; min-width: 0; }
+.cq-name { font-size: 13px; font-weight: 700; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cq-meta { font-size: 11px; color: #64748b; margin-top: 2px; }
+.cq-result-ok { color: #166534; font-size:11px; margin-top:3px; }
+.cq-result-err { color: #b91c1c; font-size:11px; margin-top:3px; }
+.cq-progress-wrap { position: relative; width: 44px; height: 44px; flex-shrink: 0; }
+.cq-pct { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; color: #0f172a; }
 .nav-icon { width: 15px; height: 15px; flex-shrink: 0; opacity: 0.8; }
 .nav-item.active .nav-icon { opacity: 1; }
 .nav-label { flex: 1; }
@@ -65,8 +79,8 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 .topbar-stats { display: flex; align-items: center; gap: 6px; padding: 3px 10px; background: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0; }
 .ts-chip { display: flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; }
 .ts-dot { width: 7px; height: 7px; border-radius: 50%; }
-.ts-1 { background: #fbbf24; } .ts-2 { background: #60a5fa; } .ts-3 { background: #34d399; } .ts-4 { background: #94a3b8; }
-.ts-val-1 { color: #92400e; } .ts-val-2 { color: #1e40af; } .ts-val-3 { color: #065f46; } .ts-val-4 { color: #475569; }
+.ts-1 { background: #22c55e; } .ts-2 { background: #60a5fa; } .ts-3 { background: #f97316; } .ts-4 { background: #94a3b8; }
+.ts-val-1 { color: #166534; } .ts-val-2 { color: #1e40af; } .ts-val-3 { color: #c2410c; } .ts-val-4 { color: #475569; }
 .topbar-divider { width: 1px; height: 20px; background: #e2e8f0; flex-shrink: 0; }
 .topbar-spacer { flex: 1; }
 
@@ -135,15 +149,15 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 
 /* SCORE BADGE */
 .score-badge { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; flex-shrink: 0; margin-top: 2px; }
-.score-1 { background: #fef3c7; color: #92400e; }
+.score-1 { background: #dcfce7; color: #166534; }
 .score-2 { background: #dbeafe; color: #1e40af; }
-.score-3 { background: #d1fae5; color: #065f46; }
+.score-3 { background: #fff7ed; color: #c2410c; }
 .score-4 { background: #f1f5f9; color: #475569; }
 .score-null { background: #f8fafc; color: #94a3b8; }
 .score-pip { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-.pip-1 { background: #fef3c7; color: #92400e; }
+.pip-1 { background: #dcfce7; color: #166534; }
 .pip-2 { background: #dbeafe; color: #1e40af; }
-.pip-3 { background: #d1fae5; color: #065f46; }
+.pip-3 { background: #fff7ed; color: #c2410c; }
 .pip-4 { background: #f1f5f9; color: #475569; }
 .pip-null { background: #f1f5f9; color: #94a3b8; }
 
@@ -498,6 +512,11 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
         <span class="nav-label">Campaign Builder</span>
       </button>
+      <button class="nav-item tab-queue" data-section="queue" onclick="switchSection('queue')">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><circle cx="17" cy="17" r="3"/><path d="M17 15.5V17l1 1"/></svg>
+        <span class="nav-label">Campaign Queue</span>
+        <span class="nav-badge" id="sbBadgeQueue">—</span>
+      </button>
     </div>
     <div class="sb-bottom">
       <div class="sb-user">
@@ -566,6 +585,7 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
     <div id="errorBanner" class="error-banner" style="display:none;"></div>
     <div class="company-list" id="companyList"></div>
     <div id="campaignView" style="display:none;"></div>
+    <div id="queueView" style="display:none;"></div>
   </div>
 
 </div>
@@ -657,7 +677,7 @@ function getActiveCompanies() {
 
 function switchSection(section) {
   if (activeSection === section) return;
-  if (section !== 'campaign') _lastSection = section;
+  if (section !== 'campaign' && section !== 'queue') _lastSection = section;
   activeSection = section;
   document.querySelectorAll('.section-tab').forEach(t =>
     t.classList.toggle('active', t.dataset.section === section)
@@ -665,26 +685,37 @@ function switchSection(section) {
   document.querySelectorAll('.nav-item[data-section]').forEach(t =>
     t.classList.toggle('active', t.dataset.section === section)
   );
-  const titles = { dh: 'Direct Hire', ct: 'Contract Labor', stale: 'Stale Clients', campaign: 'Campaign Builder' };
+  const titles = { dh: 'Direct Hire', ct: 'Contract Labor', stale: 'Stale Clients', campaign: 'Campaign Builder', queue: 'Campaign Queue' };
   const titleEl = document.getElementById('topbarTitle');
   if (titleEl) titleEl.textContent = titles[section] || section;
   const statsEl = document.getElementById('topbarStats');
-  if (statsEl) statsEl.style.display = (section === 'stale' || section === 'campaign') ? 'none' : '';
+  if (statsEl) statsEl.style.display = (section === 'stale' || section === 'campaign' || section === 'queue') ? 'none' : '';
   const filtersEl = document.getElementById('topbarFilters');
-  if (filtersEl) filtersEl.style.display = section === 'campaign' ? 'none' : 'contents';
+  if (filtersEl) filtersEl.style.display = (section === 'campaign' || section === 'queue') ? 'none' : 'contents';
 
   const companyList  = document.getElementById('companyList');
   const campaignView = document.getElementById('campaignView');
+  const queueView    = document.getElementById('queueView');
 
   if (section === 'campaign') {
     if (companyList)  companyList.style.display  = 'none';
     if (campaignView) campaignView.style.display = 'block';
+    if (queueView)    queueView.style.display    = 'none';
     if (!cb.section) _cbInitTab();
+    return;
+  }
+
+  if (section === 'queue') {
+    if (companyList)  companyList.style.display  = 'none';
+    if (campaignView) campaignView.style.display = 'none';
+    if (queueView)    queueView.style.display    = 'block';
+    _renderQueueView();
     return;
   }
 
   if (companyList)  companyList.style.display  = '';
   if (campaignView) campaignView.style.display = 'none';
+  if (queueView)    queueView.style.display    = 'none';
 
   renderList();
   updateHeaderStats();
@@ -1783,10 +1814,9 @@ async function _cbGoStep2() {
   _cbFetchContacts(toLoadConts);
 
   if (!toScrape.length) {
-    const allScraped = cb.selected.every(x => { const s = cb.jobData[x.id]?.status; return s && s !== 'pending'; });
     const anyDone = cb.selected.some(x => cb.jobData[x.id]?.status === 'done');
     const btn = document.getElementById('cbNext2');
-    if (btn) btn.disabled = !(allScraped && anyDone);
+    if (btn) btn.disabled = !anyDone;
     _cbScrapeProgress(0, 0, true);
     return;
   }
@@ -1818,10 +1848,9 @@ async function _cbGoStep2() {
   }
 
   _cbScrapeProgress(done, toScrape.length, true);
-  const allScraped = cb.selected.every(x => { const s = cb.jobData[x.id]?.status; return s && s !== 'pending'; });
   const anyDone = cb.selected.some(x => cb.jobData[x.id]?.status === 'done');
   const btn = document.getElementById('cbNext2');
-  if (btn) btn.disabled = !(allScraped && anyDone);
+  if (btn) btn.disabled = !anyDone;
 }
 
 async function _cbFetchContacts(companies) {
@@ -1952,10 +1981,9 @@ function _cbUpdateRow(id) {
   if (jobsEl) jobsEl.innerHTML = jobsHtml;
   if (sumEl)  sumEl.innerHTML  = sumHtml;
 
-  const allScraped = cb.selected.every(x => { const s = cb.jobData[x.id]?.status; return s && s !== 'pending'; });
   const anyDone = cb.selected.some(x => cb.jobData[x.id]?.status === 'done');
   const btn = document.getElementById('cbNext2');
-  if (btn) btn.disabled = !(allScraped && anyDone);
+  if (btn) btn.disabled = !anyDone;
 }
 
 function _cbScrapeProgress(done, total, finished = false) {
@@ -2002,13 +2030,8 @@ function _cbCancelEditInline(id) { _cbUpdateRow(id); }
 // ── Step 3: Multi-step Email Sequence Composer ────────────────────────────────
 
 function _cbGoStep3() {
-  const pending = cb.selected.filter(c => {
-    const s = cb.jobData[c.id]?.status;
-    return !s || s === 'pending';
-  });
-  if (pending.length) return showToast(`Still scraping ${pending.length} ${pending.length === 1 ? 'company' : 'companies'} — please wait.`);
   const eligible = cb.selected.filter(c => cb.jobData[c.id]?.status === 'done');
-  if (!eligible.length) return showToast('No companies with open jobs found — cannot proceed.');
+  if (!eligible.length) return showToast('No companies with open jobs found yet — please wait for at least one scrape to complete.');
   _cbSetStep(3);
   cb.previewIdx = 0;
   _cbRenderStep3();
@@ -2319,27 +2342,57 @@ function _cbGoStep5() {
 async function submitCampaign() {
   const eligible = cb.selected.filter(c => cb.jobData[c.id]?.status === 'done');
   if (!eligible.length) return;
-  const btn = document.getElementById('btnLaunch');
-  btn.disabled = true; btn.textContent = 'Creating sequence…';
-  document.getElementById('cbLaunchResult').innerHTML = `
+
+  // Check if any selected companies are still scraping
+  const pending = cb.selected.filter(c => { const s = cb.jobData[c.id]?.status; return !s || s === 'pending'; });
+
+  if (pending.length) {
+    // Queue the campaign — it will auto-launch when all scrapes finish
+    const qEntry = {
+      id: Date.now(),
+      name: cb.campaignName || `Campaign ${new Date().toLocaleDateString()}`,
+      companies: [...cb.selected],
+      emailSteps: cb.emailSteps.map(s => ({ ...s })),
+      companyOverrides: JSON.parse(JSON.stringify(cb.companyEmailOverrides)),
+      jobDataSnapshot: Object.fromEntries(cb.selected.map(c => [c.id, { ...(cb.jobData[c.id] || {}) }])),
+      status: 'queued',
+      queuedAt: Date.now(),
+      result: null
+    };
+    campaignQueue.push(qEntry);
+    _startQueuePoll();
+    _updateQueueBadge();
+    showToast(`Campaign queued — will auto-launch to Overloop when all ${pending.length} pending scrapes finish.`);
+    switchSection('queue');
+    return;
+  }
+
+  // All done — launch immediately
+  _executeLaunch(eligible, cb.campaignName, cb.emailSteps, cb.companyEmailOverrides,
+    document.getElementById('btnLaunch'), document.getElementById('cbLaunchResult'));
+}
+
+async function _executeLaunch(eligible, campaignName, emailSteps, companyOverrides, btn, resultEl) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Creating sequence…'; }
+  if (resultEl) resultEl.innerHTML = `
     <div class="enroll-result" style="background:#f1f5f9;color:#475569;margin-bottom:12px;">
       <span class="spinner"></span> Creating Overloop sequence and enrolling contacts — this may take a minute…
     </div>`;
 
   const companies = eligible.map(c => {
     const d = cb.jobData[c.id];
-    return { id: c.id, name: c.name, jobSummary: d.override || d.summary || null, primaryJobUrl: d.primaryUrl || null };
+    return { id: c.id, name: c.name, jobSummary: d?.override || d?.summary || null, primaryJobUrl: d?.primaryUrl || null };
   });
 
-  const emailSteps = cb.emailSteps.filter(s => s.subject.trim() && s.body.trim());
-  const companyOverrides = Object.fromEntries(
-    Object.entries(cb.companyEmailOverrides).filter(([, steps]) => steps && steps.some(s => s != null))
+  const steps    = (emailSteps || []).filter(s => s.body?.trim());
+  const overrides = Object.fromEntries(
+    Object.entries(companyOverrides || {}).filter(([, steps]) => steps && steps.some(s => s != null))
   );
 
   try {
     const r = await fetch('/api/overloop/create-and-enroll', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ companies, campaignName: cb.campaignName, emailSteps, companyOverrides }),
+      body: JSON.stringify({ companies, campaignName, emailSteps: steps, companyOverrides: overrides }),
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || 'Campaign launch failed');
@@ -2354,12 +2407,139 @@ async function submitCampaign() {
     let msg = `&#10003; Sequence "${esc(data.sequenceName)}" created in Overloop. ${data.enrolled} contact${data.enrolled !== 1 ? 's' : ''} enrolled.`;
     if (data.failed)            msg += ` ${data.failed} enrollment${data.failed !== 1 ? 's' : ''} failed.`;
     if (data.skippedNoContacts) msg += ` ${data.skippedNoContacts} companies had no contactable emails.`;
-    document.getElementById('cbLaunchResult').innerHTML = `<div class="enroll-result ${cls}" style="margin-bottom:12px;">${msg}</div>`;
-    btn.textContent = '&#10003; Done';
+    if (resultEl) resultEl.innerHTML = `<div class="enroll-result ${cls}" style="margin-bottom:12px;">${msg}</div>`;
+    if (btn) btn.textContent = '&#10003; Done';
+    return data;
   } catch (e) {
-    document.getElementById('cbLaunchResult').innerHTML = `<div class="enroll-result err" style="margin-bottom:12px;">${esc(e.message)}</div>`;
-    btn.disabled = false; btn.textContent = 'Retry';
+    if (resultEl) resultEl.innerHTML = `<div class="enroll-result err" style="margin-bottom:12px;">${esc(e.message)}</div>`;
+    if (btn) { btn.disabled = false; btn.textContent = 'Retry'; }
+    throw e;
   }
+}
+
+// ── Campaign Queue ────────────────────────────────────────────────────────────
+const campaignQueue = [];
+let _queuePollTimer = null;
+
+function _updateQueueBadge() {
+  const el = document.getElementById('sbBadgeQueue');
+  if (!el) return;
+  const active = campaignQueue.filter(q => q.status !== 'done' && q.status !== 'failed').length;
+  el.textContent = active || '—';
+}
+
+function _startQueuePoll() {
+  if (_queuePollTimer) return;
+  _queuePollTimer = setInterval(async () => {
+    const waiting = campaignQueue.filter(q => q.status === 'queued');
+    if (!waiting.length) { clearInterval(_queuePollTimer); _queuePollTimer = null; return; }
+    for (const q of waiting) {
+      const allScraped = q.companies.every(c => {
+        const s = cb.jobData[c.id]?.status;
+        return s && s !== 'pending';
+      });
+      if (allScraped) await _launchQueuedCampaign(q);
+    }
+    if (activeSection === 'queue') _renderQueueView();
+    _updateQueueBadge();
+  }, 5000);
+}
+
+async function _launchQueuedCampaign(q) {
+  q.status = 'launching';
+  if (activeSection === 'queue') _renderQueueView();
+
+  const eligible = q.companies.filter(c => {
+    const jd = cb.jobData[c.id] || q.jobDataSnapshot[c.id];
+    return jd?.status === 'done';
+  });
+
+  if (!eligible.length) { q.status = 'failed'; q.result = { error: 'No companies with jobs found after scraping.' }; return; }
+
+  try {
+    const data = await _executeLaunch(eligible, q.name, q.emailSteps, q.companyOverrides, null, null);
+    q.status = 'done';
+    q.result = data;
+  } catch (e) {
+    q.status = 'failed';
+    q.result = { error: e.message };
+  }
+  if (activeSection === 'queue') _renderQueueView();
+  _updateQueueBadge();
+}
+
+function _queueProgress(q) {
+  if (q.status === 'done' || q.status === 'failed') return 100;
+  const done = q.companies.filter(c => {
+    const s = cb.jobData[c.id]?.status || q.jobDataSnapshot[c.id]?.status;
+    return s && s !== 'pending';
+  }).length;
+  return q.companies.length ? Math.round((done / q.companies.length) * 100) : 0;
+}
+
+function _progressRing(pct, status) {
+  const r = 16, circ = +(2 * Math.PI * r).toFixed(2);
+  const dash = +((circ * pct) / 100).toFixed(2);
+  const color = status === 'done' ? '#22c55e' : status === 'failed' ? '#ef4444' : status === 'launching' ? '#3b82f6' : '#6366f1';
+  return `<svg width="44" height="44" viewBox="0 0 44 44">
+    <circle cx="22" cy="22" r="${r}" fill="none" stroke="#e2e8f0" stroke-width="4"/>
+    <circle cx="22" cy="22" r="${r}" fill="none" stroke="${color}" stroke-width="4"
+      stroke-dasharray="${circ}" stroke-dashoffset="${circ - dash}"
+      stroke-linecap="round" transform="rotate(-90 22 22)"/>
+  </svg>`;
+}
+
+function _renderQueueView() {
+  const el = document.getElementById('queueView');
+  if (!el) return;
+  const header = `<div style="margin-bottom:18px;">
+    <div style="font-size:18px;font-weight:700;color:#0f172a;">Campaign Queue</div>
+    <div style="font-size:12px;color:#64748b;margin-top:4px;">Campaigns here auto-push to Overloop once all job scraping finishes. Come back anytime — scraping continues in the background.</div>
+  </div>`;
+
+  if (!campaignQueue.length) {
+    el.innerHTML = header + `<div style="text-align:center;padding:48px 0;color:#94a3b8;font-size:13px;">
+      <div style="font-size:28px;margin-bottom:12px;">📋</div>
+      No queued campaigns. Build one in <button class="btn-cancel" style="display:inline;padding:3px 10px;" onclick="switchSection('campaign')">Campaign Builder</button>
+    </div>`;
+    return;
+  }
+
+  const cards = campaignQueue.slice().reverse().map(q => {
+    const pct = _queueProgress(q);
+    const pendingLeft = q.companies.filter(c => { const s = cb.jobData[c.id]?.status; return !s || s === 'pending'; }).length;
+    let cardClass = q.status === 'done' ? 'cq-done' : q.status === 'failed' ? 'cq-failed' : q.status === 'launching' ? 'cq-launching' : '';
+    let statusHtml = '';
+    if (q.status === 'queued')    statusHtml = `<div style="font-size:11px;color:#64748b;margin-top:3px;">Scraping ${pendingLeft} of ${q.companies.length} compan${pendingLeft===1?'y':'ies'}… auto-launching when done.</div>`;
+    if (q.status === 'launching') statusHtml = `<div style="font-size:11px;color:#1d4ed8;margin-top:3px;"><span class="spinner" style="width:8px;height:8px;border-width:2px;margin-right:4px;"></span>Pushing to Overloop…</div>`;
+    if (q.status === 'done') {
+      const d = q.result;
+      statusHtml = `<div class="cq-result-ok">✓ ${d.enrolled} contact${d.enrolled!==1?'s':''} enrolled in Overloop${d.failed?` · ${d.failed} failed`:''}${d.skippedNoContacts?` · ${d.skippedNoContacts} no-email`:''}.</div>`;
+    }
+    if (q.status === 'failed')    statusHtml = `<div class="cq-result-err">✗ ${esc(q.result?.error || 'Launch failed')}</div>`;
+    const ago = Math.round((Date.now() - q.queuedAt) / 60000);
+    const agoStr = ago < 1 ? 'just now' : ago < 60 ? `${ago}m ago` : `${Math.round(ago/60)}h ago`;
+    return `<div class="cq-card ${cardClass}">
+      <div class="cq-progress-wrap">${_progressRing(pct, q.status)}<div class="cq-pct">${pct}%</div></div>
+      <div class="cq-info">
+        <div class="cq-name">${esc(q.name || 'Unnamed Campaign')}</div>
+        <div class="cq-meta">${q.companies.length} compan${q.companies.length===1?'y':'ies'} · Queued ${agoStr}</div>
+        ${statusHtml}
+      </div>
+      ${q.status === 'failed' ? `<button class="btn-cancel" style="font-size:11px;flex-shrink:0;" onclick="_retryQueueItem(${q.id})">Retry</button>` : ''}
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `<div style="max-width:620px;">${header}${cards}</div>`;
+}
+
+function _retryQueueItem(id) {
+  const q = campaignQueue.find(x => x.id === id);
+  if (!q || q.status === 'launching') return;
+  q.status = 'queued'; q.result = null;
+  _startQueuePoll();
+  _updateQueueBadge();
+  _renderQueueView();
 }
 
 // ── Background pre-scraping (warms cache silently after tab switch) ────────────
