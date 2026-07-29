@@ -996,7 +996,7 @@ function renderCardBody(c, data) {
     const contactEmail = selContact?.email || '';
     const isEnrolled   = !!(data.overloopEnrolledContacts?.has(contactEmail));
     const mailtoHref = contactEmail
-      ? `mailto:${encodeURIComponent(contactEmail)}?subject=${encodeURIComponent('Following up — ' + (c.name || ''))}`
+      ? `mailto:${contactEmail}?subject=${encodeURIComponent('Following up — ' + (c.name || ''))}`
       : '';
     const actionsHtml = draftText
       ? `<div class="email-draft-actions">

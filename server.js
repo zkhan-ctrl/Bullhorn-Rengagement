@@ -769,15 +769,26 @@ app.get('/api/company/:id/contacts', async (req, res) => {
   const id = parseInt(req.params.id);
   if (!id) return res.status(400).json({ error: 'Invalid ID' });
   try {
-    // Fetch all contacts regardless of Status — filtering by Status='Active' first
-    // caused companies with New Lead contacts (who have emails) to return empty
-    // when the Active contacts happened to have no emails.
-    const rows = await cdataQuery(
-      `SELECT TOP 200 ID, FirstName, LastName, Title,
-              Email1, Email2, DirectPhone AS Phone, MobilePhone, Status
+    const isEmailStr = s => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((s || '').trim());
+    const hasEmail   = r => isEmailStr(r.Email1) || isEmailStr(r.Email2) || isEmailStr(r.LastName);
+
+    // First try Active contacts. If none have a usable email, fall back to all statuses.
+    // (The old fallback triggered on 0 rows, which missed companies where Active contacts
+    // exist but have no email while New Lead contacts do — e.g. Memorial Hermann 149 contacts.)
+    let rows = await cdataQuery(
+      `SELECT TOP 100 ID, FirstName, LastName, Title,
+              Email1, Email2, DirectPhone AS Phone, MobilePhone
        FROM ${T('ClientContact')}
-       WHERE Companyid = ${id}`
+       WHERE Companyid = ${id} AND Status = 'Active'`
     );
+    if (!rows.some(hasEmail)) {
+      rows = await cdataQuery(
+        `SELECT TOP 100 ID, FirstName, LastName, Title,
+                Email1, Email2, DirectPhone AS Phone, MobilePhone
+         FROM ${T('ClientContact')}
+         WHERE Companyid = ${id}`
+      );
+    }
 
     const cats  = { Recruiting: [], Sales: [], HR: [], Ops: [], Other: [] };
     const rules = [
@@ -786,7 +797,6 @@ app.get('/api/company/:id/contacts', async (req, res) => {
       ['HR',         /human res|\bhr\b|people ops|personnel/i],
       ['Ops',        /operat|\bcoo\b|chief operat|logistics/i]
     ];
-    const isEmailStr = s => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((s || '').trim());
 
     rows.forEach(c => {
       const lastIsEmail = isEmailStr(c.LastName);
