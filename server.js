@@ -97,11 +97,11 @@ app.get('/api/me', (req, res) => {
 });
 
 // ─── Overloop outreach integration ────────────────────────────────────────────
-const OVERLOOP_BASE = 'https://api.overloop.com/public/v1';
+const OVERLOOP_BASE = 'https://api.overloop.ai/public/v1';
 
 function overloopHeaders(key) {
   return {
-    'Authorization': `apikey ${key}`,
+    'Authorization': key,   // Overloop API: raw key, no "apikey" prefix
     'Content-Type':  'application/vnd.api+json',
     'Accept':        'application/vnd.api+json',
   };
@@ -357,185 +357,122 @@ app.post('/api/overloop/campaign-enroll', async (req, res) => {
   res.json({ enrolled, failed, skippedNoContacts });
 });
 
-// Test-enroll a single prospect into a named Overloop sequence (for connection testing)
+// Test-enroll a single prospect into an Overloop list (for connection testing)
+// Enrollment in Overloop v2: add prospect with lists:[listName] → auto-enrolls in connected automation
 app.post('/api/overloop/test-enroll', async (req, res) => {
   const key = req.currentUser?.overloop_key;
   if (!key) return res.status(400).json({ error: 'No Overloop API key configured for your account.' });
 
-  const { sequenceName, sequenceId: explicitId, email, firstName = '', lastName = '', companyName = '', jobTitle = '' } = req.body || {};
-  if (!email) return res.status(400).json({ error: 'email is required' });
-  if (!explicitId && !sequenceName) return res.status(400).json({ error: 'sequenceId or sequenceName is required' });
+  const { listName, email, firstName = '', lastName = '', companyName = '', jobTitle = '' } = req.body || {};
+  if (!email)    return res.status(400).json({ error: 'email is required' });
+  if (!listName) return res.status(400).json({ error: 'listName is required' });
 
-  const hdrs = overloopHeaders(key);
-
-  // Resolve sequence ID by name if not provided directly
-  let seqId = explicitId;
-  let seqName = sequenceName;
-  if (!seqId) {
-    const r = await axios.get(`${OVERLOOP_BASE}/sequences?page[size]=100`, { headers: hdrs });
-    const list = Array.isArray(r.data?.data) ? r.data.data : [];
-    const match = list.find(s =>
-      (s.attributes?.name || s.attributes?.title || '').toLowerCase().includes(sequenceName.toLowerCase())
-    );
-    if (!match) return res.status(404).json({ error: `No sequence found matching "${sequenceName}"` });
-    seqId   = match.id;
-    seqName = match.attributes?.name || match.attributes?.title || sequenceName;
-  }
-
-  const attrs = { email, first_name: firstName, last_name: lastName, organization_name: companyName };
+  const hdrs  = overloopHeaders(key);
+  const attrs = { email, first_name: firstName, last_name: lastName, organization_name: companyName, lists: [listName] };
   if (jobTitle) attrs.job_title = jobTitle;
 
-  let prospectId;
   try {
     const pRes = await axios.post(`${OVERLOOP_BASE}/prospects`, { data: { type: 'prospects', attributes: attrs } }, { headers: hdrs });
-    prospectId = pRes.data.data.id;
+    return res.json({ ok: true, prospectId: pRes.data?.data?.id, listName });
   } catch (pErr) {
     if (pErr.response?.status === 422) {
-      const search = await axios.get(`${OVERLOOP_BASE}/prospects?filter[email]=${encodeURIComponent(email)}`, { headers: hdrs });
-      prospectId = search.data?.data?.[0]?.id;
-      if (prospectId) await axios.patch(`${OVERLOOP_BASE}/prospects/${prospectId}`, { data: { type: 'prospects', id: String(prospectId), attributes: attrs } }, { headers: hdrs }).catch(() => {});
-      if (!prospectId) return res.status(400).json({ error: 'Prospect already exists but could not be found by email' });
-    } else {
-      const detail = pErr.response?.data?.errors?.[0]?.detail || pErr.message;
-      return res.status(400).json({ error: `Could not create prospect: ${detail}` });
-    }
-  }
-
-  try {
-    await axios.post(`${OVERLOOP_BASE}/sequence_states`, {
-      data: {
-        type: 'sequence_states', attributes: {},
-        relationships: {
-          prospect: { data: { type: 'prospects', id: String(prospectId) } },
-          sequence: { data: { type: 'sequences',  id: String(seqId)     } },
-        },
+      // Prospect exists — patch to add the list
+      const search = await axios.get(`${OVERLOOP_BASE}/prospects?filter[email]=${encodeURIComponent(email)}`, { headers: hdrs }).catch(() => null);
+      const prospectId = search?.data?.data?.[0]?.id;
+      if (prospectId) {
+        await axios.patch(`${OVERLOOP_BASE}/prospects/${prospectId}`,
+          { data: { type: 'prospects', id: String(prospectId), attributes: { lists: [listName], job_title: jobTitle || undefined } } },
+          { headers: hdrs }).catch(() => {});
+        return res.json({ ok: true, prospectId, listName });
       }
-    }, { headers: hdrs });
-  } catch (e) {
-    const detail = e.response?.data?.errors?.[0]?.detail || e.message;
-    return res.status(400).json({ error: `Prospect created (id ${prospectId}) but enrollment failed: ${detail}` });
+    }
+    const detail = pErr.response?.data?.errors?.[0]?.detail || pErr.message;
+    return res.status(400).json({ error: `Could not create prospect: ${detail}` });
   }
-
-  res.json({ ok: true, prospectId, sequenceId: seqId, sequenceName: seqName });
 });
 
-// Enroll company contacts into an existing Overloop sequence
+// Enroll company contacts into an Overloop automation via list membership
 app.post('/api/overloop/create-and-enroll', async (req, res) => {
   const key = req.currentUser?.overloop_key;
   if (!key) return res.status(400).json({ error: 'No Overloop API key configured for your account.' });
 
-  const { companies, campaignName, existingSequenceId } = req.body || {};
+  const { companies, campaignName, listName } = req.body || {};
   if (!Array.isArray(companies) || !companies.length) return res.status(400).json({ error: 'No companies provided.' });
-  if (!existingSequenceId) return res.status(400).json({ error: 'No Overloop sequence selected.' });
+  if (!listName) return res.status(400).json({ error: 'No Overloop list name provided.' });
 
   const hdrs = overloopHeaders(key);
-  const baseName = (campaignName || '').trim() ||
-    `CGR Campaign — ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
-
-  // Resolve sequence name for the response
-  let sequenceId   = existingSequenceId;
-  let sequenceName = baseName;
-  try {
-    const r = await axios.get(`${OVERLOOP_BASE}/sequences?page[size]=100`, { headers: hdrs });
-    const list = Array.isArray(r.data?.data) ? r.data.data : [];
-    const match = list.find(s => String(s.id) === String(existingSequenceId));
-    if (match) sequenceName = match.attributes?.name || match.attributes?.title || baseName;
-  } catch (_) {}
 
   // Fetch contacts from CData for all companies
   const idList = companies.map(c => parseInt(c.id)).filter(Boolean).join(',');
   let contactRows = [];
   try {
-    contactRows = await cdataQuery(
-      `SELECT TOP 2000 Companyid, FirstName, LastName, Email1, Email2
-       FROM ${T('ClientContact')}
-       WHERE Companyid IN (${idList})
-       ORDER BY Companyid`
-    );
+    if (idList) {
+      contactRows = await cdataQuery(
+        `SELECT TOP 2000 Companyid, FirstName, LastName, Email1, Email2
+         FROM ${T('ClientContact')}
+         WHERE Companyid IN (${idList})
+         ORDER BY Companyid`
+      );
+    }
   } catch (e) {
-    return res.status(500).json({ sequenceId, sequenceName, error: `Failed to fetch contacts: ${e.message}` });
+    return res.status(500).json({ error: `Failed to fetch contacts: ${e.message}` });
   }
 
   const isEmailStr = s => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((s || '').trim());
-
   const byCompany = {};
-  // Inject demo company contact (not in Bullhorn SQL)
+
+  // Inject demo company contact (id 99999 — not in Bullhorn)
   if (companies.some(c => String(c.id) === '99999')) {
     byCompany['99999'] = [{ email: 'zkhan@cgrteam.com', firstName: 'Zohair', lastName: 'Khan' }];
   }
   for (const row of contactRows) {
-    const cid       = String(row.Companyid);
+    const cid      = String(row.Companyid);
     const lastIsEml = isEmailStr(row.LastName);
-    const email     = (row.Email1 || row.Email2 || (lastIsEml ? row.LastName : '') || '').trim();
+    const email    = (row.Email1 || row.Email2 || (lastIsEml ? row.LastName : '') || '').trim();
     if (!email) continue;
     if (!byCompany[cid]) byCompany[cid] = [];
-    byCompany[cid].push({
-      email,
-      firstName: row.FirstName || '',
-      lastName:  lastIsEml ? '' : (row.LastName || ''),
-    });
+    byCompany[cid].push({ email, firstName: row.FirstName || '', lastName: lastIsEml ? '' : (row.LastName || '') });
   }
 
   let enrolled = 0, failed = 0, skippedNoContacts = 0;
 
-  // Helper: enroll a list of contacts in a sequence
-  async function enrollContacts(seqId, coList) {
-    for (const co of coList) {
-      const cid      = String(co.id);
-      const contacts = byCompany[cid] || [];
-      if (!contacts.length) { skippedNoContacts++; continue; }
+  for (const co of companies) {
+    const contacts = byCompany[String(co.id)] || [];
+    if (!contacts.length) { skippedNoContacts++; continue; }
 
-      for (const ct of contacts) {
-        try {
-          const attrs = {
-            email: ct.email, first_name: ct.firstName, last_name: ct.lastName,
-            organization_name: co.name || '',
-          };
-          if (co.jobSummary)    attrs.job_title = co.jobSummary;
-          if (co.primaryJobUrl) attrs.website   = co.primaryJobUrl;
+    for (const ct of contacts) {
+      try {
+        const attrs = {
+          email: ct.email, first_name: ct.firstName, last_name: ct.lastName,
+          organization_name: co.name || '',
+          lists: [listName],
+        };
+        if (co.jobSummary)    attrs.job_title = co.jobSummary;
+        if (co.primaryJobUrl) attrs.website   = co.primaryJobUrl;
 
-        let prospectId;
         try {
-          const pRes = await axios.post(`${OVERLOOP_BASE}/prospects`,
+          await axios.post(`${OVERLOOP_BASE}/prospects`,
             { data: { type: 'prospects', attributes: attrs } }, { headers: hdrs });
-          prospectId = pRes.data.data.id;
         } catch (pErr) {
           if (pErr.response?.status === 422) {
+            // Prospect exists — patch to update job info and add list
             const search = await axios.get(
-              `${OVERLOOP_BASE}/prospects?filter[email]=${encodeURIComponent(ct.email)}`,
-              { headers: hdrs }
+              `${OVERLOOP_BASE}/prospects?filter[email]=${encodeURIComponent(ct.email)}`, { headers: hdrs }
             );
-            prospectId = search.data?.data?.[0]?.id;
-            if (prospectId) {
-              await axios.patch(`${OVERLOOP_BASE}/prospects/${prospectId}`,
-                { data: { type: 'prospects', id: String(prospectId), attributes: attrs } },
-                { headers: hdrs }).catch(() => {});
-            }
-            if (!prospectId) throw pErr;
+            const pid = search.data?.data?.[0]?.id;
+            if (pid) await axios.patch(`${OVERLOOP_BASE}/prospects/${pid}`,
+              { data: { type: 'prospects', id: String(pid), attributes: attrs } }, { headers: hdrs });
+            else throw pErr;
           } else throw pErr;
         }
-
-        await axios.post(`${OVERLOOP_BASE}/sequence_states`, {
-          data: {
-            type: 'sequence_states', attributes: {},
-            relationships: {
-              prospect: { data: { type: 'prospects', id: String(prospectId) } },
-              sequence: { data: { type: 'sequences',  id: String(seqId)  } },
-            },
-          }
-        }, { headers: hdrs });
-
         enrolled++;
       } catch (e) {
         failed++;
       }
-    } // end for ct
-  } // end for co
-} // end enrollContacts
+    }
+  }
 
-  await enrollContacts(sequenceId, companies);
-
-  res.json({ sequenceId, sequenceName, enrolled, failed, skippedNoContacts });
+  res.json({ listName, campaignName: campaignName || listName, enrolled, failed, skippedNoContacts });
 });
 
 const externalJobCache = new Map();
