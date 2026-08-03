@@ -107,26 +107,6 @@ function overloopHeaders(key) {
   };
 }
 
-// List sequences from the BD's own Overloop account
-app.get('/api/overloop/sequences', async (req, res) => {
-  const key = req.currentUser?.overloop_key;
-  if (!key) return res.status(400).json({ error: 'No Overloop API key configured for your account. Contact your admin.' });
-  try {
-    const r = await axios.get(`${OVERLOOP_BASE}/sequences?page[size]=100`, { headers: overloopHeaders(key) });
-    const raw = Array.isArray(r.data?.data) ? r.data.data : [];
-    const sequences = raw.map(s => {
-      const id   = s.id;
-      const attr = s.attributes || s;
-      const name = attr.name || attr.title || (id ? `Sequence ${id}` : null);
-      if (!id || !name) return null;
-      return { id: String(id), name };
-    }).filter(Boolean);
-    res.json({ sequences });
-  } catch (e) {
-    // Don't surface auth errors — just return empty so the manual input fallback shows
-    res.json({ sequences: [] });
-  }
-});
 
 // Create prospect + enroll in a sequence (single or bulk contacts)
 app.post('/api/overloop/enroll', async (req, res) => {

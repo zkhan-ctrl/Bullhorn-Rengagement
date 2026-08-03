@@ -2329,13 +2329,15 @@ function _cbGoStep5() {
         <div class="launch-stat"><span class="launch-stat-label">Personalization</span><span class="launch-stat-value">{{job_title}} — unique per company</span></div>
       </div>
       <div style="border:1px solid #e2e8f0;border-radius:10px;padding:20px;margin-bottom:16px;">
-        <div style="font-size:13px;font-weight:600;color:#0f172a;margin-bottom:10px;">Select Overloop Sequence</div>
-        <div id="cbSeqPickerWrap">
-          <div style="color:#94a3b8;font-size:12px;"><span class="spinner"></span> Loading sequences…</div>
-        </div>
-        <div id="cbTestEnrollWrap" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid #f1f5f9;">
+        <div style="font-size:13px;font-weight:600;color:#0f172a;margin-bottom:4px;">Overloop Campaign ID</div>
+        <div style="font-size:11px;color:#94a3b8;margin-bottom:10px;">Find it in the Overloop URL: app.overloop.ai/campaigns/<b style="color:#475569;">12345</b>/dashboard</div>
+        <input id="cbSeqManualId" type="text" placeholder="e.g. 10757"
+          style="width:100%;box-sizing:border-box;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;outline:none;transition:border-color 0.15s;"
+          oninput="_cbOnSeqChange(this.value.trim())"
+          onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='#e2e8f0'"/>
+        <div id="cbTestEnrollWrap" style="display:none;margin-top:12px;">
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-            <button onclick="_cbTestEnroll()" style="font-size:11px;padding:5px 12px;border:1px solid #e2e8f0;border-radius:6px;background:white;color:#475569;cursor:pointer;">Test Connection (send to zkhan@nexirise.com)</button>
+            <button onclick="_cbTestEnroll()" style="font-size:11px;padding:5px 12px;border:1px solid #e2e8f0;border-radius:6px;background:white;color:#475569;cursor:pointer;">Send test to zkhan@nexirise.com</button>
             <span id="cbTestEnrollResult" style="font-size:11px;color:#94a3b8;"></span>
           </div>
         </div>
@@ -2350,53 +2352,11 @@ function _cbGoStep5() {
       </div>
     </div>`;
 
-  // Load sequences async
-  _cbLoadSequencePicker();
-}
-
-async function _cbLoadSequencePicker() {
-  const wrap = document.getElementById('cbSeqPickerWrap');
-  if (!wrap) return;
-  try {
-    const r = await fetch('/api/overloop/sequences');
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.error || 'Failed to load sequences');
-    const seqs = d.sequences || [];
-    if (!seqs.length) {
-      const debugInfo = d._debug ? JSON.stringify(d._debug, null, 2) : 'no debug info';
-      // Overloop returned 0 sequences — allow manual ID entry as fallback
-      wrap.innerHTML = `
-        <div style="color:#b45309;font-size:12px;margin-bottom:8px;">
-          No sequences returned from Overloop API.
-          Paste the sequence ID manually — find it in the Overloop URL when viewing a sequence (e.g. overloop.com/sequences/<b>12345</b>).
-        </div>
-        <details style="font-size:10px;color:#94a3b8;margin-bottom:8px;"><summary style="cursor:pointer;">Debug info (share with dev)</summary><pre style="white-space:pre-wrap;word-break:break-all;background:#f8fafc;padding:6px;border-radius:4px;margin-top:4px;">${esc(debugInfo)}</pre></details>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <input id="cbSeqManualId" type="text" placeholder="Sequence ID (e.g. 12345)"
-            style="flex:1;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;"
-            oninput="_cbOnSeqChange(this.value.trim())"/>
-          <input id="cbSeqManualName" type="text" placeholder="Sequence name (optional)"
-            style="flex:1;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;"/>
-        </div>`;
-      return;
-    }
-    // Pre-select previously chosen sequence if still valid
-    const prevId = cb.sequenceId;
-    const prevValid = prevId && seqs.find(s => String(s.id) === String(prevId));
-    const opts = seqs.map(s =>
-      `<option value="${esc(s.id)}" ${String(s.id) === String(prevId) ? 'selected' : ''}>${esc(s.name)}</option>`
-    ).join('');
-    wrap.innerHTML = `<select id="cbSeqSelect" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;background:white;cursor:pointer;" onchange="_cbOnSeqChange(this.value)">
-      <option value="">— Pick a sequence —</option>
-      ${opts}
-    </select>`;
-    if (prevValid) {
-      _cbOnSeqChange(String(prevId));
-    } else {
-      cb.sequenceId = null;
-    }
-  } catch (e) {
-    wrap.innerHTML = `<div style="color:#ef4444;font-size:12px;">${esc(e.message)}</div>`;
+  // Restore previously entered ID if user navigated back
+  const input = document.getElementById('cbSeqManualId');
+  if (input && cb.sequenceId) {
+    input.value = cb.sequenceId;
+    _cbOnSeqChange(cb.sequenceId);
   }
 }
 
