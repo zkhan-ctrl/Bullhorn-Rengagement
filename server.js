@@ -112,11 +112,12 @@ app.get('/api/overloop/sequences', async (req, res) => {
   const key = req.currentUser?.overloop_key;
   if (!key) return res.status(400).json({ error: 'No Overloop API key configured for your account. Contact your admin.' });
   try {
-    const r = await axios.get(`${OVERLOOP_BASE}/sequences?page[size]=100`, { headers: overloopHeaders(key) });
-    // Overloop may use data.data (JSON:API) or data.sequences (flat) or data itself
-    const raw = Array.isArray(r.data?.data)      ? r.data.data
-              : Array.isArray(r.data?.sequences)  ? r.data.sequences
-              : Array.isArray(r.data)             ? r.data
+    // Overloop UI calls them "Campaigns"; API endpoint is /campaigns (not /sequences)
+    const r = await axios.get(`${OVERLOOP_BASE}/campaigns?page[size]=100`, { headers: overloopHeaders(key) });
+    const raw = Array.isArray(r.data?.data)       ? r.data.data
+              : Array.isArray(r.data?.campaigns)   ? r.data.campaigns
+              : Array.isArray(r.data?.sequences)   ? r.data.sequences
+              : Array.isArray(r.data)              ? r.data
               : [];
     const first = raw[0];
     const sequences = raw.map(s => {
@@ -398,9 +399,10 @@ app.post('/api/overloop/test-enroll', async (req, res) => {
   let seqId = explicitId;
   let seqName = sequenceName;
   if (!seqId) {
-    const r = await axios.get(`${OVERLOOP_BASE}/sequences`, { headers: hdrs });
-    const match = (r.data.data || []).find(s =>
-      (s.attributes?.name || s.attributes?.title || '').toLowerCase().includes(sequenceName.toLowerCase())
+    const r = await axios.get(`${OVERLOOP_BASE}/campaigns?page[size]=100`, { headers: hdrs });
+    const list = Array.isArray(r.data?.data) ? r.data.data : Array.isArray(r.data?.campaigns) ? r.data.campaigns : [];
+    const match = list.find(s =>
+      (s.attributes?.name || s.attributes?.title || s.name || s.title || '').toLowerCase().includes(sequenceName.toLowerCase())
     );
     if (!match) return res.status(404).json({ error: `No sequence found matching "${sequenceName}"` });
     seqId   = match.id;
@@ -461,9 +463,10 @@ app.post('/api/overloop/create-and-enroll', async (req, res) => {
   let sequenceId   = existingSequenceId;
   let sequenceName = baseName;
   try {
-    const r = await axios.get(`${OVERLOOP_BASE}/sequences`, { headers: hdrs });
-    const match = (r.data.data || []).find(s => String(s.id) === String(existingSequenceId));
-    if (match) sequenceName = match.attributes?.name || match.attributes?.title || baseName;
+    const r = await axios.get(`${OVERLOOP_BASE}/campaigns?page[size]=100`, { headers: hdrs });
+    const list = Array.isArray(r.data?.data) ? r.data.data : Array.isArray(r.data?.campaigns) ? r.data.campaigns : [];
+    const match = list.find(s => String(s.id) === String(existingSequenceId));
+    if (match) sequenceName = match.attributes?.name || match.attributes?.title || match.name || match.title || baseName;
   } catch (_) {}
 
   // Fetch contacts from CData for all companies
