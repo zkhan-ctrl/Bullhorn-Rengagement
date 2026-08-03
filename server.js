@@ -374,78 +374,88 @@ app.post('/api/overloop/campaign-enroll', async (req, res) => {
   res.json({ enrolled, failed, skippedNoContacts });
 });
 
-// Create a new Overloop sequence with custom email copy, then enroll all company contacts
+// Test-enroll a single prospect into a named Overloop sequence (for connection testing)
+app.post('/api/overloop/test-enroll', async (req, res) => {
+  const key = req.currentUser?.overloop_key;
+  if (!key) return res.status(400).json({ error: 'No Overloop API key configured for your account.' });
+
+  const { sequenceName, sequenceId: explicitId, email, firstName = '', lastName = '', companyName = '', jobTitle = '' } = req.body || {};
+  if (!email) return res.status(400).json({ error: 'email is required' });
+  if (!explicitId && !sequenceName) return res.status(400).json({ error: 'sequenceId or sequenceName is required' });
+
+  const hdrs = overloopHeaders(key);
+
+  // Resolve sequence ID by name if not provided directly
+  let seqId = explicitId;
+  let seqName = sequenceName;
+  if (!seqId) {
+    const r = await axios.get(`${OVERLOOP_BASE}/sequences`, { headers: hdrs });
+    const match = (r.data.data || []).find(s =>
+      (s.attributes?.name || s.attributes?.title || '').toLowerCase().includes(sequenceName.toLowerCase())
+    );
+    if (!match) return res.status(404).json({ error: `No sequence found matching "${sequenceName}"` });
+    seqId   = match.id;
+    seqName = match.attributes?.name || match.attributes?.title || sequenceName;
+  }
+
+  const attrs = { email, first_name: firstName, last_name: lastName, organization_name: companyName };
+  if (jobTitle) attrs.job_title = jobTitle;
+
+  let prospectId;
+  try {
+    const pRes = await axios.post(`${OVERLOOP_BASE}/prospects`, { data: { type: 'prospects', attributes: attrs } }, { headers: hdrs });
+    prospectId = pRes.data.data.id;
+  } catch (pErr) {
+    if (pErr.response?.status === 422) {
+      const search = await axios.get(`${OVERLOOP_BASE}/prospects?filter[email]=${encodeURIComponent(email)}`, { headers: hdrs });
+      prospectId = search.data?.data?.[0]?.id;
+      if (prospectId) await axios.patch(`${OVERLOOP_BASE}/prospects/${prospectId}`, { data: { type: 'prospects', id: String(prospectId), attributes: attrs } }, { headers: hdrs }).catch(() => {});
+      if (!prospectId) return res.status(400).json({ error: 'Prospect already exists but could not be found by email' });
+    } else {
+      const detail = pErr.response?.data?.errors?.[0]?.detail || pErr.message;
+      return res.status(400).json({ error: `Could not create prospect: ${detail}` });
+    }
+  }
+
+  try {
+    await axios.post(`${OVERLOOP_BASE}/sequence_states`, {
+      data: {
+        type: 'sequence_states', attributes: {},
+        relationships: {
+          prospect: { data: { type: 'prospects', id: String(prospectId) } },
+          sequence: { data: { type: 'sequences',  id: String(seqId)     } },
+        },
+      }
+    }, { headers: hdrs });
+  } catch (e) {
+    const detail = e.response?.data?.errors?.[0]?.detail || e.message;
+    return res.status(400).json({ error: `Prospect created (id ${prospectId}) but enrollment failed: ${detail}` });
+  }
+
+  res.json({ ok: true, prospectId, sequenceId: seqId, sequenceName: seqName });
+});
+
+// Enroll company contacts into an existing Overloop sequence
 app.post('/api/overloop/create-and-enroll', async (req, res) => {
   const key = req.currentUser?.overloop_key;
   if (!key) return res.status(400).json({ error: 'No Overloop API key configured for your account.' });
 
-  const { companies, campaignName, emailSteps, companyOverrides = {} } = req.body || {};
+  const { companies, campaignName, existingSequenceId } = req.body || {};
   if (!Array.isArray(companies) || !companies.length) return res.status(400).json({ error: 'No companies provided.' });
-  if (!Array.isArray(emailSteps) || !emailSteps.length) return res.status(400).json({ error: 'At least one email step is required.' });
-
-  // Only body is required; subject can be blank for reply-thread follow-ups
-  const validSteps = emailSteps.filter(s => s.body?.trim());
-  if (!validSteps.length) return res.status(400).json({ error: 'At least one email step must have a body.' });
-
-  // Substitute {{sender_name}} with the logged-in BD's name
-  const senderName = req.currentUser?.name || '';
-  validSteps.forEach(s => {
-    if (senderName) {
-      s.subject = (s.subject || '').replace(/\{\{sender_name\}\}/g, senderName);
-      s.body    = (s.body    || '').replace(/\{\{sender_name\}\}/g, senderName);
-    }
-  });
+  if (!existingSequenceId) return res.status(400).json({ error: 'No Overloop sequence selected.' });
 
   const hdrs = overloopHeaders(key);
   const baseName = (campaignName || '').trim() ||
     `CGR Campaign — ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
 
-  // Helper: create a sequence with given steps in Overloop
-  async function createSequenceWithSteps(name, steps) {
-    const seqRes = await axios.post(`${OVERLOOP_BASE}/sequences`, {
-      data: { type: 'sequences', attributes: { name } }
-    }, { headers: hdrs });
-    const seqId = seqRes.data?.data?.id;
-    if (!seqId) throw new Error('No sequence ID returned from Overloop');
-    for (const step of steps) {
-      await axios.post(`${OVERLOOP_BASE}/sequence_steps`, {
-        data: {
-          type: 'sequence_steps',
-          attributes: {
-            type: 'email',
-            delay_amount: step.delayDays || 0,
-            delay_period: 'day',
-            subject:      step.subject,
-            body:         step.body,
-          },
-          relationships: { sequence: { data: { type: 'sequences', id: String(seqId) } } }
-        }
-      }, { headers: hdrs });
-    }
-    return seqId;
-  }
-
-  // Separate companies: those with per-company body overrides get their own mini-sequence
-  const overrideCos = companies.filter(co => {
-    const ovrs = companyOverrides[String(co.id)];
-    return Array.isArray(ovrs) && ovrs.some(b => b !== null && b !== undefined);
-  });
-  const sharedCos = companies.filter(co => !overrideCos.includes(co));
-
-  // Create the main shared sequence
-  let sequenceId, sequenceName;
-  if (sharedCos.length) {
-    try {
-      sequenceId   = await createSequenceWithSteps(baseName, validSteps);
-      sequenceName = baseName;
-    } catch (e) {
-      const detail = e.response?.data?.errors?.[0]?.detail || e.message;
-      return res.status(400).json({ error: `Could not create Overloop sequence: ${detail}` });
-    }
-  } else {
-    // All companies have overrides — still need a sequence name for the response
-    sequenceName = baseName;
-  }
+  // Resolve sequence name for the response
+  let sequenceId   = existingSequenceId;
+  let sequenceName = baseName;
+  try {
+    const r = await axios.get(`${OVERLOOP_BASE}/sequences`, { headers: hdrs });
+    const match = (r.data.data || []).find(s => String(s.id) === String(existingSequenceId));
+    if (match) sequenceName = match.attributes?.name || match.attributes?.title || baseName;
+  } catch (_) {}
 
   // Fetch contacts from CData for all companies
   const idList = companies.map(c => parseInt(c.id)).filter(Boolean).join(',');
@@ -458,7 +468,7 @@ app.post('/api/overloop/create-and-enroll', async (req, res) => {
        ORDER BY Companyid`
     );
   } catch (e) {
-    return res.status(500).json({ sequenceId, sequenceName, error: `Sequence created but failed to fetch contacts: ${e.message}` });
+    return res.status(500).json({ sequenceId, sequenceName, error: `Failed to fetch contacts: ${e.message}` });
   }
 
   const isEmailStr = s => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((s || '').trim());
@@ -534,24 +544,7 @@ app.post('/api/overloop/create-and-enroll', async (req, res) => {
   } // end for co
 } // end enrollContacts
 
-  // Enroll shared companies in the main sequence
-  if (sequenceId && sharedCos.length) await enrollContacts(sequenceId, sharedCos);
-
-  // Enroll override companies in their own mini-sequences
-  for (const co of overrideCos) {
-    const ovrs = companyOverrides[String(co.id)] || [];
-    const customSteps = validSteps.map((s, i) => ({
-      ...s,
-      body: (ovrs[i] !== null && ovrs[i] !== undefined) ? ovrs[i] : s.body,
-    }));
-    try {
-      const miniId = await createSequenceWithSteps(`${baseName} — ${co.name}`, customSteps);
-      if (!sequenceId) { sequenceId = miniId; } // first sequence becomes the primary ID reported
-      await enrollContacts(miniId, [co]);
-    } catch (e) {
-      failed++;
-    }
-  }
+  await enrollContacts(sequenceId, companies);
 
   res.json({ sequenceId, sequenceName, enrolled, failed, skippedNoContacts });
 });

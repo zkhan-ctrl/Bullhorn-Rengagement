@@ -1568,6 +1568,7 @@ const cb = {
   activeStepIdx: 0,
   companyEmailOverrides: {}, // id → [bodyStr per step index]
   campaignName: '',
+  sequenceId: null,
   previewIdx: 0,
 };
 
@@ -2316,7 +2317,7 @@ function _cbSaveRevOverride(coId, stepIdx, body) {
 function _cbGoStep5() {
   const eligible   = cb.selected.filter(c => cb.jobData[c.id]?.status === 'done');
   const excluded   = cb.selected.length - eligible.length;
-  const validSteps = cb.emailSteps.filter(s => s.subject.trim() && s.body.trim()).length;
+  const validSteps = cb.emailSteps.filter(s => s.body.trim()).length;
   _cbSetStep(5);
 
   document.getElementById('cbBody').innerHTML = `
@@ -2325,23 +2326,104 @@ function _cbGoStep5() {
         <div class="launch-stat"><span class="launch-stat-label">Campaign name</span><span class="launch-stat-value">${esc(cb.campaignName || '(auto-named)')}</span></div>
         <div class="launch-stat"><span class="launch-stat-label">Companies to blast</span><span class="launch-stat-value">${eligible.length}</span></div>
         <div class="launch-stat"><span class="launch-stat-label">Excluded (no jobs)</span><span class="launch-stat-value" style="color:${excluded ? '#ef4444' : '#94a3b8'};">${excluded}</span></div>
-        <div class="launch-stat"><span class="launch-stat-label">Sequence steps</span><span class="launch-stat-value">${validSteps} email${validSteps !== 1 ? 's' : ''} (Overloop sends on schedule)</span></div>
         <div class="launch-stat"><span class="launch-stat-label">Personalization</span><span class="launch-stat-value">{{job_title}} — unique per company</span></div>
       </div>
+      <div style="border:1px solid #e2e8f0;border-radius:10px;padding:20px;margin-bottom:16px;">
+        <div style="font-size:13px;font-weight:600;color:#0f172a;margin-bottom:10px;">Select Overloop Sequence</div>
+        <div id="cbSeqPickerWrap">
+          <div style="color:#94a3b8;font-size:12px;"><span class="spinner"></span> Loading sequences…</div>
+        </div>
+        <div id="cbTestEnrollWrap" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid #f1f5f9;">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <button onclick="_cbTestEnroll()" style="font-size:11px;padding:5px 12px;border:1px solid #e2e8f0;border-radius:6px;background:white;color:#475569;cursor:pointer;">Test Connection (send to zkhan@nexirise.com)</button>
+            <span id="cbTestEnrollResult" style="font-size:11px;color:#94a3b8;"></span>
+          </div>
+        </div>
+      </div>
       <div class="modal-hint" style="margin-bottom:16px;">
-        A new Overloop sequence will be created with your email step${validSteps !== 1 ? 's' : ''}. All contacts with valid email addresses from each company will be enrolled. Overloop handles delivery on the configured schedule.
+        All contacts with valid email addresses from each company will be enrolled into the selected Overloop sequence. Job details are set per contact so Overloop's <code>{{prospect.job_title}}</code> variable is unique per company.
       </div>
       <div id="cbLaunchResult"></div>
       <div class="campaign-nav">
         <button class="btn-cancel" onclick="_cbGoStep4()">‹ Back</button>
-        <button class="btn-launch" id="btnLaunch" onclick="submitCampaign()">&#9889; Launch (${eligible.length} compan${eligible.length === 1 ? 'y' : 'ies'})</button>
+        <button class="btn-launch" id="btnLaunch" onclick="submitCampaign()" disabled>&#9889; Launch (${eligible.length} compan${eligible.length === 1 ? 'y' : 'ies'})</button>
       </div>
     </div>`;
+
+  // Load sequences async
+  _cbLoadSequencePicker();
+}
+
+async function _cbLoadSequencePicker() {
+  const wrap = document.getElementById('cbSeqPickerWrap');
+  if (!wrap) return;
+  try {
+    const r = await fetch('/api/overloop/sequences');
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Failed to load sequences');
+    const seqs = d.sequences || [];
+    if (!seqs.length) {
+      wrap.innerHTML = `<div style="color:#ef4444;font-size:12px;">No sequences found in your Overloop account. Create one in Overloop first, then come back.</div>`;
+      return;
+    }
+    // Pre-select previously chosen sequence if still valid
+    const prevId = cb.sequenceId;
+    const prevValid = prevId && seqs.find(s => String(s.id) === String(prevId));
+    const opts = seqs.map(s =>
+      `<option value="${esc(s.id)}" ${String(s.id) === String(prevId) ? 'selected' : ''}>${esc(s.name)}</option>`
+    ).join('');
+    wrap.innerHTML = `<select id="cbSeqSelect" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;background:white;cursor:pointer;" onchange="_cbOnSeqChange(this.value)">
+      <option value="">— Pick a sequence —</option>
+      ${opts}
+    </select>`;
+    if (prevValid) {
+      _cbOnSeqChange(String(prevId));
+    } else {
+      cb.sequenceId = null;
+    }
+  } catch (e) {
+    wrap.innerHTML = `<div style="color:#ef4444;font-size:12px;">${esc(e.message)}</div>`;
+  }
+}
+
+function _cbOnSeqChange(val) {
+  cb.sequenceId = val || null;
+  const btn = document.getElementById('btnLaunch');
+  if (btn) btn.disabled = !val;
+  const testWrap = document.getElementById('cbTestEnrollWrap');
+  if (testWrap) testWrap.style.display = val ? '' : 'none';
+  const testResult = document.getElementById('cbTestEnrollResult');
+  if (testResult) testResult.textContent = '';
+}
+
+async function _cbTestEnroll() {
+  if (!cb.sequenceId) return;
+  const resultEl = document.getElementById('cbTestEnrollResult');
+  if (resultEl) resultEl.textContent = 'Enrolling…';
+  try {
+    const r = await fetch('/api/overloop/test-enroll', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sequenceId: cb.sequenceId,
+        email: 'zkhan@nexirise.com',
+        firstName: 'Zohair', lastName: 'Khan',
+        companyName: 'Nexirise (Test)', jobTitle: 'Senior Software Engineer — 3 open roles in Dallas',
+      }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Test failed');
+    if (resultEl) resultEl.textContent = `✓ Test lead enrolled (prospect id ${d.prospectId})`;
+    if (resultEl) resultEl.style.color = '#16a34a';
+  } catch (e) {
+    if (resultEl) { resultEl.textContent = `✗ ${e.message}`; resultEl.style.color = '#ef4444'; }
+  }
 }
 
 async function submitCampaign() {
   const eligible = cb.selected.filter(c => cb.jobData[c.id]?.status === 'done');
   if (!eligible.length) return;
+
+  if (!cb.sequenceId) return showToast('Please select an Overloop sequence before launching.');
 
   // Check if any selected companies are still scraping
   const pending = cb.selected.filter(c => { const s = cb.jobData[c.id]?.status; return !s || s === 'pending'; });
@@ -2354,6 +2436,7 @@ async function submitCampaign() {
       companies: [...cb.selected],
       emailSteps: cb.emailSteps.map(s => ({ ...s })),
       companyOverrides: JSON.parse(JSON.stringify(cb.companyEmailOverrides)),
+      sequenceId: cb.sequenceId,
       jobDataSnapshot: Object.fromEntries(cb.selected.map(c => [c.id, { ...(cb.jobData[c.id] || {}) }])),
       status: 'queued',
       queuedAt: Date.now(),
@@ -2368,15 +2451,15 @@ async function submitCampaign() {
   }
 
   // All done — launch immediately
-  _executeLaunch(eligible, cb.campaignName, cb.emailSteps, cb.companyEmailOverrides,
+  _executeLaunch(eligible, cb.campaignName, cb.emailSteps, cb.companyEmailOverrides, cb.sequenceId,
     document.getElementById('btnLaunch'), document.getElementById('cbLaunchResult'));
 }
 
-async function _executeLaunch(eligible, campaignName, emailSteps, companyOverrides, btn, resultEl) {
-  if (btn) { btn.disabled = true; btn.textContent = 'Creating sequence…'; }
+async function _executeLaunch(eligible, campaignName, emailSteps, companyOverrides, sequenceId, btn, resultEl) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Enrolling…'; }
   if (resultEl) resultEl.innerHTML = `
     <div class="enroll-result" style="background:#f1f5f9;color:#475569;margin-bottom:12px;">
-      <span class="spinner"></span> Creating Overloop sequence and enrolling contacts — this may take a minute…
+      <span class="spinner"></span> Enrolling contacts into Overloop — this may take a minute…
     </div>`;
 
   const companies = eligible.map(c => {
@@ -2384,15 +2467,10 @@ async function _executeLaunch(eligible, campaignName, emailSteps, companyOverrid
     return { id: c.id, name: c.name, jobSummary: d?.override || d?.summary || null, primaryJobUrl: d?.primaryUrl || null };
   });
 
-  const steps    = (emailSteps || []).filter(s => s.body?.trim());
-  const overrides = Object.fromEntries(
-    Object.entries(companyOverrides || {}).filter(([, steps]) => steps && steps.some(s => s != null))
-  );
-
   try {
     const r = await fetch('/api/overloop/create-and-enroll', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ companies, campaignName, emailSteps: steps, companyOverrides: overrides }),
+      body: JSON.stringify({ companies, campaignName, existingSequenceId: sequenceId }),
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || 'Campaign launch failed');
@@ -2404,7 +2482,7 @@ async function _executeLaunch(eligible, campaignName, emailSteps, companyOverrid
     }
 
     const cls = data.failed > 0 ? 'err' : 'ok';
-    let msg = `&#10003; Sequence "${esc(data.sequenceName)}" created in Overloop. ${data.enrolled} contact${data.enrolled !== 1 ? 's' : ''} enrolled.`;
+    let msg = `&#10003; ${data.enrolled} contact${data.enrolled !== 1 ? 's' : ''} enrolled into "${esc(data.sequenceName)}" in Overloop.`;
     if (data.failed)            msg += ` ${data.failed} enrollment${data.failed !== 1 ? 's' : ''} failed.`;
     if (data.skippedNoContacts) msg += ` ${data.skippedNoContacts} companies had no contactable emails.`;
     if (resultEl) resultEl.innerHTML = `<div class="enroll-result ${cls}" style="margin-bottom:12px;">${msg}</div>`;
@@ -2457,7 +2535,7 @@ async function _launchQueuedCampaign(q) {
   if (!eligible.length) { q.status = 'failed'; q.result = { error: 'No companies with jobs found after scraping.' }; return; }
 
   try {
-    const data = await _executeLaunch(eligible, q.name, q.emailSteps, q.companyOverrides, null, null);
+    const data = await _executeLaunch(eligible, q.name, q.emailSteps, q.companyOverrides, q.sequenceId, null, null);
     q.status = 'done';
     q.result = data;
   } catch (e) {
