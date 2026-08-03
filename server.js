@@ -477,6 +477,10 @@ app.post('/api/overloop/create-and-enroll', async (req, res) => {
   const isEmailStr = s => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((s || '').trim());
 
   const byCompany = {};
+  // Inject demo company contact (not in Bullhorn SQL)
+  if (companies.some(c => String(c.id) === '99999')) {
+    byCompany['99999'] = [{ email: 'zkhan@cgrteam.com', firstName: 'Zohair', lastName: 'Khan' }];
+  }
   for (const row of contactRows) {
     const cid       = String(row.Companyid);
     const lastIsEml = isEmailStr(row.LastName);
@@ -753,7 +757,16 @@ app.get('/api/stale-companies', async (req, res) => {
       };
     });
 
-    res.json({ data: result, total: result.length, bdOwners });
+    // Inject demo company (fake ID 99999 — used for Campaign Builder testing)
+    const DEMO = {
+      id: 99999, name: 'Example Company (Demo)', industry: 'Energy / Marine',
+      dhScore: null, dhTier: 4, contractingScore: null, contractingTier: 4,
+      bdOwner: 'Zohair Khan', bdOwnerInitials: 'ZK', ownerAM: null, website: null,
+    };
+    result.unshift(DEMO);
+    const allBdOwners = ['Zohair Khan', ...bdOwners.filter(b => b !== 'Zohair Khan')];
+
+    res.json({ data: result, total: result.length, bdOwners: allBdOwners });
   } catch (e) {
     console.error('stale-companies:', e.message);
     res.status(500).json({ error: e.message });
@@ -764,6 +777,14 @@ app.get('/api/stale-companies', async (req, res) => {
 app.get('/api/company/:id/contacts', async (req, res) => {
   const id = parseInt(req.params.id);
   if (!id) return res.status(400).json({ error: 'Invalid ID' });
+
+  // Demo company — return hardcoded contact
+  if (id === 99999) {
+    return res.json({
+      Sales: [{ id: 1, name: 'Zohair Khan', title: 'Business Development Manager', email: 'zkhan@cgrteam.com', phone: '', initials: 'ZK' }],
+      Recruiting: [], HR: [], Ops: [], Other: []
+    });
+  }
   try {
     const isEmailStr = s => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((s || '').trim());
     const hasEmail   = r => isEmailStr(r.Email1) || isEmailStr(r.Email2) || isEmailStr(r.LastName);
@@ -953,6 +974,19 @@ function runJobScraper(companyName, websiteUrl) {
 // External job postings — Indeed RSS + Monster + career page + JobSpy
 app.get('/api/company/:id/external-jobs', async (req, res) => {
   const id       = parseInt(req.params.id);
+
+  // Demo company — return hardcoded jobs instantly
+  if (id === 99999) {
+    return res.json({
+      data: [
+        { title: 'ROV Pilot',       url: 'https://example.com/jobs/rov-pilot',       source: 'Demo' },
+        { title: 'NDT Technician',  url: 'https://example.com/jobs/ndt-technician',  source: 'Demo' },
+        { title: 'Pipefitter',      url: 'https://example.com/jobs/pipefitter',       source: 'Demo' },
+      ],
+      companyName: 'Example Company (Demo)', error: null
+    });
+  }
+
   const cacheKey = `ext-${id}`;
   const cached   = externalJobCache.get(cacheKey);
   if (cached && Date.now() - cached.ts < 60 * 60 * 1000) return res.json(cached.data);
