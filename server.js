@@ -115,12 +115,16 @@ app.get('/api/overloop/sequences', async (req, res) => {
     const r = await axios.get(`${OVERLOOP_BASE}/sequences?page[size]=100`, { headers: overloopHeaders(key) });
     const arr = Array.isArray(r.data?.data) ? r.data.data : [];
     const first = arr[0];
-    const sequences = arr.map(s => ({
-      id:   s.id,
-      name: s.attributes?.name || s.attributes?.title || s.name || `Sequence ${s.id}`,
-    }));
-    // _debug helps diagnose attribute key names if names come back undefined
-    res.json({ sequences, _debug: { count: arr.length, firstKeys: first ? Object.keys(first.attributes || first) : [] } });
+    const sequences = arr.map(s => {
+      // Overloop JSON:API: id is top-level, name is in attributes
+      const id   = s.id ?? s.sequence_id ?? s.campaign_id;
+      const attr = s.attributes || s;
+      const name = attr.name || attr.title || attr.subject || attr.campaign_name || (id ? `Sequence ${id}` : null);
+      if (!id || !name) return null;
+      return { id: String(id), name };
+    }).filter(Boolean);
+    // _debug: first raw item so we can see actual field names in Network tab
+    res.json({ sequences, _debug: { count: arr.length, firstRaw: first || null } });
   } catch (e) {
     const status = e.response?.status;
     if (status === 401 || status === 403) return res.status(400).json({ error: 'Invalid Overloop API key. Contact your admin.' });
