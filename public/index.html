@@ -2363,7 +2363,19 @@ async function _cbLoadSequencePicker() {
     if (!r.ok) throw new Error(d.error || 'Failed to load sequences');
     const seqs = d.sequences || [];
     if (!seqs.length) {
-      wrap.innerHTML = `<div style="color:#ef4444;font-size:12px;">No sequences found in your Overloop account. Create one in Overloop first, then come back.</div>`;
+      // Overloop returned 0 sequences — allow manual ID entry as fallback
+      wrap.innerHTML = `
+        <div style="color:#b45309;font-size:12px;margin-bottom:8px;">
+          No sequences returned from Overloop API (your plan may not expose them via list endpoint).
+          Paste the sequence ID manually — find it in the Overloop URL when viewing a sequence.
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input id="cbSeqManualId" type="text" placeholder="Sequence ID (e.g. 12345)"
+            style="flex:1;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;"
+            oninput="_cbOnSeqChange(this.value.trim())"/>
+          <input id="cbSeqManualName" type="text" placeholder="Sequence name (optional)"
+            style="flex:1;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;"/>
+        </div>`;
       return;
     }
     // Pre-select previously chosen sequence if still valid
@@ -2423,6 +2435,11 @@ async function submitCampaign() {
   const eligible = cb.selected.filter(c => cb.jobData[c.id]?.status === 'done');
   if (!eligible.length) return;
 
+  // Accept manual ID entry from fallback input
+  if (!cb.sequenceId) {
+    const manualEl = document.getElementById('cbSeqManualId');
+    if (manualEl?.value?.trim()) _cbOnSeqChange(manualEl.value.trim());
+  }
   if (!cb.sequenceId) return showToast('Please select an Overloop sequence before launching.');
 
   // Check if any selected companies are still scraping
