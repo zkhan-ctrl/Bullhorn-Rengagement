@@ -112,15 +112,15 @@ app.get('/api/overloop/sequences', async (req, res) => {
   const key = req.currentUser?.overloop_key;
   if (!key) return res.status(400).json({ error: 'No Overloop API key configured for your account. Contact your admin.' });
   try {
-    // Fetch up to 100 sequences; some Overloop plans paginate at 25
     const r = await axios.get(`${OVERLOOP_BASE}/sequences?page[size]=100`, { headers: overloopHeaders(key) });
-    const raw = r.data.data || r.data || [];
-    const arr = Array.isArray(raw) ? raw : Object.values(raw);
+    const arr = Array.isArray(r.data?.data) ? r.data.data : [];
+    const first = arr[0];
     const sequences = arr.map(s => ({
       id:   s.id,
       name: s.attributes?.name || s.attributes?.title || s.name || `Sequence ${s.id}`,
     }));
-    res.json({ sequences, _debug: { count: arr.length, status: r.status } });
+    // _debug helps diagnose attribute key names if names come back undefined
+    res.json({ sequences, _debug: { count: arr.length, firstKeys: first ? Object.keys(first.attributes || first) : [] } });
   } catch (e) {
     const status = e.response?.status;
     if (status === 401 || status === 403) return res.status(400).json({ error: 'Invalid Overloop API key. Contact your admin.' });
