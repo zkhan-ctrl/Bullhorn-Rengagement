@@ -97,7 +97,7 @@ app.get('/api/me', (req, res) => {
 });
 
 // ─── Overloop outreach integration ────────────────────────────────────────────
-const OVERLOOP_BASE = 'https://api.overloop.com/public/v1';
+const OVERLOOP_BASE = 'https://api.overloop.ai/public/v1';
 
 function overloopHeaders(key) {
   return {
