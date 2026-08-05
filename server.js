@@ -14,10 +14,11 @@ try {
   const rawUsers = JSON.parse(process.env.USERS || '[]');
   for (const u of rawUsers) {
     USERS_MAP.set(u.email.toLowerCase(), {
-      name:         u.name,
-      hash:         bcrypt.hashSync(u.password, 10),
-      overloop_key: u.overloop_key,
-      admin:        !!u.admin,
+      name:          u.name,
+      hash:          bcrypt.hashSync(u.password, 10),
+      overloop_key:  u.overloop_key,
+      instantly_key: u.instantly_key,
+      admin:         !!u.admin,
     });
   }
   console.log(`✅ Auth: ${USERS_MAP.size} users loaded`);
@@ -79,7 +80,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
 
   const token = crypto.randomBytes(32).toString('hex');
   AUTH_TOKENS.set(token, {
-    user: { email: email.toLowerCase().trim(), name: user.name, admin: user.admin, overloop_key: user.overloop_key },
+    user: { email: email.toLowerCase().trim(), name: user.name, admin: user.admin, overloop_key: user.overloop_key, instantly_key: user.instantly_key },
     expires: Date.now() + 30 * 24 * 60 * 60 * 1000,
   });
   res.json({ ok: true, token, name: user.name, admin: user.admin });
@@ -473,6 +474,126 @@ app.post('/api/overloop/create-and-enroll', async (req, res) => {
   }
 
   res.json({ listName, campaignName: campaignName || listName, enrolled, failed, skippedNoContacts });
+});
+
+// ─── Instantly.ai outreach integration ───────────────────────────────────────
+const INSTANTLY_BASE = 'https://api.instantly.ai';
+
+function instantlyHeaders(key) {
+  return { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' };
+}
+
+// List campaigns for dropdown
+app.get('/api/instantly/campaigns', async (req, res) => {
+  const key = req.currentUser?.instantly_key;
+  if (!key) return res.status(400).json({ error: 'No Instantly API key configured for your account.' });
+  try {
+    const r = await axios.get(`${INSTANTLY_BASE}/api/v2/campaigns`, {
+      headers: instantlyHeaders(key),
+      params: { limit: 100 },
+    });
+    const items = Array.isArray(r.data?.items) ? r.data.items : (Array.isArray(r.data) ? r.data : []);
+    res.json({ campaigns: items.map(c => ({ id: c.id, name: c.name, status: c.status })) });
+  } catch (e) {
+    const detail = e.response?.data?.message || e.message;
+    res.status(e.response?.status || 500).json({ error: detail });
+  }
+});
+
+// Test-enroll a single lead into an Instantly campaign
+app.post('/api/instantly/test-enroll', async (req, res) => {
+  const key = req.currentUser?.instantly_key;
+  if (!key) return res.status(400).json({ error: 'No Instantly API key configured for your account.' });
+
+  const { campaignId, email, firstName = '', lastName = '', companyName = '', jobSummary = '' } = req.body || {};
+  if (!email)      return res.status(400).json({ error: 'email is required' });
+  if (!campaignId) return res.status(400).json({ error: 'campaignId is required' });
+
+  const lead = { email, first_name: firstName, last_name: lastName, company_name: companyName };
+  if (jobSummary) lead.personalization = jobSummary;
+
+  try {
+    await axios.post(`${INSTANTLY_BASE}/api/v2/leads/add`, {
+      campaign_id: campaignId, leads: [lead], skip_if_in_workspace: false,
+    }, { headers: instantlyHeaders(key) });
+    res.json({ ok: true, campaignId });
+  } catch (e) {
+    const detail = e.response?.data?.message || e.message;
+    res.status(e.response?.status || 400).json({ error: detail });
+  }
+});
+
+// Campaign Builder bulk-enroll into an Instantly campaign
+app.post('/api/instantly/create-and-enroll', async (req, res) => {
+  const key = req.currentUser?.instantly_key;
+  if (!key) return res.status(400).json({ error: 'No Instantly API key configured for your account.' });
+
+  const { companies, campaignName, campaignId } = req.body || {};
+  if (!Array.isArray(companies) || !companies.length) return res.status(400).json({ error: 'No companies provided.' });
+  if (!campaignId) return res.status(400).json({ error: 'No campaign selected.' });
+
+  const realIds = companies.map(c => parseInt(c.id)).filter(id => id && id !== 99999);
+  let contactRows = [];
+  if (realIds.length) {
+    try {
+      contactRows = await cdataQuery(
+        `SELECT TOP 2000 Companyid, FirstName, LastName, Email1, Email2
+         FROM ${T('ClientContact')}
+         WHERE Companyid IN (${realIds.join(',')})
+         ORDER BY Companyid`
+      );
+    } catch (e) {
+      return res.status(500).json({ error: `Failed to fetch contacts: ${e.message}` });
+    }
+  }
+
+  const isEmailStr = s => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((s || '').trim());
+  const byCompany = {};
+
+  if (companies.some(c => String(c.id) === '99999')) {
+    byCompany['99999'] = [{ email: 'zkhan@cgrteam.com', firstName: 'Zohair', lastName: 'Khan' }];
+  }
+  for (const row of contactRows) {
+    const cid      = String(row.Companyid);
+    const lastIsEml = isEmailStr(row.LastName);
+    const email    = (row.Email1 || row.Email2 || (lastIsEml ? row.LastName : '') || '').trim();
+    if (!email) continue;
+    if (!byCompany[cid]) byCompany[cid] = [];
+    byCompany[cid].push({ email, firstName: row.FirstName || '', lastName: lastIsEml ? '' : (row.LastName || '') });
+  }
+
+  const allLeads = [];
+  let skippedNoContacts = 0;
+
+  for (const co of companies) {
+    const contacts = byCompany[String(co.id)] || [];
+    if (!contacts.length) { skippedNoContacts++; continue; }
+    for (const ct of contacts) {
+      const lead = { email: ct.email, first_name: ct.firstName, last_name: ct.lastName, company_name: co.name || '' };
+      if (co.jobSummary)    lead.personalization = co.jobSummary;
+      if (co.primaryJobUrl) lead.website          = co.primaryJobUrl;
+      allLeads.push(lead);
+    }
+  }
+
+  if (!allLeads.length) {
+    return res.json({ campaignId, campaignName: campaignName || '', enrolled: 0, failed: 0, skippedNoContacts });
+  }
+
+  let enrolled = 0, failed = 0;
+  for (let i = 0; i < allLeads.length; i += 1000) {
+    const chunk = allLeads.slice(i, i + 1000);
+    try {
+      await axios.post(`${INSTANTLY_BASE}/api/v2/leads/add`, {
+        campaign_id: campaignId, leads: chunk, skip_if_in_workspace: false,
+      }, { headers: instantlyHeaders(key) });
+      enrolled += chunk.length;
+    } catch (e) {
+      failed += chunk.length;
+    }
+  }
+
+  res.json({ campaignId, campaignName: campaignName || '', enrolled, failed, skippedNoContacts });
 });
 
 const externalJobCache = new Map();

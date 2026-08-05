@@ -2329,12 +2329,14 @@ function _cbGoStep5() {
         <div class="launch-stat"><span class="launch-stat-label">Personalization</span><span class="launch-stat-value">{{job_title}} — unique per company</span></div>
       </div>
       <div style="border:1px solid #e2e8f0;border-radius:10px;padding:20px;margin-bottom:16px;">
-        <div style="font-size:13px;font-weight:600;color:#0f172a;margin-bottom:4px;">Overloop List Name</div>
-        <div style="font-size:11px;color:#94a3b8;margin-bottom:10px;">In Overloop: create a List, connect it to your automation, then enter that list name here. Contacts added to this list auto-enroll in the automation.</div>
-        <input id="cbSeqManualId" type="text" placeholder="e.g. CGR Outreach Aug 2026"
-          style="width:100%;box-sizing:border-box;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;outline:none;transition:border-color 0.15s;"
-          oninput="_cbOnSeqChange(this.value.trim())"
-          onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='#e2e8f0'"/>
+        <div style="font-size:13px;font-weight:600;color:#0f172a;margin-bottom:4px;">Instantly Campaign</div>
+        <div style="font-size:11px;color:#94a3b8;margin-bottom:10px;">Select the Instantly campaign to enroll contacts into. Campaigns are loaded from your Instantly account.</div>
+        <select id="cbCampaignSelect"
+          style="width:100%;box-sizing:border-box;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;outline:none;background:white;color:#0f172a;cursor:pointer;transition:border-color 0.15s;"
+          onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='#e2e8f0'"
+          onchange="_cbOnSeqChange(this.value)">
+          <option value="">Loading campaigns…</option>
+        </select>
         <div id="cbTestEnrollWrap" style="display:none;margin-top:12px;">
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
             <button onclick="_cbTestEnroll()" style="font-size:11px;padding:5px 12px;border:1px solid #e2e8f0;border-radius:6px;background:white;color:#475569;cursor:pointer;">Send test to zkhan@nexirise.com</button>
@@ -2343,7 +2345,7 @@ function _cbGoStep5() {
         </div>
       </div>
       <div class="modal-hint" style="margin-bottom:16px;">
-        All contacts with valid email addresses from each company will be enrolled into the selected Overloop sequence. Job details are set per contact so Overloop's <code>{{prospect.job_title}}</code> variable is unique per company.
+        All contacts with valid email addresses from each company will be enrolled into the selected Instantly campaign. The <code>personalization</code> field is unique per company based on their scraped job postings.
       </div>
       <div id="cbLaunchResult"></div>
       <div class="campaign-nav">
@@ -2352,11 +2354,29 @@ function _cbGoStep5() {
       </div>
     </div>`;
 
-  // Restore previously entered ID if user navigated back
-  const input = document.getElementById('cbSeqManualId');
-  if (input && cb.sequenceId) {
-    input.value = cb.sequenceId;
-    _cbOnSeqChange(cb.sequenceId);
+  _cbLoadInstantlyCampaigns();
+}
+
+async function _cbLoadInstantlyCampaigns() {
+  const sel = document.getElementById('cbCampaignSelect');
+  if (!sel) return;
+  try {
+    const r = await fetch('/api/instantly/campaigns');
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Failed to load campaigns');
+    const campaigns = d.campaigns || [];
+    if (!campaigns.length) {
+      sel.innerHTML = '<option value="">No campaigns found in your Instantly account</option>';
+      return;
+    }
+    sel.innerHTML = '<option value="">— Select a campaign —</option>' +
+      campaigns.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
+    if (cb.sequenceId) {
+      sel.value = cb.sequenceId;
+      if (sel.value) _cbOnSeqChange(sel.value);
+    }
+  } catch (e) {
+    sel.innerHTML = `<option value="">Error: ${esc(e.message)}</option>`;
   }
 }
 
@@ -2375,18 +2395,18 @@ async function _cbTestEnroll() {
   const resultEl = document.getElementById('cbTestEnrollResult');
   if (resultEl) { resultEl.textContent = 'Enrolling…'; resultEl.style.color = '#94a3b8'; }
   try {
-    const r = await fetch('/api/overloop/test-enroll', {
+    const r = await fetch('/api/instantly/test-enroll', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        listName: cb.sequenceId,
+        campaignId: cb.sequenceId,
         email: 'zkhan@nexirise.com',
         firstName: 'Zohair', lastName: 'Khan',
-        companyName: 'Nexirise (Test)', jobTitle: 'Senior Software Engineer — 3 open roles in Dallas',
+        companyName: 'Nexirise (Test)', jobSummary: 'Senior Software Engineer — 3 open roles in Dallas',
       }),
     });
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'Test failed');
-    if (resultEl) { resultEl.textContent = `✓ Test lead added to list "${d.listName}"${d.prospectId ? ` (id ${d.prospectId})` : ''}`; resultEl.style.color = '#16a34a'; }
+    if (resultEl) { resultEl.textContent = '✓ Test lead sent to Instantly — check your campaign'; resultEl.style.color = '#16a34a'; }
   } catch (e) {
     if (resultEl) { resultEl.textContent = `✗ ${e.message}`; resultEl.style.color = '#ef4444'; }
   }
@@ -2396,12 +2416,7 @@ async function submitCampaign() {
   const eligible = cb.selected.filter(c => cb.jobData[c.id]?.status === 'done');
   if (!eligible.length) return;
 
-  // Accept manual ID entry from fallback input
-  if (!cb.sequenceId) {
-    const manualEl = document.getElementById('cbSeqManualId');
-    if (manualEl?.value?.trim()) _cbOnSeqChange(manualEl.value.trim());
-  }
-  if (!cb.sequenceId) return showToast('Please select an Overloop sequence before launching.');
+  if (!cb.sequenceId) return showToast('Please select an Instantly campaign before launching.');
 
   // Check if any selected companies are still scraping
   const pending = cb.selected.filter(c => { const s = cb.jobData[c.id]?.status; return !s || s === 'pending'; });
@@ -2423,7 +2438,7 @@ async function submitCampaign() {
     campaignQueue.push(qEntry);
     _startQueuePoll();
     _updateQueueBadge();
-    showToast(`Campaign queued — will auto-launch to Overloop when all ${pending.length} pending scrapes finish.`);
+    showToast(`Campaign queued — will auto-launch to Instantly when all ${pending.length} pending scrapes finish.`);
     switchSection('queue');
     return;
   }
@@ -2437,7 +2452,7 @@ async function _executeLaunch(eligible, campaignName, emailSteps, companyOverrid
   if (btn) { btn.disabled = true; btn.textContent = 'Enrolling…'; }
   if (resultEl) resultEl.innerHTML = `
     <div class="enroll-result" style="background:#f1f5f9;color:#475569;margin-bottom:12px;">
-      <span class="spinner"></span> Enrolling contacts into Overloop — this may take a minute…
+      <span class="spinner"></span> Enrolling contacts into Instantly — this may take a moment…
     </div>`;
 
   const companies = eligible.map(c => {
@@ -2446,9 +2461,9 @@ async function _executeLaunch(eligible, campaignName, emailSteps, companyOverrid
   });
 
   try {
-    const r = await fetch('/api/overloop/create-and-enroll', {
+    const r = await fetch('/api/instantly/create-and-enroll', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ companies, campaignName, listName: sequenceId }),
+      body: JSON.stringify({ companies, campaignName, campaignId: sequenceId }),
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || 'Campaign launch failed');
@@ -2460,9 +2475,9 @@ async function _executeLaunch(eligible, campaignName, emailSteps, companyOverrid
     }
 
     const cls = data.failed > 0 ? 'err' : 'ok';
-    let msg = `&#10003; ${data.enrolled} contact${data.enrolled !== 1 ? 's' : ''} added to list "${esc(data.listName || data.campaignName)}" in Overloop.`;
-    if (data.failed)            msg += ` ${data.failed} enrollment${data.failed !== 1 ? 's' : ''} failed.`;
-    if (data.skippedNoContacts) msg += ` ${data.skippedNoContacts} companies had no contactable emails.`;
+    let msg = `&#10003; ${data.enrolled} contact${data.enrolled !== 1 ? 's' : ''} enrolled in Instantly campaign "${esc(data.campaignName || campaignName || '')}"`;
+    if (data.failed)            msg += `. ${data.failed} enrollment${data.failed !== 1 ? 's' : ''} failed.`;
+    if (data.skippedNoContacts) msg += `. ${data.skippedNoContacts} companies had no contactable emails.`;
     if (resultEl) resultEl.innerHTML = `<div class="enroll-result ${cls}" style="margin-bottom:12px;">${msg}</div>`;
     if (btn) btn.textContent = '&#10003; Done';
     return data;
