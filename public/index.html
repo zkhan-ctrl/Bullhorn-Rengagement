@@ -1267,18 +1267,22 @@ function copyNote(cId) {
 function openInOutlook(cId, draftKey) {
   const c    = allCompanies.find(x => x.id === cId);
   const data = cardData[cId];
-  if (!data) return;
+  if (!data) { showToast('Card data not loaded yet — expand the card first'); return; }
   const ct    = (data.allContacts || []).find(x => x.id === draftKey);
   const email = ct?.email || '';
-  if (!email) { showToast('No email address for this contact'); return; }
-  const el      = document.getElementById(`draft-${cId}-${draftKey}`);
-  const body    = el ? el.innerText : (data.contactDrafts?.[draftKey] || '');
+  if (!email) { showToast('No email address found for this contact'); return; }
+  // mailto: with full body hits OS URL length limits and silently fails.
+  // Instead: copy body to clipboard, open compose window with recipient + subject only.
+  const el   = document.getElementById(`draft-${cId}-${draftKey}`);
+  const body = el ? el.innerText : (data.contactDrafts?.[draftKey] || '');
+  navigator.clipboard.writeText(body).catch(() => {});
   const subject = `Following up — ${c?.name || ''}`;
-  const a       = document.createElement('a');
-  a.href        = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const a = document.createElement('a');
+  a.href  = `mailto:${email}?subject=${encodeURIComponent(subject)}`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
+  showToast('Outlook opened — email body copied to clipboard, just paste it in (Ctrl+V)');
 }
 
 // ─── Header stats (reactive to BD filter, always shows both DH + CT) ─────────
