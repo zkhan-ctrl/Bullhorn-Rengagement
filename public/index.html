@@ -1271,18 +1271,15 @@ function openInOutlook(cId, draftKey) {
   const ct    = (data.allContacts || []).find(x => x.id === draftKey);
   const email = ct?.email || '';
   if (!email) { showToast('No email address found for this contact'); return; }
-  // mailto: with full body hits OS URL length limits and silently fails.
-  // Instead: copy body to clipboard, open compose window with recipient + subject only.
-  const el   = document.getElementById(`draft-${cId}-${draftKey}`);
-  const body = el ? el.innerText : (data.contactDrafts?.[draftKey] || '');
-  navigator.clipboard.writeText(body).catch(() => {});
+  const el      = document.getElementById(`draft-${cId}-${draftKey}`);
+  const body    = el ? el.innerText : (data.contactDrafts?.[draftKey] || '');
   const subject = `Following up — ${c?.name || ''}`;
-  const a = document.createElement('a');
-  a.href  = `mailto:${email}?subject=${encodeURIComponent(subject)}`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  showToast('Outlook opened — email body copied to clipboard, just paste it in (Ctrl+V)');
+  // Open Outlook Web compose — works for all Office 365 users without OS mail client config
+  const url = 'https://outlook.office.com/mail/deeplink/compose'
+    + '?to='      + encodeURIComponent(email)
+    + '&subject=' + encodeURIComponent(subject)
+    + '&body='    + encodeURIComponent(body);
+  window.open(url, '_blank');
 }
 
 // ─── Header stats (reactive to BD filter, always shows both DH + CT) ─────────
