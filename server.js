@@ -510,7 +510,7 @@ app.post('/api/instantly/test-enroll', async (req, res) => {
   if (!campaignId) return res.status(400).json({ error: 'campaignId is required' });
 
   const lead = { email, first_name: firstName, last_name: lastName, company_name: companyName };
-  if (jobSummary) lead.personalization = jobSummary;
+  if (jobSummary) lead.custom_variables = { consolidated_job_descriptions: jobSummary };
 
   try {
     await axios.post(`${INSTANTLY_BASE}/api/v2/leads/add`, {
@@ -570,8 +570,8 @@ app.post('/api/instantly/create-and-enroll', async (req, res) => {
     if (!contacts.length) { skippedNoContacts++; continue; }
     for (const ct of contacts) {
       const lead = { email: ct.email, first_name: ct.firstName, last_name: ct.lastName, company_name: co.name || '' };
-      if (co.jobSummary)    lead.personalization = co.jobSummary;
-      if (co.primaryJobUrl) lead.website          = co.primaryJobUrl;
+      if (co.jobSummary)    lead.custom_variables = { consolidated_job_descriptions: co.jobSummary };
+      if (co.primaryJobUrl) lead.website           = co.primaryJobUrl;
       allLeads.push(lead);
     }
   }

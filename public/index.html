@@ -17,25 +17,24 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 #mainContent { margin-left: 224px; flex: 1; display: flex; flex-direction: column; min-height: 100vh; background: #f0f4f8; }
 
 /* SIDEBAR LOGO */
-.sb-logo { padding: 16px 14px 13px; border-bottom: 1px solid rgba(255,255,255,0.07); display: flex; align-items: center; gap: 10px; }
-.sb-logo-mark { width: 38px; height: 38px; background: linear-gradient(135deg, #f97316, #ea580c); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 12px; color: white; flex-shrink: 0; letter-spacing: -0.5px; box-shadow: 0 2px 8px rgba(249,115,22,0.35); }
-.sb-logo-text { font-size: 13px; font-weight: 700; color: white; line-height: 1.2; }
-.sb-logo-sub { font-size: 10px; color: #475569; font-weight: 500; margin-top: 1px; }
+.sb-logo { padding: 14px 14px 12px; border-bottom: 1px solid rgba(255,255,255,0.07); display: flex; flex-direction: column; gap: 3px; }
+.sb-logo-img { height: 26px; object-fit: contain; object-position: left center; max-width: 180px; }
+.sb-logo-sub { font-size: 10px; color: #475569; font-weight: 500; }
 
 /* SIDEBAR NAV */
 .sb-nav { flex: 1; padding: 10px 8px; overflow-y: auto; }
 .sb-section-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.9px; color: #475569; padding: 8px 8px 4px; }
 .nav-item { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 8px; border: none; background: transparent; color: #94a3b8; font-size: 12px; font-weight: 600; cursor: pointer; width: 100%; text-align: left; transition: all 0.15s; font-family: inherit; white-space: nowrap; }
 .nav-item:hover { background: rgba(255,255,255,0.07); color: #e2e8f0; }
-.nav-item.active { background: rgba(99,102,241,0.2); color: #a5b4fc; }
-.nav-item.active .nav-icon { color: #818cf8; }
+.nav-item.active { background: rgba(34,133,199,0.2); color: #93c5e8; }
+.nav-item.active .nav-icon { color: #5aaad4; }
 .nav-item.tab-stale.active { background: rgba(239,68,68,0.15); color: #fca5a5; }
 .nav-item.tab-stale.active .nav-icon { color: #f87171; }
 .nav-item.tab-campaign { margin-top: 4px; }
 .nav-item.tab-campaign.active { background: rgba(180,83,9,0.25); color: #fbbf24; }
 .nav-item.tab-campaign.active .nav-icon { color: #f97316; }
-.nav-item.tab-queue.active { background: rgba(99,102,241,0.2); color: #a5b4fc; }
-.nav-item.tab-queue.active .nav-icon { color: #818cf8; }
+.nav-item.tab-queue.active { background: rgba(34,133,199,0.2); color: #93c5e8; }
+.nav-item.tab-queue.active .nav-icon { color: #5aaad4; }
 /* CAMPAIGN QUEUE VIEW */
 .cq-card { background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
 .cq-card.cq-done { border-color: #bbf7d0; background: #f0fdf4; }
@@ -52,7 +51,7 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 .nav-item.active .nav-icon { opacity: 1; }
 .nav-label { flex: 1; }
 .nav-badge { background: rgba(255,255,255,0.08); color: #64748b; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 10px; min-width: 22px; text-align: center; }
-.nav-item.active .nav-badge { background: rgba(99,102,241,0.3); color: #a5b4fc; }
+.nav-item.active .nav-badge { background: rgba(34,133,199,0.3); color: #93c5e8; }
 .nav-item.tab-stale.active .nav-badge { background: rgba(239,68,68,0.2); color: #fca5a5; }
 .nav-item.tab-campaign.active .nav-badge { background: rgba(249,115,22,0.25); color: #fb923c; }
 .sb-divider { height: 1px; background: rgba(255,255,255,0.07); margin: 6px 8px; }
@@ -89,10 +88,10 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 .header-stats { display: none; }
 
 /* BTN SCAN (topbar version) */
-.btn-scan { background: #6366f1; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; transition: background 0.15s; display: flex; align-items: center; gap: 5px; }
-.btn-scan:hover { background: #4f46e5; }
+.btn-scan { background: #2285c7; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; transition: background 0.15s; display: flex; align-items: center; gap: 5px; }
+.btn-scan:hover { background: #1a6fa3; }
 .btn-scan:disabled { background: #94a3b8; cursor: default; }
-.ai-badge { background: #7c3aed; color: white; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; }
+.ai-badge { background: #2285c7; color: white; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; }
 
 /* LOGIN OVERLAY */
 #loginOverlay { position: fixed; inset: 0; z-index: 9999; background: #0a0f1e; display: flex; align-items: center; justify-content: center; }
@@ -110,10 +109,10 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 .login-btn { width: 100%; padding: 12px; background: #f97316; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: background 0.15s; margin-top: 4px; }
 .login-btn:hover:not(:disabled) { background: #ea6c05; }
 .login-btn:disabled { background: #1e3a5f; color: #475569; cursor: not-allowed; }
-.ai-badge { background: #7c3aed; color: white; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; }
+.ai-badge { background: #2285c7; color: white; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; }
 
 /* SCAN BAR */
-.scan-bar { height: 3px; background: linear-gradient(90deg,#6366f1,#f97316,#6366f1); background-size: 200% 100%; display: none; }
+.scan-bar { height: 3px; background: linear-gradient(90deg,#2285c7,#f97316,#2285c7); background-size: 200% 100%; display: none; }
 .scan-bar.active { display: block; animation: scanAnim 1.2s linear infinite; }
 @keyframes scanAnim { 0%{background-position:0% 0%} 100%{background-position:200% 0%} }
 
@@ -121,11 +120,11 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 .filters { background: white; padding: 10px 20px; display: flex; gap: 8px; align-items: center; border-bottom: 1px solid #e2e8f0; flex-wrap: wrap; }
 .filter-label { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
 .filter-select, .filter-search { border: 1px solid #e2e8f0; border-radius: 6px; padding: 5px 10px; font-size: 12px; color: #1e2a3a; background: white; outline: none; }
-.filter-select:focus, .filter-search:focus { border-color: #6366f1; }
+.filter-select:focus, .filter-search:focus { border-color: #2285c7; }
 .filter-search { width: 160px; }
 .filter-toggle { border: 1px solid #e2e8f0; border-radius: 6px; padding: 5px 10px; font-size: 12px; font-weight: 600; color: #64748b; background: white; cursor: pointer; white-space: nowrap; transition: all 0.15s; }
-.filter-toggle:hover { border-color: #6366f1; color: #6366f1; }
-.filter-toggle.active { background: #eef2ff; border-color: #6366f1; color: #4f46e5; }
+.filter-toggle:hover { border-color: #2285c7; color: #2285c7; }
+.filter-toggle.active { background: #eef2ff; border-color: #2285c7; color: #1a6fa3; }
 .filter-spacer { flex: 1; }
 .result-count { font-size: 11px; color: #94a3b8; white-space: nowrap; }
 
@@ -142,7 +141,7 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 /* CARD */
 .card { background: white; border-radius: 10px; border: 1px solid #e2e8f0; overflow: hidden; transition: box-shadow 0.15s; }
 .card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
-.card.expanded { box-shadow: 0 4px 16px rgba(0,0,0,0.1); border-color: #c7d2fe; }
+.card.expanded { box-shadow: 0 4px 16px rgba(0,0,0,0.1); border-color: #b3d4ec; }
 
 .card-header { padding: 12px 16px; display: flex; align-items: flex-start; gap: 12px; cursor: pointer; user-select: none; }
 .card-header:hover { background: #fafbfc; }
@@ -171,7 +170,7 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 .stale-high { background: #ffedd5; color: #9a3412; }
 .stale-medium { background: #fef9c3; color: #854d0e; }
 .stale-low { background: #f0fdf4; color: #166534; }
-.card-website { font-size: 11px; color: #6366f1; text-decoration: none; font-weight: 600; }
+.card-website { font-size: 11px; color: #2285c7; text-decoration: none; font-weight: 600; }
 .card-website:hover { text-decoration: underline; }
 
 /* OWNER ROW IN HEADER */
@@ -189,7 +188,7 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 .btn-notify:hover { border-color: #f97316; color: #f97316; }
 .btn-notify.notified { background: #fff7ed; border-color: #f97316; color: #f97316; }
 .expand-icon { width: 26px; height: 26px; background: #f1f5f9; border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: transform 0.2s, background 0.15s; font-size: 11px; flex-shrink: 0; }
-.card.expanded .expand-icon { transform: rotate(180deg); background: #e0e7ff; }
+.card.expanded .expand-icon { transform: rotate(180deg); background: #daeef8; }
 
 /* JOB COUNT BADGE */
 .jobs-count-badge { padding: 3px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; white-space: nowrap; }
@@ -203,7 +202,7 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 .card-body-inner { padding: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 @media (max-width: 760px) { .card-body-inner { grid-template-columns: 1fr; } }
 .card-loading { padding: 24px; text-align: center; color: #94a3b8; font-size: 12px; }
-.spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid #e2e8f0; border-top-color: #6366f1; border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 8px; }
+.spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid #e2e8f0; border-top-color: #2285c7; border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 8px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* SECTION TITLES */
@@ -219,7 +218,7 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 .job-src-badge { display: inline-block; padding: 1px 5px; border-radius: 3px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; vertical-align: middle; }
 .src-bh { background: #eef2ff; color: #4338ca; }
 .src-ext { background: #fff7ed; color: #c2410c; }
-.job-ext-link { color: #6366f1; text-decoration: none; font-size: 11px; font-weight: 600; }
+.job-ext-link { color: #2285c7; text-decoration: none; font-size: 11px; font-weight: 600; }
 .job-ext-link:hover { text-decoration: underline; }
 .job-ext-loading { padding: 6px 10px; color: #94a3b8; font-size: 11px; display: flex; align-items: center; gap: 6px; }
 
@@ -236,19 +235,19 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 /* CONTACT SELECT DROPDOWN */
 .contact-label { font-size: 11px; color: #64748b; margin-bottom: 5px; }
 .contact-select { width: 100%; border: 1px solid #e2e8f0; border-radius: 7px; padding: 7px 10px; font-size: 12px; color: #0f172a; background: white; outline: none; margin-bottom: 10px; }
-.contact-select:focus { border-color: #6366f1; }
+.contact-select:focus { border-color: #2285c7; }
 
 /* CONTACT CARD */
 .contact-info { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 8px 10px; background: #f8fafc; border-radius: 7px; border: 1px solid #e2e8f0; }
 .contact-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: 700; flex-shrink: 0; }
-.av-Recruiting { background: #6366f1; }
+.av-Recruiting { background: #2285c7; }
 .av-Sales { background: #f97316; }
 .av-HR { background: #ec4899; }
 .av-Ops { background: #14b8a6; }
 .av-Other { background: #94a3b8; }
 .contact-name { font-size: 13px; font-weight: 600; color: #0f172a; }
 .contact-role { font-size: 11px; color: #64748b; }
-.contact-email { font-size: 11px; color: #6366f1; }
+.contact-email { font-size: 11px; color: #2285c7; }
 .no-contact { font-size: 12px; color: #94a3b8; font-style: italic; padding: 6px 0; }
 
 /* EMAIL DRAFT */
@@ -258,18 +257,18 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 .email-draft-text:focus { background: white; border-radius: 4px; padding: 4px; margin: -4px; }
 .draft-loading { font-size: 11px; color: #94a3b8; font-style: italic; padding: 4px 0; }
 .email-draft-actions { display: flex; gap: 6px; margin-top: 10px; align-items: center; flex-wrap: wrap; }
-.btn-send { background: #6366f1; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
-.btn-send:hover { background: #4f46e5; }
+.btn-send { background: #2285c7; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+.btn-send:hover { background: #1a6fa3; }
 .btn-send.sent-ok { background: #22c55e; pointer-events: none; }
 .btn-copy { background: white; border: 1px solid #e2e8f0; color: #64748b; padding: 6px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; }
-.btn-copy:hover { border-color: #6366f1; color: #6366f1; }
+.btn-copy:hover { border-color: #2285c7; color: #2285c7; }
 .btn-regen { background: transparent; border: none; color: #94a3b8; padding: 6px 8px; font-size: 12px; cursor: pointer; }
-.btn-regen:hover { color: #6366f1; }
+.btn-regen:hover { color: #2285c7; }
 
 /* NOTE SECTION */
 .note-section { margin-top: 14px; padding-top: 12px; border-top: 1px solid #f1f5f9; }
 .note-textarea { width: 100%; min-height: 80px; border: 1px solid #e2e8f0; border-radius: 7px; padding: 8px 10px; font-size: 12px; font-family: inherit; color: #334155; resize: vertical; outline: none; line-height: 1.6; }
-.note-textarea:focus { border-color: #6366f1; }
+.note-textarea:focus { border-color: #2285c7; }
 .note-actions { display: flex; align-items: center; gap: 8px; margin-top: 7px; flex-wrap: wrap; }
 .note-hint { font-size: 11px; color: #94a3b8; font-style: italic; }
 
@@ -294,24 +293,24 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 .modal-field { margin-bottom: 16px; }
 .modal-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; margin-bottom: 6px; }
 .modal-input { width: 100%; border: 1px solid #e2e8f0; border-radius: 7px; padding: 8px 10px; font-size: 13px; outline: none; }
-.modal-input:focus { border-color: #6366f1; }
+.modal-input:focus { border-color: #2285c7; }
 .modal-hint { font-size: 11px; color: #94a3b8; margin-top: 4px; }
 .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
-.btn-save { background: #6366f1; color: white; border: none; padding: 8px 20px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.btn-save { background: #2285c7; color: white; border: none; padding: 8px 20px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; }
 .btn-cancel { background: white; border: 1px solid #e2e8f0; color: #64748b; padding: 8px 16px; border-radius: 7px; font-size: 13px; cursor: pointer; }
 
 /* OVERLOOP */
 .btn-overloop { background: #0f172a; color: #e2e8f0; border: 1px solid #334155; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
-.btn-overloop:hover { background: #6366f1; border-color: #6366f1; color: white; }
+.btn-overloop:hover { background: #2285c7; border-color: #2285c7; color: white; }
 .btn-overloop.enrolled { background: #d1fae5; border-color: #34d399; color: #065f46; pointer-events: none; }
 .btn-automate { background: transparent; border: 1px solid #334155; color: #94a3b8; padding: 5px 9px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
-.btn-automate:hover { border-color: #6366f1; color: #6366f1; }
-.btn-automate.enrolled { background: #eef2ff; border-color: #6366f1; color: #4f46e5; pointer-events: none; }
+.btn-automate:hover { border-color: #2285c7; color: #2285c7; }
+.btn-automate.enrolled { background: #eef2ff; border-color: #2285c7; color: #1a6fa3; pointer-events: none; }
 .seq-select { width: 100%; border: 1px solid #e2e8f0; border-radius: 7px; padding: 9px 10px; font-size: 13px; outline: none; margin-bottom: 6px; }
-.seq-select:focus { border-color: #6366f1; }
+.seq-select:focus { border-color: #2285c7; }
 .enroll-contact-list { margin-bottom: 14px; display: flex; flex-direction: column; gap: 6px; max-height: 160px; overflow-y: auto; }
 .enroll-contact-row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; background: #f8fafc; border-radius: 7px; border: 1px solid #e2e8f0; font-size: 12px; }
-.enroll-contact-row .contact-check { width: 14px; height: 14px; accent-color: #6366f1; }
+.enroll-contact-row .contact-check { width: 14px; height: 14px; accent-color: #2285c7; }
 .enroll-contact-name { font-weight: 600; color: #0f172a; }
 .enroll-contact-email { color: #64748b; margin-left: auto; font-size: 11px; }
 .enroll-result { font-size: 12px; padding: 8px 12px; border-radius: 7px; margin-top: 10px; }
@@ -350,13 +349,13 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 .cb-view-header { margin-bottom: 18px; }
 .cb-steps-bar { display: flex; gap: 3px; flex-wrap: wrap; margin-top: 8px; }
 .cb-step-pill { padding: 5px 14px; font-size: 11px; font-weight: 600; color: #94a3b8; border-radius: 5px; border: 1px solid #e2e8f0; background: white; white-space: nowrap; }
-.cb-step-pill.cs-active { background: #6366f1; color: white; border-color: #6366f1; }
-.cb-step-pill.cs-done { background: #e0e7ff; color: #4f46e5; border-color: #c7d2fe; }
+.cb-step-pill.cs-active { background: #2285c7; color: white; border-color: #2285c7; }
+.cb-step-pill.cs-done { background: #daeef8; color: #1a6fa3; border-color: #b3d4ec; }
 .campaign-nav { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
 .cb-company-list { max-height: 58vh; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 4px; }
 .cb-company-row { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 12px; border-bottom: 1px solid #f1f5f9; }
 .cb-company-row:last-child { border-bottom: none; }
-.cb-company-row input[type=checkbox] { accent-color: #6366f1; width: 13px; height: 13px; flex-shrink: 0; }
+.cb-company-row input[type=checkbox] { accent-color: #2285c7; width: 13px; height: 13px; flex-shrink: 0; }
 .cb-co-name { font-weight: 600; color: #0f172a; flex: 1; }
 .scrape-progress { font-size: 12px; color: #64748b; padding: 8px 0 10px; display: flex; align-items: center; gap: 6px; }
 .cb-review-table { width: 100%; border-collapse: separate; border-spacing: 0; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
@@ -370,24 +369,24 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 .cb-jobs-ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 3px; max-height: 130px; overflow-y: auto; }
 .cb-jobs-ul li { color: #334155; line-height: 1.4; font-size: 11px; padding-left: 10px; position: relative; }
 .cb-jobs-ul li::before { content: "•"; position: absolute; left: 0; color: #94a3b8; }
-.cb-jobs-ul li a { color: #6366f1; text-decoration: none; }
+.cb-jobs-ul li a { color: #2285c7; text-decoration: none; }
 .cb-jobs-ul li a:hover { text-decoration: underline; }
 .cb-summary-text { color: #334155; font-style: italic; line-height: 1.6; }
 .cb-no-jobs-text { color: #94a3b8; font-size: 11px; font-style: italic; }
 .cb-scraping-row { display: flex; align-items: center; gap: 5px; color: #94a3b8; font-size: 11px; }
-.jr-edit-btn { margin-left: 6px; font-size: 10px; cursor: pointer; color: #6366f1; background: none; border: none; padding: 0; text-decoration: underline; }
+.jr-edit-btn { margin-left: 6px; font-size: 10px; cursor: pointer; color: #2285c7; background: none; border: none; padding: 0; text-decoration: underline; }
 .cb-recipients-cell { width: 140px; min-width: 110px; }
 /* Inline edit */
-.cb-edit-input { width: 100%; border: 1.5px solid #6366f1; border-radius: 5px; padding: 5px 8px; font-size: 12px; font-family: inherit; color: #334155; font-style: italic; box-sizing: border-box; }
+.cb-edit-input { width: 100%; border: 1.5px solid #2285c7; border-radius: 5px; padding: 5px 8px; font-size: 12px; font-family: inherit; color: #334155; font-style: italic; box-sizing: border-box; }
 .cb-edit-actions { display: flex; gap: 5px; margin-top: 4px; }
-.cb-edit-save { background: #6366f1; color: white; border: none; border-radius: 4px; padding: 3px 9px; font-size: 10px; cursor: pointer; font-weight: 600; }
-.cb-edit-save:hover { background: #4f46e5; }
+.cb-edit-save { background: #2285c7; color: white; border: none; border-radius: 4px; padding: 3px 9px; font-size: 10px; cursor: pointer; font-weight: 600; }
+.cb-edit-save:hover { background: #1a6fa3; }
 .cb-edit-cancel { background: none; border: 1px solid #e2e8f0; border-radius: 4px; padding: 3px 8px; font-size: 10px; cursor: pointer; color: #64748b; }
 /* Email sequence step tabs */
 .cb-email-step-tab { padding: 5px 12px; border: 1px solid #e2e8f0; border-radius: 5px; font-size: 11px; font-weight: 600; cursor: pointer; color: #64748b; background: #f8fafc; display: inline-flex; align-items: center; gap: 4px; transition: all 0.1s; }
-.cb-email-step-tab.active { background: #6366f1; color: white; border-color: #6366f1; }
+.cb-email-step-tab.active { background: #2285c7; color: white; border-color: #2285c7; }
 .cb-step-tab-add { padding: 5px 12px; border: 1px dashed #cbd5e1; border-radius: 5px; font-size: 11px; cursor: pointer; color: #94a3b8; background: none; }
-.cb-step-tab-add:hover { border-color: #6366f1; color: #6366f1; }
+.cb-step-tab-add:hover { border-color: #2285c7; color: #2285c7; }
 .cb-step-tab-remove { background: none; border: none; color: currentColor; cursor: pointer; font-size: 10px; padding: 0; opacity: 0.6; line-height: 1; }
 /* Preview info panel */
 .cb-preview-info { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 7px; padding: 9px 12px; margin-bottom: 8px; }
@@ -399,7 +398,7 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 @media (max-width: 720px) { .cb-email-split { grid-template-columns: 1fr; } }
 .cb-field-label { font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
 .cb-input { width: 100%; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 10px; font-size: 12px; color: #0f172a; background: white; box-sizing: border-box; font-family: inherit; }
-.cb-input:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+.cb-input:focus { outline: none; border-color: #2285c7; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
 .cb-textarea { height: 200px; resize: vertical; line-height: 1.65; }
 .cb-var-hints { font-size: 10px; color: #94a3b8; margin-top: 5px; line-height: 1.8; }
 .cb-var-hints code { background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 10px; color: #475569; }
@@ -413,9 +412,9 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 .cb-review-msg-meta { padding: 5px 14px 6px; background: #f8fafc; font-size: 11px; color: #64748b; border-bottom: 1px solid #f1f5f9; }
 .cb-rev-step-tabs { display: flex; gap: 3px; margin-bottom: 8px; flex-wrap: wrap; }
 .cb-rev-step-tab { padding: 3px 10px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 10px; cursor: pointer; color: #64748b; background: white; }
-.cb-rev-step-tab.active { background: #6366f1; color: white; border-color: #6366f1; }
+.cb-rev-step-tab.active { background: #2285c7; color: white; border-color: #2285c7; }
 .cb-review-textarea { width: 100%; border: 1px solid #e2e8f0; border-radius: 5px; padding: 8px 10px; font-size: 11.5px; font-family: inherit; line-height: 1.65; resize: vertical; box-sizing: border-box; color: #334155; }
-.cb-review-textarea:focus { outline: none; border-color: #6366f1; }
+.cb-review-textarea:focus { outline: none; border-color: #2285c7; }
 .launch-stat { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid #f1f5f9; font-size: 12px; }
 .launch-stat:last-child { border-bottom: none; }
 .launch-stat-label { color: #64748b; }
@@ -426,7 +425,7 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 /* Clickable done step pills */
 .cb-step-pill { cursor: default; }
 .cb-step-pill.cs-done { cursor: pointer; }
-.cb-step-pill.cs-done:hover { background: #c7d2fe; border-color: #a5b4fc; color: #3730a3; }
+.cb-step-pill.cs-done:hover { background: #b3d4ec; border-color: #93c5e8; color: #3730a3; }
 /* Sender badge */
 .cb-sender-bar { display:flex; align-items:center; gap:8px; background:#fff7ed; border:1px solid #fed7aa; border-radius:7px; padding:7px 12px; margin-bottom:14px; font-size:12px; }
 .cb-sender-label { font-weight:700; color:#9a3412; font-size:10px; text-transform:uppercase; letter-spacing:0.5px; flex-shrink:0; }
@@ -436,8 +435,8 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 #cbVarMenu.open { display:block; }
 .cb-var-opt { padding:9px 14px; font-size:12px; cursor:pointer; display:flex; align-items:center; gap:10px; color:#334155; border-bottom:1px solid #f1f5f9; }
 .cb-var-opt:last-child { border-bottom:none; }
-.cb-var-opt:hover { background:#f8faff; color:#6366f1; }
-.cb-var-opt code { background:#eef2ff; color:#4f46e5; padding:1px 6px; border-radius:3px; font-size:11px; white-space:nowrap; }
+.cb-var-opt:hover { background:#f8faff; color:#2285c7; }
+.cb-var-opt code { background:#eef2ff; color:#1a6fa3; padding:1px 6px; border-radius:3px; font-size:11px; white-space:nowrap; }
 .cb-var-opt span { color:#94a3b8; font-size:11px; }
 </style>
 </head>
@@ -483,11 +482,8 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
   <!-- SIDEBAR -->
   <div id="sidebar">
     <div class="sb-logo">
-      <div class="sb-logo-mark">CGR</div>
-      <div>
-        <div class="sb-logo-text">CGR Team</div>
-        <div class="sb-logo-sub">Re-Engagement</div>
-      </div>
+      <img src="/cgr-logo.png" alt="Core Group Resources" class="sb-logo-img">
+      <div class="sb-logo-sub">Re-Engagement Tool</div>
     </div>
     <div class="sb-nav">
       <div class="sb-section-label">Pipelines</div>
@@ -938,7 +934,7 @@ function renderCardBody(c, data) {
   // ── Jobs (internal + external) ─────────────────────────────────────────
   const internalHtml = (data.jobs || []).map(j => `
     <div class="job-item">
-      <div class="job-dot" style="background:#6366f1"></div>
+      <div class="job-dot" style="background:#2285c7"></div>
       <div>
         <div class="job-title">${esc(j.title)} <span class="job-src-badge src-bh">Bullhorn</span>
           ${j.status ? `<span class="job-status-tag">${esc(j.status)}</span>` : ''}
@@ -1564,7 +1560,11 @@ const cb = {
   allT34: [], selected: [],
   jobData: {},     // id → { status, jobs, summary, primaryUrl, override }
   contactData: {}, // id → { status, contacts }
-  emailSteps: _cbDefaultSteps ? _cbDefaultSteps() : [{ subject: '', body: '', delayDays: 0 }],
+  emailSteps: [
+    { subject: 'CGR – Support with Your Open Positions', body: 'I noticed that your team is currently hiring for {{consolidated_job_descriptions}} and wanted to see whether we could provide support. We do have an active agreement already in place, and can quickly assist with qualified personnel through either direct hire or contract staffing, depending on your needs.\n\nPlease let me know if any of these positions would be appropriate for us to support, or if there is someone else on your team I should reach out to. Any feedback would be greatly appreciated.\n\nThank you for your time.\n\nBest regards,\n{{sender_name}}', delayDays: 0 },
+    { subject: '', body: 'Hi {{first_name}},\n\nJust wanted to follow up on the positions I mentioned below. We specialize in filling hard-to-find roles, so if any of these have been particularly challenging, we would welcome the opportunity to assist.\n\nBest regards,\n{{sender_name}}', delayDays: 3 },
+    { subject: '', body: "Hi {{first_name}},\n\nI don't want to pester you, and I understand you may not need any support right now. Would you mind confirming whether you're the right person for me to keep in touch with, or if there's someone else we should contact?\n\nI just want to make sure the appropriate person knows CGR is an approved resource, if needed.\n\nThank you,\n{{sender_name}}", delayDays: 5 },
+  ],
   activeStepIdx: 0,
   companyEmailOverrides: {}, // id → [bodyStr per step index]
   campaignName: '',
@@ -1744,18 +1744,7 @@ function _cbRenderStep1() {
       <div class="campaign-nav"><button class="btn-cancel" onclick="switchSection(cb.section||_lastSection)">&#8592; Back</button></div>`;
     return;
   }
-  const rows = cb.allT34.map(c => {
-    const tier = cb.section === 'dh' ? c.dhTier : c.contractingTier;
-    const chk  = cb.selected.some(s => s.id === c.id) ? 'checked' : '';
-    return `<div class="cb-company-row">
-      <input type="checkbox" class="cb-co-check" id="cbco-${c.id}" value="${c.id}" ${chk} onchange="_cbToggle(${c.id})">
-      <label for="cbco-${c.id}" style="flex:1;cursor:pointer;display:flex;align-items:center;gap:7px;">
-        <span class="cb-co-name">${esc(c.name)}</span>
-        <span class="pip pip-${tier}" style="font-size:10px;padding:1px 5px;">T${tier}</span>
-      </label>
-      <span style="font-size:11px;color:#94a3b8;">${esc(c.bdOwner)}</span>
-    </div>`;
-  }).join('');
+  const bdOwners = [...new Set(cb.allT34.map(c => c.bdOwner).filter(Boolean))].sort();
 
   body.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
@@ -1768,12 +1757,58 @@ function _cbRenderStep1() {
         <button class="btn-cancel" style="padding:3px 10px;font-size:11px;" onclick="_cbSelectAll(false)">None</button>
       </div>
     </div>
-    <div class="cb-company-list">${rows}</div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <input type="text" id="cbCoSearch" placeholder="Search companies…"
+        style="flex:1;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:12px;outline:none;font-family:inherit;transition:border-color 0.15s;"
+        oninput="_cbFilterStep1()"
+        onfocus="this.style.borderColor='#2285c7'" onblur="this.style.borderColor='#e2e8f0'"
+        value="${esc(_cbStep1Filter.search)}">
+      <select id="cbBdFilter" onchange="_cbFilterStep1()"
+        style="padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:12px;outline:none;background:white;font-family:inherit;color:#0f172a;cursor:pointer;transition:border-color 0.15s;"
+        onfocus="this.style.borderColor='#2285c7'" onblur="this.style.borderColor='#e2e8f0'">
+        <option value="">All BDs</option>
+        ${bdOwners.map(bd => `<option value="${esc(bd)}"${_cbStep1Filter.bd === bd ? ' selected' : ''}>${esc(bd)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="cb-company-list" id="cbCoList">${_cbStep1Rows()}</div>
     <div class="campaign-nav">
       <button class="btn-cancel" onclick="switchSection(cb.section||_lastSection)">Cancel</button>
       <button class="btn-save" id="cbNext1" onclick="_cbGoStep2()" ${cb.selected.length ? '' : 'disabled'}>Next: Review Jobs ›</button>
     </div>`;
   _cbUpdateCount();
+}
+
+let _cbStep1Filter = { search: '', bd: '' };
+
+function _cbStep1Rows() {
+  const { search, bd } = _cbStep1Filter;
+  const filtered = cb.allT34.filter(c => {
+    const matchSearch = !search || c.name.toLowerCase().includes(search.toLowerCase());
+    const matchBD     = !bd || c.bdOwner === bd;
+    return matchSearch && matchBD;
+  });
+  if (!filtered.length) return '<div style="padding:24px;text-align:center;color:#94a3b8;font-size:12px;">No companies match your filter</div>';
+  return filtered.map(c => {
+    const tier = cb.section === 'dh' ? c.dhTier : c.contractingTier;
+    const chk  = cb.selected.some(s => s.id === c.id) ? 'checked' : '';
+    return `<div class="cb-company-row">
+      <input type="checkbox" class="cb-co-check" id="cbco-${c.id}" value="${c.id}" ${chk} onchange="_cbToggle(${c.id})">
+      <label for="cbco-${c.id}" style="flex:1;cursor:pointer;display:flex;align-items:center;gap:7px;">
+        <span class="cb-co-name">${esc(c.name)}</span>
+        <span class="pip pip-${tier}" style="font-size:10px;padding:1px 5px;">T${tier}</span>
+      </label>
+      <span style="font-size:11px;color:#94a3b8;">${esc(c.bdOwner)}</span>
+    </div>`;
+  }).join('');
+}
+
+function _cbFilterStep1() {
+  const searchEl = document.getElementById('cbCoSearch');
+  const bdEl     = document.getElementById('cbBdFilter');
+  _cbStep1Filter.search = searchEl?.value || '';
+  _cbStep1Filter.bd     = bdEl?.value     || '';
+  const listEl = document.getElementById('cbCoList');
+  if (listEl) listEl.innerHTML = _cbStep1Rows();
 }
 
 function _cbToggle(id) {
@@ -1887,7 +1922,7 @@ function _cbRecipientsHtml(id) {
   }
   if (!cd.contacts.length) return `<span style="color:#ef4444;font-size:11px;">No emails found</span>`;
   return cd.contacts.slice(0, 3).map(ct =>
-    `<span style="display:block;font-size:10.5px;color:#334155;line-height:1.5;">${esc(ct.name)}<br><span style="color:#6366f1;font-size:10px;">${esc(ct.email)}</span></span>`
+    `<span style="display:block;font-size:10.5px;color:#334155;line-height:1.5;">${esc(ct.name)}<br><span style="color:#2285c7;font-size:10px;">${esc(ct.email)}</span></span>`
   ).join('') + (cd.contacts.length > 3
     ? `<span style="font-size:10px;color:#94a3b8;">+${cd.contacts.length - 3} more</span>`
     : '');
@@ -2038,49 +2073,62 @@ function _cbGoStep3() {
   _cbRenderStep3();
 }
 
-function _cbRenderStep3() {
-  const eligible = cb.selected.filter(c => cb.jobData[c.id]?.status === 'done');
-  const defaultName = `CGR Outreach — ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
-  const nameVal = esc(cb.campaignName || defaultName);
+// PDF email sequence — fixed, not editable in the app (configured in Instantly)
+const CGR_EMAIL_STEPS = [
+  {
+    label: 'Email 1 — Initial',
+    subject: 'CGR – Support with Your Open Positions',
+    body: `I noticed that your team is currently hiring for {{consolidated_job_descriptions}} and wanted to see whether we could provide support. We do have an active agreement already in place, and can quickly assist with qualified personnel through either direct hire or contract staffing, depending on your needs.\n\nPlease let me know if any of these positions would be appropriate for us to support, or if there is someone else on your team I should reach out to. Any feedback would be greatly appreciated.\n\nThank you for your time.\n\nBest regards,\n{{sender_name}}`,
+    delay: 'Send immediately',
+  },
+  {
+    label: 'Email 2 — Follow-up',
+    subject: '(Reply on same thread)',
+    body: `Hi {{first_name}},\n\nJust wanted to follow up on the positions I mentioned below. We specialize in filling hard-to-find roles, so if any of these have been particularly challenging, we would welcome the opportunity to assist.\n\nBest regards,\n{{sender_name}}`,
+    delay: 'Wait 3 days',
+  },
+  {
+    label: 'Email 3 — Confirmation',
+    subject: '(Reply on same thread)',
+    body: `Hi {{first_name}},\n\nI don't want to pester you, and I understand you may not need any support right now. Would you mind confirming whether you're the right person for me to keep in touch with, or if there's someone else we should contact?\n\nI just want to make sure the appropriate person knows CGR is an approved resource, if needed.\n\nThank you,\n{{sender_name}}`,
+    delay: 'Wait 5 days',
+  },
+  {
+    label: 'Email 3B — Final (Non-Engaged)',
+    subject: '(Reply on same thread)',
+    body: `Hi {{first_name}},\n\nI understand you must be busy, so I won't keep reaching out. If you have any personnel needs arise, please feel free to reach out.\n\nBest regards,\n{{sender_name}}`,
+    delay: 'Wait 5 days after Email 3',
+  },
+];
 
-  const tabsHtml = cb.emailSteps.map((s, i) => `
-    <div class="cb-email-step-tab${i === cb.activeStepIdx ? ' active' : ''}" onclick="_cbSwitchEmailStep(${i})">
-      ${i === 0 ? 'Initial Email' : `Follow-up ${i}`}
-      <span style="opacity:0.7;">(Day ${s.delayDays})</span>
-      ${cb.emailSteps.length > 1
-        ? `<button class="cb-step-tab-remove" onclick="event.stopPropagation();_cbRemoveEmailStep(${i})" title="Remove">&#10005;</button>`
-        : ''}
+function _cbRenderStep3() {
+  const steps = CGR_EMAIL_STEPS;
+  const stepsHtml = steps.map((s, i) => `
+    <div style="border:1px solid #e2e8f0;border-radius:10px;padding:16px 18px;margin-bottom:12px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div style="font-size:12px;font-weight:700;color:#2285c7;">${esc(s.label)}</div>
+        <div style="font-size:11px;color:#94a3b8;background:#f8fafc;padding:2px 8px;border-radius:5px;">${esc(s.delay)}</div>
+      </div>
+      ${s.subject !== '(Reply on same thread)' ? `
+      <div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:3px;">Subject</div>
+      <div style="font-size:12px;color:#0f172a;background:#f8fafc;border-radius:6px;padding:7px 10px;margin-bottom:10px;">${esc(s.subject)}</div>
+      ` : `
+      <div style="font-size:11px;color:#94a3b8;margin-bottom:10px;font-style:italic;">Replies on same thread — no new subject line</div>
+      `}
+      <div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:3px;">Body</div>
+      <div style="font-size:12px;color:#334155;background:#f8fafc;border-radius:6px;padding:10px;white-space:pre-wrap;line-height:1.6;">${esc(s.body)}</div>
     </div>`).join('');
 
-  const step = cb.emailSteps[cb.activeStepIdx] || cb.emailSteps[0];
-
   document.getElementById('cbBody').innerHTML = `
-    <div style="margin-bottom:16px;max-width:500px;">
-      <div class="cb-field-label">Campaign Name <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#94a3b8;">— becomes the Overloop sequence name</span></div>
-      <input class="cb-input" id="cbCampaignName" type="text" value="${nameVal}" oninput="cb.campaignName=this.value">
+    <div style="margin-bottom:12px;">
+      <div style="font-size:13px;font-weight:600;color:#0f172a;margin-bottom:2px;">Outreach Sequence</div>
+      <div class="modal-hint">These emails are configured in Instantly and sent automatically. Edit them directly in your Instantly campaign if changes are needed.</div>
     </div>
-    <div class="cb-field-label" style="margin-bottom:6px;">
-      Email Sequence Steps
-      <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#94a3b8;margin-left:4px;">— up to 4 emails</span>
-    </div>
-    <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:16px;align-items:center;">
-      ${tabsHtml}
-      ${cb.emailSteps.length < 4
-        ? '<button class="cb-step-tab-add" onclick="_cbAddEmailStep()">+ Add Follow-up</button>'
-        : ''}
-    </div>
-    <div id="cbEmailStepEditor">${_cbEmailStepEditorHtml(step, eligible.length)}</div>
+    <div style="max-height:62vh;overflow-y:auto;padding-right:2px;">${stepsHtml}</div>
     <div class="campaign-nav">
       <button class="btn-cancel" onclick="_cbGoStep2()">‹ Back</button>
       <button class="btn-save" onclick="_cbGoStep4()">Next: Review ›</button>
     </div>`;
-
-  _cbUpdatePreview();
-  // Wire up {{ autocomplete after DOM settles
-  setTimeout(() => {
-    _cbSetupVarAutocomplete(document.getElementById('cbEmailSubject'));
-    _cbSetupVarAutocomplete(document.getElementById('cbEmailBody'));
-  }, 50);
 }
 
 function _cbEmailStepEditorHtml(step, eligibleCount) {
@@ -2276,7 +2324,7 @@ function _cbRenderStep4() {
       <div class="cb-review-msg-header">
         <span class="pip pip-${tier}" style="font-size:9px;padding:1px 4px;">T${tier}</span>
         <strong style="font-size:13px;">${esc(co.name)}</strong>
-        <span style="font-size:11px;color:#6366f1;margin-left:auto;font-style:italic;">${esc(jt)}</span>
+        <span style="font-size:11px;color:#2285c7;margin-left:auto;font-style:italic;">${esc(jt)}</span>
       </div>
       <div class="cb-review-msg-meta">&#128100; ${esc(rcpText)}</div>
       <div style="padding:10px 14px;">
@@ -2333,7 +2381,7 @@ function _cbGoStep5() {
         <div style="font-size:11px;color:#94a3b8;margin-bottom:10px;">Select the Instantly campaign to enroll contacts into. Campaigns are loaded from your Instantly account.</div>
         <select id="cbCampaignSelect"
           style="width:100%;box-sizing:border-box;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;outline:none;background:white;color:#0f172a;cursor:pointer;transition:border-color 0.15s;"
-          onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='#e2e8f0'"
+          onfocus="this.style.borderColor='#2285c7'" onblur="this.style.borderColor='#e2e8f0'"
           onchange="_cbOnSeqChange(this.value)">
           <option value="">Loading campaigns…</option>
         </select>
@@ -2551,7 +2599,7 @@ function _queueProgress(q) {
 function _progressRing(pct, status) {
   const r = 16, circ = +(2 * Math.PI * r).toFixed(2);
   const dash = +((circ * pct) / 100).toFixed(2);
-  const color = status === 'done' ? '#22c55e' : status === 'failed' ? '#ef4444' : status === 'launching' ? '#3b82f6' : '#6366f1';
+  const color = status === 'done' ? '#22c55e' : status === 'failed' ? '#ef4444' : status === 'launching' ? '#3b82f6' : '#2285c7';
   return `<svg width="44" height="44" viewBox="0 0 44 44">
     <circle cx="22" cy="22" r="${r}" fill="none" stroke="#e2e8f0" stroke-width="4"/>
     <circle cx="22" cy="22" r="${r}" fill="none" stroke="${color}" stroke-width="4"
