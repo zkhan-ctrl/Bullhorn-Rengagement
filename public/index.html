@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CGR Re-Engagement Tool</title>
+<title>Anchor — Core Group Resources</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -17,9 +17,14 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 #mainContent { margin-left: 224px; flex: 1; display: flex; flex-direction: column; min-height: 100vh; background: #f0f4f8; }
 
 /* SIDEBAR LOGO */
-.sb-logo { padding: 14px 14px 12px; border-bottom: 1px solid rgba(255,255,255,0.07); display: flex; flex-direction: column; gap: 3px; }
-.sb-logo-img { height: 26px; object-fit: contain; object-position: left center; max-width: 180px; }
-.sb-logo-sub { font-size: 10px; color: #475569; font-weight: 500; }
+.sb-logo { padding: 14px 14px 12px; border-bottom: 1px solid rgba(255,255,255,0.07); display: flex; align-items: center; gap: 10px; }
+.sb-logo-icon { width: 32px; height: 32px; flex-shrink: 0; background: white; border-radius: 8px; display: flex; align-items: center; justify-content: center; padding: 3px; }
+.sb-logo-icon img { width: 100%; height: 100%; object-fit: contain; }
+.sb-logo-text { font-size: 15px; font-weight: 800; color: white; line-height: 1.1; letter-spacing: -0.3px; }
+.sb-logo-sub { font-size: 9px; color: #475569; font-weight: 500; margin-top: 1px; text-transform: uppercase; letter-spacing: 0.5px; }
+.sb-credits { padding: 10px 14px 12px; border-top: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; gap: 6px; }
+.sb-credits-label { font-size: 9px; color: #334155; font-weight: 500; white-space: nowrap; }
+.sb-credits-logo { height: 14px; object-fit: contain; object-position: left; opacity: 0.45; filter: brightness(10); }
 
 /* SIDEBAR NAV */
 .sb-nav { flex: 1; padding: 10px 8px; overflow-y: auto; }
@@ -349,7 +354,7 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 .cb-view-header { margin-bottom: 18px; }
 .cb-steps-bar { display: flex; gap: 3px; flex-wrap: wrap; margin-top: 8px; }
 .cb-step-pill { padding: 5px 14px; font-size: 11px; font-weight: 600; color: #94a3b8; border-radius: 5px; border: 1px solid #e2e8f0; background: white; white-space: nowrap; }
-.cb-step-pill.cs-active { background: #2285c7; color: white; border-color: #2285c7; }
+.cb-step-pill.cs-active { background: #2285c7; color: white; border-color: #2285c7; box-shadow: 0 2px 8px rgba(34,133,199,0.35); }
 .cb-step-pill.cs-done { background: #daeef8; color: #1a6fa3; border-color: #b3d4ec; }
 .campaign-nav { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
 .cb-company-list { max-height: 58vh; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 4px; }
@@ -445,8 +450,8 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 <!-- LOGIN OVERLAY -->
 <div id="loginOverlay">
   <div class="login-card">
-    <div class="login-logo">CGR</div>
-    <h1 class="login-title">Re-Engagement Tool</h1>
+    <div class="login-logo" style="background:white;padding:6px;border-radius:10px;"><img src="/anchor-icon.png" alt="Anchor" style="width:44px;height:44px;object-fit:contain;"></div>
+    <h1 class="login-title">Anchor</h1>
     <p class="login-subtitle">Core Group Resources — Internal Access Only</p>
     <form id="loginForm" autocomplete="on">
       <div class="login-field">
@@ -482,8 +487,11 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
   <!-- SIDEBAR -->
   <div id="sidebar">
     <div class="sb-logo">
-      <img src="/cgr-logo.png" alt="Core Group Resources" class="sb-logo-img">
-      <div class="sb-logo-sub">Re-Engagement Tool</div>
+      <div class="sb-logo-icon"><img src="/anchor-icon.png" alt="Anchor"></div>
+      <div>
+        <div class="sb-logo-text">Anchor</div>
+        <div class="sb-logo-sub">by Core Group Resources</div>
+      </div>
     </div>
     <div class="sb-nav">
       <div class="sb-section-label">Pipelines</div>
@@ -513,6 +521,10 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
         <span class="nav-label">Campaign Queue</span>
         <span class="nav-badge" id="sbBadgeQueue">—</span>
       </button>
+      <button class="nav-item tab-analytics" data-section="analytics" onclick="switchSection('analytics')">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
+        <span class="nav-label">Analytics</span>
+      </button>
     </div>
     <div class="sb-bottom">
       <div class="sb-user">
@@ -527,6 +539,10 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         Sign Out
       </button>
+    </div>
+    <div class="sb-credits">
+      <span class="sb-credits-label">Created for &amp; by</span>
+      <img src="/cgr-logo-horizontal.png" alt="Core Group Resources" class="sb-credits-logo">
     </div>
   </div>
 
@@ -582,6 +598,7 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
     <div class="company-list" id="companyList"></div>
     <div id="campaignView" style="display:none;"></div>
     <div id="queueView" style="display:none;"></div>
+    <div id="analyticsView" style="display:none;"></div>
   </div>
 
 </div>
@@ -589,9 +606,9 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 <!-- OVERLOOP SEQUENCE PICKER MODAL -->
 <div class="modal-overlay" id="overloopModal" onclick="if(event.target===this)closeOverloopModal()">
   <div class="modal" style="max-width:480px;">
-    <div class="modal-title" id="overloopModalTitle">Enroll in Overloop Sequence</div>
+    <div class="modal-title" id="overloopModalTitle">Enroll in Instantly Campaign</div>
     <div id="overloopModalBody">
-      <div style="color:#94a3b8;font-size:12px;padding:12px 0;">Loading sequences…</div>
+      <div style="color:#94a3b8;font-size:12px;padding:12px 0;">Loading campaigns…</div>
     </div>
   </div>
 </div>
@@ -681,37 +698,50 @@ function switchSection(section) {
   document.querySelectorAll('.nav-item[data-section]').forEach(t =>
     t.classList.toggle('active', t.dataset.section === section)
   );
-  const titles = { dh: 'Direct Hire', ct: 'Contract Labor', stale: 'Stale Clients', campaign: 'Campaign Builder', queue: 'Campaign Queue' };
+  const titles = { dh: 'Direct Hire', ct: 'Contract Labor', stale: 'Stale Clients', campaign: 'Campaign Builder', queue: 'Campaign Queue', analytics: 'Re-engagement Analytics' };
   const titleEl = document.getElementById('topbarTitle');
   if (titleEl) titleEl.textContent = titles[section] || section;
   const statsEl = document.getElementById('topbarStats');
-  if (statsEl) statsEl.style.display = (section === 'stale' || section === 'campaign' || section === 'queue') ? 'none' : '';
+  if (statsEl) statsEl.style.display = (section === 'stale' || section === 'campaign' || section === 'queue' || section === 'analytics') ? 'none' : '';
   const filtersEl = document.getElementById('topbarFilters');
-  if (filtersEl) filtersEl.style.display = (section === 'campaign' || section === 'queue') ? 'none' : 'contents';
+  if (filtersEl) filtersEl.style.display = (section === 'campaign' || section === 'queue' || section === 'analytics') ? 'none' : 'contents';
 
-  const companyList  = document.getElementById('companyList');
-  const campaignView = document.getElementById('campaignView');
-  const queueView    = document.getElementById('queueView');
+  const companyList    = document.getElementById('companyList');
+  const campaignView   = document.getElementById('campaignView');
+  const queueView      = document.getElementById('queueView');
+  const analyticsView  = document.getElementById('analyticsView');
 
   if (section === 'campaign') {
-    if (companyList)  companyList.style.display  = 'none';
-    if (campaignView) campaignView.style.display = 'block';
-    if (queueView)    queueView.style.display    = 'none';
+    if (companyList)   companyList.style.display   = 'none';
+    if (campaignView)  campaignView.style.display  = 'block';
+    if (queueView)     queueView.style.display     = 'none';
+    if (analyticsView) analyticsView.style.display = 'none';
     if (!cb.section) _cbInitTab();
     return;
   }
 
   if (section === 'queue') {
-    if (companyList)  companyList.style.display  = 'none';
-    if (campaignView) campaignView.style.display = 'none';
-    if (queueView)    queueView.style.display    = 'block';
+    if (companyList)   companyList.style.display   = 'none';
+    if (campaignView)  campaignView.style.display  = 'none';
+    if (queueView)     queueView.style.display     = 'block';
+    if (analyticsView) analyticsView.style.display = 'none';
     _renderQueueView();
     return;
   }
 
-  if (companyList)  companyList.style.display  = '';
-  if (campaignView) campaignView.style.display = 'none';
-  if (queueView)    queueView.style.display    = 'none';
+  if (section === 'analytics') {
+    if (companyList)   companyList.style.display   = 'none';
+    if (campaignView)  campaignView.style.display  = 'none';
+    if (queueView)     queueView.style.display     = 'none';
+    if (analyticsView) analyticsView.style.display = 'block';
+    _renderAnalyticsView();
+    return;
+  }
+
+  if (companyList)   companyList.style.display   = '';
+  if (campaignView)  campaignView.style.display  = 'none';
+  if (queueView)     queueView.style.display     = 'none';
+  if (analyticsView) analyticsView.style.display = 'none';
 
   renderList();
   updateHeaderStats();
@@ -1032,7 +1062,7 @@ function renderCardBody(c, data) {
            <button class="btn-regen" onclick="regenDraft(${c.id},${draftKey})" title="Generate a new draft">↺ New draft</button>
            ${(cardTier === 1 || cardTier === 2) && mailtoHref
              ? `<a class="btn-copy" href="${esc(mailtoHref)}" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px;">&#128231; Open in Outlook</a>`
-             : `<button class="btn-overloop${isEnrolled ? ' enrolled' : ''}" onclick="openSequencePicker(${c.id},${draftKey})">${isEnrolled ? '✓ Enrolled' : '⚡ Enroll in Overloop'}</button>`}
+             : `<button class="btn-overloop${isEnrolled ? ' enrolled' : ''}" onclick="openSequencePicker(${c.id},${draftKey})">${isEnrolled ? '✓ Enrolled' : '⚡ Enroll in Instantly'}</button>`}
          </div>`
       : '';
 
@@ -1375,8 +1405,8 @@ function _seqPickerHtml(sequences, contacts, resultHtml = '') {
   if (!sequences.length) {
     return `
       <p style="color:#64748b;font-size:13px;line-height:1.6;margin-bottom:16px;">
-        No sequences found in your Overloop account.<br>
-        <strong>Create at least one sequence in Overloop first</strong>, then come back here.
+        No campaigns found in your Instantly account.<br>
+        <strong>Create at least one campaign in Instantly first</strong>, then come back here.
       </p>
       <div class="modal-actions"><button class="btn-cancel" onclick="closeOverloopModal()">Close</button></div>`;
   }
@@ -1399,7 +1429,7 @@ function _seqPickerHtml(sequences, contacts, resultHtml = '') {
     <div class="enroll-contact-list">${contactRows}</div>
     <div class="modal-label" style="margin-bottom:6px;">Select sequence</div>
     <select class="seq-select" id="seqPicker">${seqOptions}</select>
-    <div class="modal-hint" style="margin-bottom:16px;">Sequences are pulled from your Overloop account.</div>
+    <div class="modal-hint" style="margin-bottom:16px;">Campaigns are pulled from your Instantly account.</div>
     ${resultHtml}
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeOverloopModal()">Cancel</button>
@@ -1413,7 +1443,7 @@ async function openSequencePicker(cId, contactId) {
   const company = allCompanies.find(c => c.id === cId);
   const contact = data?.allContacts?.find(ct => ct.id === contactId);
   if (!contact) return showToast('Select a contact first.');
-  if (!contact.email) return showToast('This contact has no email address — cannot enroll in Overloop.');
+  if (!contact.email) return showToast('This contact has no email address — cannot enroll in Instantly.');
 
   _seqContext = {
     mode: 'individual',
@@ -1421,7 +1451,7 @@ async function openSequencePicker(cId, contactId) {
     contacts: [{ name: contact.name, email: contact.email, firstName: (contact.name || '').split(' ')[0], lastName: (contact.name || '').split(' ').slice(1).join(' '), companyName: company?.name || '' }],
   };
   document.getElementById('overloopModalTitle').textContent = `Enroll ${contact.name} in Sequence`;
-  document.getElementById('overloopModalBody').innerHTML = '<div style="color:#94a3b8;font-size:12px;padding:12px 0;"><span class="spinner"></span> Loading sequences…</div>';
+  document.getElementById('overloopModalBody').innerHTML = '<div style="color:#94a3b8;font-size:12px;padding:12px 0;"><span class="spinner"></span> Loading campaigns…</div>';
   document.getElementById('overloopModal').classList.add('open');
   try {
     const seqs = await _getSequences();
@@ -1703,7 +1733,7 @@ function _cbInitTab() {
     <div class="cb-sender-bar">
       <span class="cb-sender-label">Sending as</span>
       <span class="cb-sender-name">${esc(myBD)}</span>
-      <span style="color:#94a3b8;font-size:10px;margin-left:6px;">· Sequences created in your Overloop account</span>
+      <span style="color:#94a3b8;font-size:10px;margin-left:6px;">· Campaigns managed via Instantly</span>
     </div>` : '';
 
   document.getElementById('campaignView').innerHTML = `
@@ -1712,7 +1742,7 @@ function _cbInitTab() {
       <div class="cb-steps-bar">
         <div class="cb-step-pill cs-active" id="cstep-1" onclick="_cbNavToStep(1)">1 · Companies</div>
         <div class="cb-step-pill" id="cstep-2" onclick="_cbNavToStep(2)">2 · Job Review</div>
-        <div class="cb-step-pill" id="cstep-3" onclick="_cbNavToStep(3)">3 · Sequence</div>
+        <div class="cb-step-pill" id="cstep-3" onclick="_cbNavToStep(3)">3 · Emails</div>
         <div class="cb-step-pill" id="cstep-4" onclick="_cbNavToStep(4)">4 · Review</div>
         <div class="cb-step-pill" id="cstep-5" onclick="_cbNavToStep(5)">5 · Launch</div>
       </div>
@@ -1805,8 +1835,17 @@ function _cbStep1Rows() {
 function _cbFilterStep1() {
   const searchEl = document.getElementById('cbCoSearch');
   const bdEl     = document.getElementById('cbBdFilter');
+  const prevBd   = _cbStep1Filter.bd;
   _cbStep1Filter.search = searchEl?.value || '';
   _cbStep1Filter.bd     = bdEl?.value     || '';
+
+  // When a BD is newly selected, auto-select all their companies
+  if (_cbStep1Filter.bd && _cbStep1Filter.bd !== prevBd) {
+    const bdCompanies = cb.allT34.filter(c => c.bdOwner === _cbStep1Filter.bd);
+    bdCompanies.forEach(c => { if (!cb.selected.some(s => s.id === c.id)) cb.selected.push(c); });
+    _cbUpdateCount();
+  }
+
   const listEl = document.getElementById('cbCoList');
   if (listEl) listEl.innerHTML = _cbStep1Rows();
 }
@@ -2613,7 +2652,7 @@ function _renderQueueView() {
   if (!el) return;
   const header = `<div style="margin-bottom:18px;">
     <div style="font-size:18px;font-weight:700;color:#0f172a;">Campaign Queue</div>
-    <div style="font-size:12px;color:#64748b;margin-top:4px;">Campaigns here auto-push to Overloop once all job scraping finishes. Come back anytime — scraping continues in the background.</div>
+    <div style="font-size:12px;color:#64748b;margin-top:4px;">Campaigns here auto-push to Instantly once all job scraping finishes. Come back anytime — scraping continues in the background.</div>
   </div>`;
 
   if (!campaignQueue.length) {
@@ -2630,10 +2669,10 @@ function _renderQueueView() {
     let cardClass = q.status === 'done' ? 'cq-done' : q.status === 'failed' ? 'cq-failed' : q.status === 'launching' ? 'cq-launching' : '';
     let statusHtml = '';
     if (q.status === 'queued')    statusHtml = `<div style="font-size:11px;color:#64748b;margin-top:3px;">Scraping ${pendingLeft} of ${q.companies.length} compan${pendingLeft===1?'y':'ies'}… auto-launching when done.</div>`;
-    if (q.status === 'launching') statusHtml = `<div style="font-size:11px;color:#1d4ed8;margin-top:3px;"><span class="spinner" style="width:8px;height:8px;border-width:2px;margin-right:4px;"></span>Pushing to Overloop…</div>`;
+    if (q.status === 'launching') statusHtml = `<div style="font-size:11px;color:#1d4ed8;margin-top:3px;"><span class="spinner" style="width:8px;height:8px;border-width:2px;margin-right:4px;"></span>Pushing to Instantly…</div>`;
     if (q.status === 'done') {
       const d = q.result;
-      statusHtml = `<div class="cq-result-ok">✓ ${d.enrolled} contact${d.enrolled!==1?'s':''} enrolled in Overloop${d.failed?` · ${d.failed} failed`:''}${d.skippedNoContacts?` · ${d.skippedNoContacts} no-email`:''}.</div>`;
+      statusHtml = `<div class="cq-result-ok">✓ ${d.enrolled} contact${d.enrolled!==1?'s':''} enrolled in Instantly${d.failed?` · ${d.failed} failed`:''}${d.skippedNoContacts?` · ${d.skippedNoContacts} no-email`:''}.</div>`;
     }
     if (q.status === 'failed')    statusHtml = `<div class="cq-result-err">✗ ${esc(q.result?.error || 'Launch failed')}</div>`;
     const ago = Math.round((Date.now() - q.queuedAt) / 60000);
@@ -2659,6 +2698,135 @@ function _retryQueueItem(id) {
   _startQueuePoll();
   _updateQueueBadge();
   _renderQueueView();
+}
+
+// ── Analytics Dashboard ───────────────────────────────────────────────────────
+
+let _analyticsCache = null;
+let _analyticsLoading = false;
+
+async function _renderAnalyticsView() {
+  const el = document.getElementById('analyticsView');
+  if (!el) return;
+
+  if (_analyticsLoading) return;
+  _analyticsLoading = true;
+
+  el.innerHTML = `<div style="max-width:900px;">
+    <div style="margin-bottom:24px;">
+      <div style="font-size:18px;font-weight:700;color:#0f172a;">Re-engagement Analytics</div>
+      <div style="font-size:12px;color:#64748b;margin-top:4px;">Live data from your Instantly campaigns. Refresh any time to pull the latest.</div>
+    </div>
+    <div style="text-align:center;padding:60px 0;color:#94a3b8;font-size:13px;">
+      <div style="margin-bottom:12px;"><span class="spinner" style="width:24px;height:24px;border-width:3px;display:inline-block;"></span></div>
+      Loading analytics…
+    </div>
+  </div>`;
+
+  try {
+    const data = await fetch('/api/instantly/analytics').then(r => r.json());
+    _analyticsCache = data;
+    _analyticsLoading = false;
+    _paintAnalytics(el, data);
+  } catch (e) {
+    _analyticsLoading = false;
+    el.innerHTML = `<div style="max-width:900px;">
+      <div style="margin-bottom:24px;">
+        <div style="font-size:18px;font-weight:700;color:#0f172a;">Re-engagement Analytics</div>
+      </div>
+      <div style="text-align:center;padding:48px 0;color:#ef4444;font-size:13px;">Failed to load analytics. Check your Instantly API key in Railway env vars.</div>
+    </div>`;
+  }
+}
+
+function _paintAnalytics(el, data) {
+  const ov = data.overview || {};
+  const campaigns = data.campaigns || [];
+
+  const sent       = ov.emails_sent_count      || 0;
+  const opens      = ov.open_count_unique       || 0;
+  const replies    = ov.reply_count             || 0;
+  const bounced    = ov.bounced_count           || 0;
+  const contacted  = ov.contacted_count         || 0;
+  const openRate   = sent > 0 ? ((opens / sent) * 100).toFixed(1) : '—';
+  const replyRate  = sent > 0 ? ((replies / sent) * 100).toFixed(1) : '—';
+
+  const fmt = n => n >= 1000 ? (n/1000).toFixed(1)+'k' : String(n);
+
+  const metricCard = (label, value, sub) => `
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px 24px;flex:1;min-width:130px;">
+      <div style="font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">${label}</div>
+      <div style="font-size:28px;font-weight:800;color:#0f172a;line-height:1;">${value}</div>
+      ${sub ? `<div style="font-size:11px;color:#94a3b8;margin-top:6px;">${sub}</div>` : ''}
+    </div>`;
+
+  const metricsHtml = `
+    <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:28px;">
+      ${metricCard('Emails Sent', fmt(sent), '')}
+      ${metricCard('Unique Opens', fmt(opens), `${openRate}% open rate`)}
+      ${metricCard('Replies', fmt(replies), `${replyRate}% reply rate`)}
+      ${metricCard('Bounced', fmt(bounced), bounced > 0 && sent > 0 ? ((bounced/sent)*100).toFixed(1)+'% bounce rate' : '')}
+      ${metricCard('Contacted', fmt(contacted), '')}
+    </div>`;
+
+  const statusBadge = s => {
+    const map = { active:'#22c55e', paused:'#f59e0b', completed:'#2285c7', draft:'#94a3b8' };
+    const bg = map[s] || '#94a3b8';
+    return `<span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;color:#fff;background:${bg};text-transform:uppercase;">${s||'unknown'}</span>`;
+  };
+
+  const campaignRows = campaigns.length ? campaigns.map(c => {
+    const cm = c.metrics || {};
+    const cSent    = cm.emails_sent_count || 0;
+    const cOpens   = cm.open_count_unique || 0;
+    const cReplies = cm.reply_count       || 0;
+    const cOr = cSent > 0 ? ((cOpens/cSent)*100).toFixed(1)+'%' : '—';
+    const cRr = cSent > 0 ? ((cReplies/cSent)*100).toFixed(1)+'%' : '—';
+    return `<tr>
+      <td style="padding:10px 12px;font-size:13px;color:#0f172a;font-weight:500;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(c.name||'Unnamed')}</td>
+      <td style="padding:10px 12px;font-size:13px;color:#475569;">${statusBadge(c.status)}</td>
+      <td style="padding:10px 12px;font-size:13px;color:#475569;text-align:right;">${fmt(cSent)}</td>
+      <td style="padding:10px 12px;font-size:13px;color:#475569;text-align:right;">${fmt(cOpens)}</td>
+      <td style="padding:10px 12px;font-size:13px;color:#475569;text-align:right;">${cOr}</td>
+      <td style="padding:10px 12px;font-size:13px;color:#475569;text-align:right;">${fmt(cReplies)}</td>
+      <td style="padding:10px 12px;font-size:13px;color:#475569;text-align:right;">${cRr}</td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="7" style="padding:24px;text-align:center;color:#94a3b8;font-size:13px;">No campaigns found in your Instantly account.</td></tr>`;
+
+  const tableHtml = `
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+      <div style="padding:16px 20px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;">
+        <div style="font-size:14px;font-weight:700;color:#0f172a;">Campaign Breakdown</div>
+        <button onclick="_analyticsCache=null;_analyticsLoading=false;_renderAnalyticsView()" style="background:none;border:1px solid #e2e8f0;border-radius:6px;padding:4px 12px;font-size:11px;color:#475569;cursor:pointer;font-weight:500;">↻ Refresh</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="background:#f8fafc;">
+              <th style="padding:8px 12px;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.05em;text-align:left;">Campaign</th>
+              <th style="padding:8px 12px;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.05em;text-align:left;">Status</th>
+              <th style="padding:8px 12px;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.05em;text-align:right;">Sent</th>
+              <th style="padding:8px 12px;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.05em;text-align:right;">Opens</th>
+              <th style="padding:8px 12px;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.05em;text-align:right;">Open %</th>
+              <th style="padding:8px 12px;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.05em;text-align:right;">Replies</th>
+              <th style="padding:8px 12px;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.05em;text-align:right;">Reply %</th>
+            </tr>
+          </thead>
+          <tbody style="divide-y:1px solid #f1f5f9;">${campaignRows}</tbody>
+        </table>
+      </div>
+    </div>`;
+
+  el.innerHTML = `<div style="max-width:900px;">
+    <div style="margin-bottom:24px;display:flex;align-items:flex-start;justify-content:space-between;">
+      <div>
+        <div style="font-size:18px;font-weight:700;color:#0f172a;">Re-engagement Analytics</div>
+        <div style="font-size:12px;color:#64748b;margin-top:4px;">Live data from your Instantly campaigns. Refresh any time to pull the latest.</div>
+      </div>
+    </div>
+    ${metricsHtml}
+    ${tableHtml}
+  </div>`;
 }
 
 // ── Background pre-scraping (warms cache silently after tab switch) ────────────
@@ -2753,7 +2921,7 @@ async function openBulkBlastModal() {
 
   document.getElementById('bulkBlastTitle').textContent = `Bulk Blast — ${label} T3/T4`;
   document.getElementById('bulkBlastModal').classList.add('open');
-  document.getElementById('bulkBlastBody').innerHTML = '<div style="color:#94a3b8;font-size:12px;padding:12px 0;"><span class="spinner"></span> Loading sequences…</div>';
+  document.getElementById('bulkBlastBody').innerHTML = '<div style="color:#94a3b8;font-size:12px;padding:12px 0;"><span class="spinner"></span> Loading campaigns…</div>';
 
   const bdFilter = document.getElementById('filterBD').value;
   const base = getActiveCompanies().filter(c => {

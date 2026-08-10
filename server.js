@@ -596,6 +596,46 @@ app.post('/api/instantly/create-and-enroll', async (req, res) => {
   res.json({ campaignId, campaignName: campaignName || '', enrolled, failed, skippedNoContacts });
 });
 
+// Analytics overview + per-campaign breakdown
+app.get('/api/instantly/analytics', async (req, res) => {
+  const key = req.currentUser?.instantly_key;
+  if (!key) return res.status(400).json({ error: 'No Instantly API key configured for your account.' });
+  try {
+    const hdrs = instantlyHeaders(key);
+    const [overviewRes, campaignsRes] = await Promise.all([
+      axios.get(`${INSTANTLY_BASE}/api/v2/campaigns/analytics/overview`, { headers: hdrs }).catch(e => ({ data: null })),
+      axios.get(`${INSTANTLY_BASE}/api/v2/campaigns`, { headers: hdrs, params: { limit: 100 } }).catch(e => ({ data: null })),
+    ]);
+
+    const overview = overviewRes.data || {};
+    const campaigns = (() => {
+      const raw = campaignsRes.data;
+      return Array.isArray(raw?.items) ? raw.items : Array.isArray(raw) ? raw : [];
+    })();
+
+    // Fetch per-campaign analytics in parallel (up to 20 campaigns)
+    const top = campaigns.slice(0, 20);
+    const analyticsResults = await Promise.all(
+      top.map(c =>
+        axios.get(`${INSTANTLY_BASE}/api/v2/campaigns/analytics`, { headers: hdrs, params: { campaign_id: c.id } })
+          .then(r => r.data)
+          .catch(() => null)
+      )
+    );
+
+    const enriched = top.map((c, i) => ({
+      id: c.id,
+      name: c.name,
+      status: c.status,
+      metrics: analyticsResults[i] || {},
+    }));
+
+    res.json({ overview, campaigns: enriched });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 const externalJobCache = new Map();
 
 // ─── CData Connect AI — SQL Query API ─────────────────────────────────────────
