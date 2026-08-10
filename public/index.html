@@ -2743,90 +2743,209 @@ function _paintAnalytics(el, data) {
   const ov = data.overview || {};
   const campaigns = data.campaigns || [];
 
-  const sent       = ov.emails_sent_count      || 0;
-  const opens      = ov.open_count_unique       || 0;
-  const replies    = ov.reply_count             || 0;
-  const bounced    = ov.bounced_count           || 0;
-  const contacted  = ov.contacted_count         || 0;
-  const openRate   = sent > 0 ? ((opens / sent) * 100).toFixed(1) : '—';
-  const replyRate  = sent > 0 ? ((replies / sent) * 100).toFixed(1) : '—';
+  const sent      = ov.emails_sent_count || 0;
+  const opens     = ov.open_count_unique || 0;
+  const replies   = ov.reply_count       || 0;
+  const bounced   = ov.bounced_count     || 0;
+  const clicked   = ov.click_count_unique || ov.click_count || 0;
+  const openRate  = sent > 0 ? ((opens   / sent) * 100).toFixed(1) : '0';
+  const replyRate = sent > 0 ? ((replies / sent) * 100).toFixed(1) : '0';
+  const clickRate = sent > 0 ? ((clicked / sent) * 100).toFixed(1) : '0';
 
+  const pct = v => `${v}%`;
   const fmt = n => n >= 1000 ? (n/1000).toFixed(1)+'k' : String(n);
 
-  const metricCard = (label, value, sub) => `
-    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px 24px;flex:1;min-width:130px;">
-      <div style="font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">${label}</div>
-      <div style="font-size:28px;font-weight:800;color:#0f172a;line-height:1;">${value}</div>
-      ${sub ? `<div style="font-size:11px;color:#94a3b8;margin-top:6px;">${sub}</div>` : ''}
+  // ── Metric cards ──
+  const accentDot = color => `<span style="display:inline-block;width:10px;height:3px;border-radius:2px;background:${color};margin-right:8px;flex-shrink:0;"></span>`;
+  const metricCard = (dot, label, value, sub) => `
+    <div style="background:#fff;border:1px solid #e8edf2;border-radius:10px;padding:18px 22px;flex:1;min-width:140px;display:flex;flex-direction:column;gap:6px;">
+      <div style="display:flex;align-items:center;font-size:11px;font-weight:500;color:#7a8899;">${accentDot(dot)}${label}</div>
+      <div style="font-size:30px;font-weight:700;color:#0f172a;line-height:1.1;">${value}</div>
+      ${sub ? `<div style="font-size:11px;color:#aab4c0;">${sub}</div>` : ''}
     </div>`;
 
   const metricsHtml = `
-    <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:28px;">
-      ${metricCard('Emails Sent', fmt(sent), '')}
-      ${metricCard('Unique Opens', fmt(opens), `${openRate}% open rate`)}
-      ${metricCard('Replies', fmt(replies), `${replyRate}% reply rate`)}
-      ${metricCard('Bounced', fmt(bounced), bounced > 0 && sent > 0 ? ((bounced/sent)*100).toFixed(1)+'% bounce rate' : '')}
-      ${metricCard('Contacted', fmt(contacted), '')}
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px;">
+      ${metricCard('#f59e0b','Total Sent',  fmt(sent),  '')}
+      ${metricCard('#2285c7','Open Rate',   pct(openRate),  `${fmt(opens)} unique opens`)}
+      ${metricCard('#000',   'Click Rate',  pct(clickRate), `${fmt(clicked)} clicks`)}
+      ${metricCard('#a855f7','Reply Rate',  pct(replyRate), `${fmt(replies)} replies`)}
+      ${metricCard('#22c55e','Bounced',     fmt(bounced),   bounced > 0 && sent > 0 ? ((bounced/sent)*100).toFixed(1)+'% bounce rate' : 'no bounces')}
     </div>`;
 
+  // ── Bar chart (per-campaign: Sent / Opens / Replies) ──
+  const chartCampaigns = campaigns.slice(0, 10);
+  const chartLabels = chartCampaigns.map(c => {
+    const n = c.name || 'Unnamed';
+    return n.length > 18 ? n.slice(0, 17) + '…' : n;
+  });
+  const chartSent    = chartCampaigns.map(c => (c.metrics?.emails_sent_count || 0));
+  const chartOpens   = chartCampaigns.map(c => (c.metrics?.open_count_unique  || 0));
+  const chartReplies = chartCampaigns.map(c => (c.metrics?.reply_count        || 0));
+
+  const chartHtml = `
+    <div style="background:#fff;border:1px solid #e8edf2;border-radius:10px;padding:20px 24px;margin-bottom:20px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <div style="font-size:14px;font-weight:600;color:#0f172a;">Campaign Performance</div>
+        <div style="display:flex;gap:16px;font-size:11px;color:#7a8899;">
+          <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:#2285c7;display:inline-block;"></span>Sent</span>
+          <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:#f59e0b;display:inline-block;"></span>Opens</span>
+          <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:#22c55e;display:inline-block;"></span>Replies</span>
+        </div>
+      </div>
+      <canvas id="analyticsChart" height="220" style="width:100%;display:block;"></canvas>
+    </div>`;
+
+  // ── Campaign table ──
   const statusBadge = s => {
     const map = { active:'#22c55e', paused:'#f59e0b', completed:'#2285c7', draft:'#94a3b8' };
-    const bg = map[s] || '#94a3b8';
-    return `<span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;color:#fff;background:${bg};text-transform:uppercase;">${s||'unknown'}</span>`;
+    return `<span style="display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:600;color:#fff;background:${map[s]||'#94a3b8'};text-transform:capitalize;">${s||'unknown'}</span>`;
   };
 
-  const campaignRows = campaigns.length ? campaigns.map(c => {
+  const campaignRows = campaigns.length ? campaigns.map((c, i) => {
     const cm = c.metrics || {};
-    const cSent    = cm.emails_sent_count || 0;
-    const cOpens   = cm.open_count_unique || 0;
-    const cReplies = cm.reply_count       || 0;
-    const cOr = cSent > 0 ? ((cOpens/cSent)*100).toFixed(1)+'%' : '—';
-    const cRr = cSent > 0 ? ((cReplies/cSent)*100).toFixed(1)+'%' : '—';
-    return `<tr>
-      <td style="padding:10px 12px;font-size:13px;color:#0f172a;font-weight:500;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(c.name||'Unnamed')}</td>
-      <td style="padding:10px 12px;font-size:13px;color:#475569;">${statusBadge(c.status)}</td>
-      <td style="padding:10px 12px;font-size:13px;color:#475569;text-align:right;">${fmt(cSent)}</td>
-      <td style="padding:10px 12px;font-size:13px;color:#475569;text-align:right;">${fmt(cOpens)}</td>
-      <td style="padding:10px 12px;font-size:13px;color:#475569;text-align:right;">${cOr}</td>
-      <td style="padding:10px 12px;font-size:13px;color:#475569;text-align:right;">${fmt(cReplies)}</td>
-      <td style="padding:10px 12px;font-size:13px;color:#475569;text-align:right;">${cRr}</td>
+    const cS  = cm.emails_sent_count || 0;
+    const cO  = cm.open_count_unique  || 0;
+    const cR  = cm.reply_count        || 0;
+    const cB  = cm.bounced_count      || 0;
+    const cOr = cS > 0 ? ((cO/cS)*100).toFixed(1)+'%' : '—';
+    const cRr = cS > 0 ? ((cR/cS)*100).toFixed(1)+'%' : '—';
+    const rowBg = i % 2 === 0 ? '#fff' : '#f9fbfc';
+    return `<tr style="background:${rowBg};">
+      <td style="padding:11px 16px;font-size:13px;color:#0f172a;font-weight:500;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(c.name||'Unnamed')}</td>
+      <td style="padding:11px 16px;font-size:13px;">${statusBadge(c.status)}</td>
+      <td style="padding:11px 16px;font-size:13px;color:#334155;text-align:right;">${fmt(cS)}</td>
+      <td style="padding:11px 16px;font-size:13px;color:#334155;text-align:right;">${fmt(cO)}</td>
+      <td style="padding:11px 16px;font-size:13px;color:#334155;text-align:right;">${cOr}</td>
+      <td style="padding:11px 16px;font-size:13px;color:#334155;text-align:right;">${fmt(cR)}</td>
+      <td style="padding:11px 16px;font-size:13px;color:#334155;text-align:right;">${cRr}</td>
+      <td style="padding:11px 16px;font-size:13px;color:#ef4444;text-align:right;">${fmt(cB)}</td>
     </tr>`;
-  }).join('') : `<tr><td colspan="7" style="padding:24px;text-align:center;color:#94a3b8;font-size:13px;">No campaigns found in your Instantly account.</td></tr>`;
+  }).join('') : `<tr><td colspan="8" style="padding:32px;text-align:center;color:#94a3b8;font-size:13px;">No campaign data yet. Launch a campaign from Campaign Builder first.</td></tr>`;
 
   const tableHtml = `
-    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+    <div style="background:#fff;border:1px solid #e8edf2;border-radius:10px;overflow:hidden;">
       <div style="padding:16px 20px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;">
-        <div style="font-size:14px;font-weight:700;color:#0f172a;">Campaign Breakdown</div>
-        <button onclick="_analyticsCache=null;_analyticsLoading=false;_renderAnalyticsView()" style="background:none;border:1px solid #e2e8f0;border-radius:6px;padding:4px 12px;font-size:11px;color:#475569;cursor:pointer;font-weight:500;">↻ Refresh</button>
+        <div style="font-size:14px;font-weight:600;color:#0f172a;">Campaign Analytics</div>
+        <button onclick="_analyticsCache=null;_analyticsLoading=false;_renderAnalyticsView()" style="background:none;border:1px solid #e2e8f0;border-radius:6px;padding:5px 14px;font-size:11px;color:#475569;cursor:pointer;font-weight:500;transition:background .15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='none'">↻ Refresh</button>
       </div>
       <div style="overflow-x:auto;">
         <table style="width:100%;border-collapse:collapse;">
           <thead>
-            <tr style="background:#f8fafc;">
-              <th style="padding:8px 12px;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.05em;text-align:left;">Campaign</th>
-              <th style="padding:8px 12px;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.05em;text-align:left;">Status</th>
-              <th style="padding:8px 12px;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.05em;text-align:right;">Sent</th>
-              <th style="padding:8px 12px;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.05em;text-align:right;">Opens</th>
-              <th style="padding:8px 12px;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.05em;text-align:right;">Open %</th>
-              <th style="padding:8px 12px;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.05em;text-align:right;">Replies</th>
-              <th style="padding:8px 12px;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.05em;text-align:right;">Reply %</th>
+            <tr style="background:#f8fafc;border-bottom:1px solid #e8edf2;">
+              <th style="padding:9px 16px;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.05em;text-align:left;">Campaign</th>
+              <th style="padding:9px 16px;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.05em;text-align:left;">Status</th>
+              <th style="padding:9px 16px;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.05em;text-align:right;">Sent</th>
+              <th style="padding:9px 16px;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.05em;text-align:right;">Opens</th>
+              <th style="padding:9px 16px;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.05em;text-align:right;">Open %</th>
+              <th style="padding:9px 16px;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.05em;text-align:right;">Replies</th>
+              <th style="padding:9px 16px;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.05em;text-align:right;">Reply %</th>
+              <th style="padding:9px 16px;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.05em;text-align:right;">Bounced</th>
             </tr>
           </thead>
-          <tbody style="divide-y:1px solid #f1f5f9;">${campaignRows}</tbody>
+          <tbody>${campaignRows}</tbody>
         </table>
       </div>
     </div>`;
 
-  el.innerHTML = `<div style="max-width:900px;">
-    <div style="margin-bottom:24px;display:flex;align-items:flex-start;justify-content:space-between;">
+  el.innerHTML = `<div style="max-width:960px;padding-bottom:40px;">
+    <div style="margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;">
       <div>
-        <div style="font-size:18px;font-weight:700;color:#0f172a;">Re-engagement Analytics</div>
-        <div style="font-size:12px;color:#64748b;margin-top:4px;">Live data from your Instantly campaigns. Refresh any time to pull the latest.</div>
+        <div style="font-size:17px;font-weight:700;color:#0f172a;">Re-engagement Analytics</div>
+        <div style="font-size:12px;color:#7a8899;margin-top:3px;">Live data from your Instantly campaigns.</div>
       </div>
     </div>
     ${metricsHtml}
+    ${chartHtml}
     ${tableHtml}
   </div>`;
+
+  // Draw the bar chart on canvas
+  requestAnimationFrame(() => {
+    const canvas = document.getElementById('analyticsChart');
+    if (!canvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    const W = canvas.offsetWidth;
+    const H = 220;
+    canvas.width  = W * dpr;
+    canvas.height = H * dpr;
+    canvas.style.height = H + 'px';
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+
+    const PAD_LEFT = 44, PAD_RIGHT = 16, PAD_TOP = 16, PAD_BOTTOM = 52;
+    const chartW = W - PAD_LEFT - PAD_RIGHT;
+    const chartH = H - PAD_TOP - PAD_BOTTOM;
+    const n = chartLabels.length;
+
+    if (n === 0) {
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '12px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('No campaign data yet.', W / 2, H / 2);
+      return;
+    }
+
+    const allVals = [...chartSent, ...chartOpens, ...chartReplies];
+    const maxVal  = Math.max(...allVals, 1);
+    const yScale  = v => chartH - (v / maxVal) * chartH;
+
+    // Gridlines
+    const gridCount = 4;
+    ctx.strokeStyle = '#f1f5f9';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= gridCount; i++) {
+      const y = PAD_TOP + (chartH / gridCount) * i;
+      ctx.beginPath(); ctx.moveTo(PAD_LEFT, y); ctx.lineTo(PAD_LEFT + chartW, y); ctx.stroke();
+      const val = Math.round(maxVal - (maxVal / gridCount) * i);
+      ctx.fillStyle = '#b0bac5';
+      ctx.font = '9px system-ui, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(val >= 1000 ? (val/1000).toFixed(1)+'k' : val, PAD_LEFT - 5, y + 3);
+    }
+
+    // Bars
+    const groupW  = chartW / n;
+    const barW    = Math.min(groupW * 0.22, 18);
+    const gap     = Math.min(groupW * 0.04, 4);
+    const colors  = ['#2285c7', '#f59e0b', '#22c55e'];
+    const series  = [chartSent, chartOpens, chartReplies];
+
+    series.forEach((vals, si) => {
+      ctx.fillStyle = colors[si];
+      vals.forEach((v, i) => {
+        const groupX  = PAD_LEFT + i * groupW + groupW * 0.12;
+        const x       = groupX + si * (barW + gap);
+        const barH    = (v / maxVal) * chartH;
+        const y       = PAD_TOP + chartH - barH;
+        // Rounded top corners
+        const r = Math.min(3, barH / 2);
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + barW - r, y);
+        ctx.quadraticCurveTo(x + barW, y, x + barW, y + r);
+        ctx.lineTo(x + barW, y + barH);
+        ctx.lineTo(x, y + barH);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+        ctx.fill();
+      });
+    });
+
+    // X-axis labels
+    ctx.fillStyle = '#7a8899';
+    ctx.font = '9px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    chartLabels.forEach((lbl, i) => {
+      const cx = PAD_LEFT + i * groupW + groupW / 2;
+      const maxLabelW = groupW - 4;
+      // Truncate label to fit
+      let text = lbl;
+      while (ctx.measureText(text).width > maxLabelW && text.length > 4) text = text.slice(0, -2) + '…';
+      ctx.fillText(text, cx, PAD_TOP + chartH + 14);
+    });
+  });
 }
 
 // ── Background pre-scraping (warms cache silently after tab switch) ────────────
