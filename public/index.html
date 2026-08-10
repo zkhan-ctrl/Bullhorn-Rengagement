@@ -576,7 +576,6 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
       <select class="filter-select" id="filterBD" onchange="applyFilters()">
         <option value="">All BD Owners</option>
       </select>
-      <button class="filter-toggle" id="btnHasJobs" onclick="toggleHasJobs(this)">&#9679; Has Open Jobs</button>
       <input class="filter-search" id="filterSearch" type="text" placeholder="Search company..." oninput="applyFilters()">
       <span class="result-count" id="resultCount"></span>
       </div>
@@ -953,9 +952,6 @@ function renderCard(c, section) {
         ${ownerRowHtml}
       </div>
       <div class="card-actions-right">
-        <span class="jobs-count-badge ${jcClass}" id="jc-${c.id}" ${jcAttr}>${jcText}</span>
-        ${(tier === 3 || tier === 4) ? `<button class="btn-automate${data?.overloopEnrolled ? ' enrolled' : ''}" onclick="event.stopPropagation();openAutomateModal(${c.id})">${data?.overloopEnrolled ? '✓ Automated' : '⚡ Automate'}</button>` : ''}
-        <button class="btn-notify${notified ? ' notified' : ''}" onclick="notifyBD(event,${c.id})">${notified ? '✓ Notified' : '🔔 Notify BD'}</button>
         <div class="expand-icon">&#8964;</div>
       </div>
     </div>
@@ -1056,16 +1052,12 @@ function renderCardBody(c, data) {
 
     const contactEmail = selContact?.email || '';
     const isEnrolled   = !!(data.overloopEnrolledContacts?.has(contactEmail));
-    const mailtoHref = contactEmail
-      ? `mailto:${contactEmail}?subject=${encodeURIComponent('Following up — ' + (c.name || ''))}`
-      : '';
     const actionsHtml = draftText
       ? `<div class="email-draft-actions">
-           <button class="btn-send${isSent ? ' sent-ok' : ''}" onclick="sendEmail(${c.id},${draftKey})">${isSent ? '✓ Sent' : '✉ Mark Sent'}</button>
            <button class="btn-copy" onclick="copyEmail(${c.id},${draftKey})">⎘ Copy</button>
            <button class="btn-regen" onclick="regenDraft(${c.id},${draftKey})" title="Generate a new draft">↺ New draft</button>
-           ${(cardTier === 1 || cardTier === 2) && mailtoHref
-             ? `<a class="btn-copy" href="${esc(mailtoHref)}" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px;">&#128231; Open in Outlook</a>`
+           ${(cardTier === 1 || cardTier === 2) && contactEmail
+             ? `<button class="btn-copy" onclick="openInOutlook(${c.id},${draftKey})" style="display:inline-flex;align-items:center;gap:4px;">&#128231; Open in Outlook</button>`
              : `<button class="btn-overloop${isEnrolled ? ' enrolled' : ''}" onclick="openSequencePicker(${c.id},${draftKey})">${isEnrolled ? '✓ Enrolled' : '⚡ Enroll in Instantly'}</button>`}
          </div>`
       : '';
@@ -1272,16 +1264,18 @@ function copyNote(cId) {
   showToast('Note copied — paste into Bullhorn → Notes');
 }
 
-function notifyBD(e, id) {
-  e.stopPropagation();
-  if (cardData[id]?.notified) return;
-  if (!cardData[id]) cardData[id] = {};
-  cardData[id].notified = true;
-  notifiedCount++;
-  document.getElementById('statNotified').textContent = notifiedCount;
-  const c = allCompanies.find(x => x.id === id);
-  refreshCard(id);
-  showToast(`${c?.bdOwner || 'BD Owner'} notified about ${c?.name}`);
+function openInOutlook(cId, draftKey) {
+  const c    = allCompanies.find(x => x.id === cId);
+  const data = cardData[cId];
+  if (!data) return;
+  const ct    = (data.allContacts || []).find(x => x.id === draftKey);
+  const email = ct?.email || '';
+  if (!email) { showToast('No email address for this contact'); return; }
+  // Read current text from the editable div (captures any edits the user made)
+  const el   = document.getElementById(`draft-${cId}-${draftKey}`);
+  const body = el ? el.innerText : (data.contactDrafts?.[draftKey] || '');
+  const subject = `Following up — ${c?.name || ''}`;
+  window.location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
 // ─── Header stats (reactive to BD filter, always shows both DH + CT) ─────────
@@ -1329,11 +1323,6 @@ function updateHeaderStats() {
 }
 
 // ─── Filters ──────────────────────────────────────────────────────────────────
-function toggleHasJobs(btn) {
-  filterHasJobs = !filterHasJobs;
-  btn.classList.toggle('active', filterHasJobs);
-  applyFilters();
-}
 
 function applyFilters() {
   const score  = document.getElementById('filterScore').value;
