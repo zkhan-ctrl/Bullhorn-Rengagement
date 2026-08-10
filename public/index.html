@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Anchor — Core Group Resources</title>
+<link rel="icon" type="image/png" href="/anchor-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -36,8 +37,8 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 .nav-item.tab-stale.active { background: rgba(239,68,68,0.15); color: #fca5a5; }
 .nav-item.tab-stale.active .nav-icon { color: #f87171; }
 .nav-item.tab-campaign { margin-top: 4px; }
-.nav-item.tab-campaign.active { background: rgba(180,83,9,0.25); color: #fbbf24; }
-.nav-item.tab-campaign.active .nav-icon { color: #f97316; }
+.nav-item.tab-campaign.active { background: rgba(34,133,199,0.25); color: #93c5e8; }
+.nav-item.tab-campaign.active .nav-icon { color: #2285c7; }
 .nav-item.tab-queue.active { background: rgba(34,133,199,0.2); color: #93c5e8; }
 .nav-item.tab-queue.active .nav-icon { color: #5aaad4; }
 /* CAMPAIGN QUEUE VIEW */
@@ -58,7 +59,7 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 .nav-badge { background: rgba(255,255,255,0.08); color: #64748b; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 10px; min-width: 22px; text-align: center; }
 .nav-item.active .nav-badge { background: rgba(34,133,199,0.3); color: #93c5e8; }
 .nav-item.tab-stale.active .nav-badge { background: rgba(239,68,68,0.2); color: #fca5a5; }
-.nav-item.tab-campaign.active .nav-badge { background: rgba(249,115,22,0.25); color: #fb923c; }
+.nav-item.tab-campaign.active .nav-badge { background: rgba(34,133,199,0.25); color: #5aaad4; }
 .sb-divider { height: 1px; background: rgba(255,255,255,0.07); margin: 6px 8px; }
 
 /* SIDEBAR STATS MINI (hidden IDs) */
@@ -71,7 +72,7 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 /* SIDEBAR BOTTOM */
 .sb-bottom { padding: 8px 8px 14px; border-top: 1px solid rgba(255,255,255,0.07); }
 .sb-user { display: flex; align-items: center; gap: 8px; padding: 6px 10px 8px; }
-.sb-avatar { width: 28px; height: 28px; background: linear-gradient(135deg,#f97316,#ea580c); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: white; flex-shrink: 0; }
+.sb-avatar { width: 28px; height: 28px; background: linear-gradient(135deg,#2285c7,#1a6fa3); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: white; flex-shrink: 0; }
 .sb-user-name { font-size: 11px; font-weight: 600; color: #cbd5e1; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sb-action { display: flex; align-items: center; gap: 9px; padding: 7px 10px; border-radius: 8px; border: none; background: transparent; color: #64748b; font-size: 11px; font-weight: 600; cursor: pointer; width: 100%; text-align: left; transition: all 0.15s; font-family: inherit; }
 .sb-action:hover { background: rgba(255,255,255,0.06); color: #94a3b8; }
@@ -83,8 +84,8 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 .topbar-stats { display: flex; align-items: center; gap: 6px; padding: 3px 10px; background: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0; }
 .ts-chip { display: flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; }
 .ts-dot { width: 7px; height: 7px; border-radius: 50%; }
-.ts-1 { background: #22c55e; } .ts-2 { background: #60a5fa; } .ts-3 { background: #f97316; } .ts-4 { background: #94a3b8; }
-.ts-val-1 { color: #166534; } .ts-val-2 { color: #1e40af; } .ts-val-3 { color: #c2410c; } .ts-val-4 { color: #475569; }
+.ts-1 { background: #22c55e; } .ts-2 { background: #60a5fa; } .ts-3 { background: #2285c7; } .ts-4 { background: #94a3b8; }
+.ts-val-1 { color: #166534; } .ts-val-2 { color: #1e40af; } .ts-val-3 { color: #1a6fa3; } .ts-val-4 { color: #475569; }
 .topbar-divider { width: 1px; height: 20px; background: #e2e8f0; flex-shrink: 0; }
 .topbar-spacer { flex: 1; }
 
@@ -102,22 +103,22 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 #loginOverlay { position: fixed; inset: 0; z-index: 9999; background: #0a0f1e; display: flex; align-items: center; justify-content: center; }
 #loginOverlay.hidden { display: none; }
 .login-card { background: #1a2744; border-radius: 16px; padding: 44px 40px; width: 100%; max-width: 400px; box-shadow: 0 24px 64px rgba(0,0,0,0.6); }
-.login-logo { width: 56px; height: 56px; background: #f97316; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px; color: white; margin: 0 auto 20px; }
+.login-logo { width: 56px; height: 56px; background: #2285c7; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px; color: white; margin: 0 auto 20px; }
 .login-title { font-size: 22px; font-weight: 700; color: white; text-align: center; margin-bottom: 4px; }
 .login-subtitle { font-size: 12px; color: #475569; text-align: center; margin-bottom: 32px; letter-spacing: 0.3px; }
 .login-field { margin-bottom: 16px; }
 .login-field label { display: block; font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 7px; }
 .login-field input { width: 100%; padding: 11px 14px; background: #0f172a; border: 1px solid #1e3a5f; border-radius: 8px; color: white; font-size: 14px; outline: none; transition: border-color 0.15s; }
-.login-field input:focus { border-color: #f97316; }
+.login-field input:focus { border-color: #2285c7; }
 .login-field input::placeholder { color: #334155; }
 .login-error { background: #2d0707; border: 1px solid #7f1d1d; border-radius: 8px; padding: 10px 14px; color: #fca5a5; font-size: 12px; margin-bottom: 14px; display: none; }
-.login-btn { width: 100%; padding: 12px; background: #f97316; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: background 0.15s; margin-top: 4px; }
-.login-btn:hover:not(:disabled) { background: #ea6c05; }
+.login-btn { width: 100%; padding: 12px; background: #2285c7; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: background 0.15s; margin-top: 4px; }
+.login-btn:hover:not(:disabled) { background: #1a6fa3; }
 .login-btn:disabled { background: #1e3a5f; color: #475569; cursor: not-allowed; }
 .ai-badge { background: #2285c7; color: white; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; }
 
 /* SCAN BAR */
-.scan-bar { height: 3px; background: linear-gradient(90deg,#2285c7,#f97316,#2285c7); background-size: 200% 100%; display: none; }
+.scan-bar { height: 3px; background: linear-gradient(90deg,#2285c7,#5aaad4,#2285c7); background-size: 200% 100%; display: none; }
 .scan-bar.active { display: block; animation: scanAnim 1.2s linear infinite; }
 @keyframes scanAnim { 0%{background-position:0% 0%} 100%{background-position:200% 0%} }
 
@@ -135,7 +136,7 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 
 /* SETUP SCREEN */
 .setup-screen { max-width: 540px; margin: 60px auto; background: white; border-radius: 12px; padding: 36px; border: 1px solid #e2e8f0; box-shadow: 0 4px 24px rgba(0,0,0,0.07); }
-.setup-logo { width: 48px; height: 48px; background: #f97316; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; color: white; margin-bottom: 20px; }
+.setup-logo { width: 48px; height: 48px; background: #2285c7; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; color: white; margin-bottom: 20px; }
 .setup-title { font-size: 20px; font-weight: 700; color: #0f172a; margin-bottom: 8px; }
 .setup-desc { color: #64748b; font-size: 13px; line-height: 1.6; margin-bottom: 24px; }
 .setup-error { background: #fee2e2; border: 1px solid #fca5a5; border-radius: 8px; padding: 12px 16px; color: #991b1b; font-size: 12px; margin-top: 20px; }
@@ -155,13 +156,13 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 .score-badge { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; flex-shrink: 0; margin-top: 2px; }
 .score-1 { background: #dcfce7; color: #166534; }
 .score-2 { background: #dbeafe; color: #1e40af; }
-.score-3 { background: #fff7ed; color: #c2410c; }
+.score-3 { background: #daeef8; color: #1a6fa3; }
 .score-4 { background: #f1f5f9; color: #475569; }
 .score-null { background: #f8fafc; color: #94a3b8; }
 .score-pip { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
 .pip-1 { background: #dcfce7; color: #166534; }
 .pip-2 { background: #dbeafe; color: #1e40af; }
-.pip-3 { background: #fff7ed; color: #c2410c; }
+.pip-3 { background: #daeef8; color: #1a6fa3; }
 .pip-4 { background: #f1f5f9; color: #475569; }
 .pip-null { background: #f1f5f9; color: #94a3b8; }
 
@@ -181,17 +182,17 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 /* OWNER ROW IN HEADER */
 .owner-row { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
 .owner-chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px 2px 4px; border-radius: 12px; font-size: 11px; font-weight: 600; white-space: nowrap; }
-.chip-bd { background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; }
+.chip-bd { background: #daeef8; color: #9a3412; border: 1px solid #fed7aa; }
 .chip-am { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
 .chip-av { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; color: white; flex-shrink: 0; }
-.chip-bd .chip-av { background: #f97316; }
+.chip-bd .chip-av { background: #2285c7; }
 .chip-am .chip-av { background: #3b82f6; }
 
 /* CARD ACTIONS RIGHT */
 .card-actions-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; padding-top: 2px; }
 .btn-notify { background: transparent; border: 1px solid #e2e8f0; color: #64748b; padding: 5px 9px; border-radius: 6px; font-size: 11px; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
-.btn-notify:hover { border-color: #f97316; color: #f97316; }
-.btn-notify.notified { background: #fff7ed; border-color: #f97316; color: #f97316; }
+.btn-notify:hover { border-color: #2285c7; color: #2285c7; }
+.btn-notify.notified { background: #daeef8; border-color: #2285c7; color: #2285c7; }
 .expand-icon { width: 26px; height: 26px; background: #f1f5f9; border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: transform 0.2s, background 0.15s; font-size: 11px; flex-shrink: 0; }
 .card.expanded .expand-icon { transform: rotate(180deg); background: #daeef8; }
 
@@ -222,15 +223,15 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 .no-jobs { font-size: 12px; color: #94a3b8; padding: 8px 0; font-style: italic; }
 .job-src-badge { display: inline-block; padding: 1px 5px; border-radius: 3px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; vertical-align: middle; }
 .src-bh { background: #eef2ff; color: #4338ca; }
-.src-ext { background: #fff7ed; color: #c2410c; }
+.src-ext { background: #daeef8; color: #1a6fa3; }
 .job-ext-link { color: #2285c7; text-decoration: none; font-size: 11px; font-weight: 600; }
 .job-ext-link:hover { text-decoration: underline; }
 .job-ext-loading { padding: 6px 10px; color: #94a3b8; font-size: 11px; display: flex; align-items: center; gap: 6px; }
 
 /* BD / AM OWNER IN CARD BODY */
-.bd-owner { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 8px 10px; background: #fff7ed; border-radius: 7px; border: 1px solid #fed7aa; }
+.bd-owner { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 8px 10px; background: #daeef8; border-radius: 7px; border: 1px solid #fed7aa; }
 .bd-owner.am { background: #eff6ff; border-color: #bfdbfe; margin-top: 6px; }
-.bd-avatar { width: 28px; height: 28px; background: #f97316; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; font-weight: 700; flex-shrink: 0; }
+.bd-avatar { width: 28px; height: 28px; background: #2285c7; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; font-weight: 700; flex-shrink: 0; }
 .bd-avatar.am { background: #3b82f6; }
 .bd-label { font-size: 10px; color: #9a3412; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
 .bd-label.am { color: #1e40af; }
@@ -246,7 +247,7 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 .contact-info { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 8px 10px; background: #f8fafc; border-radius: 7px; border: 1px solid #e2e8f0; }
 .contact-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: 700; flex-shrink: 0; }
 .av-Recruiting { background: #2285c7; }
-.av-Sales { background: #f97316; }
+.av-Sales { background: #2285c7; }
 .av-HR { background: #ec4899; }
 .av-Ops { background: #14b8a6; }
 .av-Other { background: #94a3b8; }
@@ -332,13 +333,13 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 .stat-group { display: flex; align-items: center; gap: 8px; }
 .stat-section-lbl { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; padding: 3px 6px; border-radius: 4px; align-self: center; white-space: nowrap; }
 .stat-section-lbl.lbl-dh { background: #1e3a5f; color: #60a5fa; }
-.stat-section-lbl.lbl-ct { background: #431407; color: #fb923c; }
+.stat-section-lbl.lbl-ct { background: #1e3a5f; color: #5aaad4; }
 
 /* DUAL SCORE CHIPS ON CARDS */
 .card-scores { display: flex; gap: 5px; margin-top: 4px; flex-wrap: wrap; }
 .score-chip { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; display: inline-flex; align-items: center; gap: 2px; }
 .score-chip-dh { background: #dbeafe; color: #1e40af; }
-.score-chip-ct { background: #fff7ed; color: #9a3412; }
+.score-chip-ct { background: #daeef8; color: #9a3412; }
 .score-chip-dim { opacity: 0.45; }
 
 /* STALE / UNSCORED */
@@ -432,7 +433,7 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 .cb-step-pill.cs-done { cursor: pointer; }
 .cb-step-pill.cs-done:hover { background: #b3d4ec; border-color: #93c5e8; color: #3730a3; }
 /* Sender badge */
-.cb-sender-bar { display:flex; align-items:center; gap:8px; background:#fff7ed; border:1px solid #fed7aa; border-radius:7px; padding:7px 12px; margin-bottom:14px; font-size:12px; }
+.cb-sender-bar { display:flex; align-items:center; gap:8px; background:#daeef8; border:1px solid #fed7aa; border-radius:7px; padding:7px 12px; margin-bottom:14px; font-size:12px; }
 .cb-sender-label { font-weight:700; color:#9a3412; font-size:10px; text-transform:uppercase; letter-spacing:0.5px; flex-shrink:0; }
 .cb-sender-name { font-weight:600; color:#7c2d12; }
 /* Variable autocomplete dropdown */
@@ -979,7 +980,7 @@ function renderCardBody(c, data) {
   } else if ((data.externalJobs || []).length > 0) {
     externalHtml = data.externalJobs.map(j => `
     <div class="job-item">
-      <div class="job-dot" style="background:#f97316"></div>
+      <div class="job-dot" style="background:#2285c7"></div>
       <div>
         <div class="job-title">${esc(j.title)} <span class="job-src-badge src-ext">Job Boards</span>
           ${j.url ? ` <a class="job-ext-link" href="${esc(j.url)}" target="_blank" onclick="event.stopPropagation()">↗</a>` : ''}
@@ -2766,10 +2767,10 @@ function _paintAnalytics(el, data) {
 
   const metricsHtml = `
     <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px;">
-      ${metricCard('#f59e0b','Total Sent',  fmt(sent),  '')}
-      ${metricCard('#2285c7','Open Rate',   pct(openRate),  `${fmt(opens)} unique opens`)}
-      ${metricCard('#000',   'Click Rate',  pct(clickRate), `${fmt(clicked)} clicks`)}
-      ${metricCard('#a855f7','Reply Rate',  pct(replyRate), `${fmt(replies)} replies`)}
+      ${metricCard('#2285c7','Total Sent',  fmt(sent),  '')}
+      ${metricCard('#5aaad4','Open Rate',   pct(openRate),  `${fmt(opens)} unique opens`)}
+      ${metricCard('#1a6fa3','Click Rate',  pct(clickRate), `${fmt(clicked)} clicks`)}
+      ${metricCard('#22c55e','Reply Rate',  pct(replyRate), `${fmt(replies)} replies`)}
       ${metricCard('#22c55e','Bounced',     fmt(bounced),   bounced > 0 && sent > 0 ? ((bounced/sent)*100).toFixed(1)+'% bounce rate' : 'no bounces')}
     </div>`;
 
@@ -2789,7 +2790,7 @@ function _paintAnalytics(el, data) {
         <div style="font-size:14px;font-weight:600;color:#0f172a;">Campaign Performance</div>
         <div style="display:flex;gap:16px;font-size:11px;color:#7a8899;">
           <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:#2285c7;display:inline-block;"></span>Sent</span>
-          <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:#f59e0b;display:inline-block;"></span>Opens</span>
+          <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:#5aaad4;display:inline-block;"></span>Opens</span>
           <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:#22c55e;display:inline-block;"></span>Replies</span>
         </div>
       </div>
@@ -2798,7 +2799,7 @@ function _paintAnalytics(el, data) {
 
   // ── Campaign table ──
   const statusBadge = s => {
-    const map = { active:'#22c55e', paused:'#f59e0b', completed:'#2285c7', draft:'#94a3b8' };
+    const map = { active:'#22c55e', paused:'#5aaad4', completed:'#2285c7', draft:'#94a3b8' };
     return `<span style="display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:600;color:#fff;background:${map[s]||'#94a3b8'};text-transform:capitalize;">${s||'unknown'}</span>`;
   };
 
@@ -2908,7 +2909,7 @@ function _paintAnalytics(el, data) {
     const groupW  = chartW / n;
     const barW    = Math.min(groupW * 0.22, 18);
     const gap     = Math.min(groupW * 0.04, 4);
-    const colors  = ['#2285c7', '#f59e0b', '#22c55e'];
+    const colors  = ['#2285c7', '#5aaad4', '#22c55e'];
     const series  = [chartSent, chartOpens, chartReplies];
 
     series.forEach((vals, si) => {
