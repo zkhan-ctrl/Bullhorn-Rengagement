@@ -1000,7 +1000,11 @@ app.get('/api/job-counts', async (req, res) => {
 
 // AI email draft
 app.post('/api/draft-email', async (req, res) => {
-  const { companyName, contactName, contactRole, jobTitle } = req.body;
+  const { companyName, contactName, contactRole, jobs = [], jobTitle } = req.body;
+  const jobList = jobs.length ? jobs : (jobTitle ? [jobTitle] : []);
+  const jobsContext = jobList.length
+    ? `They are currently hiring for: ${jobList.join(', ')}.`
+    : '';
 
   if (process.env.ANTHROPIC_API_KEY) {
     try {
@@ -1008,10 +1012,10 @@ app.post('/api/draft-email', async (req, res) => {
       const client    = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
       const msg       = await client.messages.create({
         model:      'claude-haiku-4-5-20251001',
-        max_tokens: 120,
+        max_tokens: 200,
         messages:   [{
           role:    'user',
-          content: `You are a recruiter at a staffing agency. Write exactly ONE direct, warm re-engagement sentence to ${contactName} (${contactRole} at ${companyName}).${jobTitle ? ` They have an open "${jobTitle}" role.` : ''} Under 30 words. No greeting, no subject line, just the sentence. Do not start with "I".`
+          content: `You are a BD rep at Core Group Resources, a maritime and energy staffing agency. Write a short re-engagement email body to ${contactName} (${contactRole} at ${companyName}). ${jobsContext} Rules: reference their specific open roles by name if provided, 2-3 sentences max, warm and human (not salesy), mention we have pre-vetted candidates ready. No subject line, no greeting, no sign-off — body text only.`
         }]
       });
       return res.json({ draft: msg.content[0].text.trim(), ai: true });
@@ -1020,11 +1024,15 @@ app.post('/api/draft-email', async (req, res) => {
     }
   }
 
+  // Fallback template with job list
+  const roleStr = jobList.length
+    ? `your open ${jobList.slice(0, 3).join(', ')}${jobList.length > 3 ? ` and ${jobList.length - 3} other` : ''} role${jobList.length !== 1 ? 's' : ''}`
+    : 'your current openings';
   const templates = {
-    Recruiting: `Given your ${jobTitle ? `open ${jobTitle} role` : 'current openings'} at ${companyName}, I wanted to reconnect — we have strong, pre-vetted candidates ready for consideration.`,
-    Sales:      `I noticed ${companyName} has active hiring needs and wanted to reconnect to explore how our staffing solutions can support your growth this quarter.`,
-    HR:         `With ${companyName}'s current talent demands, I'd love to reconnect and share how our pipeline can accelerate your hiring process.`,
-    Ops:        `Given your operational openings at ${companyName}, I wanted to reach out and discuss how our team can help fill these roles quickly and efficiently.`
+    Recruiting: `I noticed ${companyName} is hiring for ${roleStr} and wanted to reconnect — we have strong, pre-vetted candidates ready for immediate consideration.`,
+    Sales:      `I saw ${companyName} is actively building out ${roleStr} and wanted to reach back out — our team has qualified candidates who would be a great fit.`,
+    HR:         `With ${companyName} hiring for ${roleStr}, I'd love to reconnect and share how our pipeline can accelerate your search.`,
+    Ops:        `Given your operational openings (${roleStr}) at ${companyName}, I wanted to reach out — we can help fill these roles quickly with pre-vetted talent.`
   };
   res.json({ draft: templates[contactRole] || templates.Sales, ai: false });
 });

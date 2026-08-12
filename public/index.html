@@ -1158,9 +1158,20 @@ async function loadExternalJobsForCard(id, company) {
     ).then(r => r.json()).catch(() => ({ data: [] }));
 
     if (cardData[id]) {
-      cardData[id].externalJobs        = extRes.data || [];
+      const newJobs = extRes.data || [];
+      cardData[id].externalJobs        = newJobs;
       cardData[id].externalJobsLoading = false;
       if (expandedIds.has(id)) refreshCard(id);
+
+      // Regenerate draft now that we have the full job picture (external jobs add real role context)
+      if (newJobs.length > 0) {
+        const selId = cardData[id].selectedContactId;
+        if (selId != null) {
+          delete cardData[id].contactDrafts[selId];
+          const contact = (cardData[id].allContacts || []).find(c => c.id === selId);
+          if (contact) generateContactDraft(id, contact);
+        }
+      }
     }
   } catch {
     if (cardData[id]) {
@@ -1177,8 +1188,12 @@ async function generateContactDraft(cId, contact) {
   data.contactDrafts[contact.id] = null; // null = loading
   if (expandedIds.has(cId)) refreshCard(cId);
 
-  const company  = allCompanies.find(x => x.id === cId);
-  const firstJob = (data.jobs || [])[0] || (data.externalJobs || [])[0];
+  const company = allCompanies.find(x => x.id === cId);
+
+  // Collect all available job titles (internal Bullhorn + external scraped)
+  const internalTitles = (data.jobs || []).map(j => j.title).filter(Boolean);
+  const externalTitles = (data.externalJobs || []).map(j => j.title).filter(Boolean);
+  const jobs = [...new Set([...internalTitles, ...externalTitles])].slice(0, 8);
 
   try {
     const { draft } = await fetch('/api/draft-email', {
@@ -1188,19 +1203,19 @@ async function generateContactDraft(cId, contact) {
         companyName: company?.name,
         contactName: contact.name,
         contactRole: contact.category || 'Other',
-        jobTitle:    firstJob?.title || null
+        jobs
       })
     }).then(r => r.json());
 
     if (cardData[cId]) {
       cardData[cId].contactDrafts[contact.id] = draft || '';
-      // Don't disrupt the user if they're typing a note
       if (expandedIds.has(cId) && document.activeElement?.id !== `note-${cId}`) refreshCard(cId);
     }
   } catch {
     if (cardData[cId]) {
       const fn = (contact.name || '').split(' ')[0] || 'there';
-      cardData[cId].contactDrafts[contact.id] = `Hi ${fn}, I wanted to reconnect and explore how we can support ${company?.name}'s hiring needs.`;
+      const jobLine = jobs.length ? ` We saw you're hiring for ${jobs.slice(0, 2).join(' and ')} and wanted to reach out.` : '';
+      cardData[cId].contactDrafts[contact.id] = `I wanted to reconnect and explore how Core Group Resources can support ${company?.name}'s hiring needs.${jobLine}`;
       if (expandedIds.has(cId) && document.activeElement?.id !== `note-${cId}`) refreshCard(cId);
     }
   }
