@@ -463,7 +463,8 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
   --cat-4:#eda100; --cat-5:#e87ba4; --cat-6:#008300;
   --stage-1:#6da7ec; --stage-2:#2a78d6; --stage-3:#1c5cab; --stage-4:#104281;
   padding: 28px 40px 40px;
-  max-width: 1200px;
+  max-width: 1100px;
+  margin: 0 auto;
 }
 #bdView .bd-top-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
 #bdView .bd-top-actions { display: flex; align-items: center; gap: 10px; }
@@ -513,7 +514,7 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 #bdView .dropdown-btn { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--text); cursor: pointer; font-size: 0.88em; font-family: inherit; }
 #bdView .dropdown-btn.small { padding: 6px 12px; font-size: 0.85em; }
 #bdView .caret { font-size: 0.75em; }
-#bdView .dropdown-panel { position: absolute; top: calc(100% + 6px); right: 0; background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); padding: 10px; min-width: 220px; max-height: 320px; overflow-y: auto; z-index: 50; }
+#bdView .dropdown-panel { position: absolute; top: calc(100% + 6px); right: 0; background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); padding: 10px; min-width: 220px; max-height: 320px; overflow-y: auto; z-index: 200; }
 #bdView #statusDropdownPanel, #bdView #stageDropdownPanel { right: auto; left: 0; }
 #bdView .dropdown-panel-actions { display: flex; gap: 8px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
 #bdView .dropdown-panel-actions button { flex: 1; padding: 5px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); cursor: pointer; font-size: 0.8em; font-family: inherit; }
@@ -3801,8 +3802,6 @@ function _initBdDash() {
     if (!pool.length) { el.innerHTML = '<div class="viz-empty">No proposals in scope.</div>'; return; }
     const needsFU  = pool.filter(p=>p.needsFollowUp).length;
     const stalled  = pool.filter(p=>p.bucket==='61-90'||p.bucket==='91+').length;
-    const pipeline = pool.reduce((s,p)=>s+(Number(p.dealValue)||0),0);
-    const priced   = pool.filter(p=>p.dealValue||p.dealValue===0).length;
     const stageCounts = new Map();
     pool.forEach(p => stageCounts.set(stageKey(p.dealStage), (stageCounts.get(stageKey(p.dealStage))||0)+1));
     const stageMax = Math.max(...stageCounts.values(), 1);
@@ -3818,7 +3817,6 @@ function _initBdDash() {
         <div class="stat-tile"><div class="stat-tile-label">Total proposals</div><div class="stat-tile-value num">${pool.length}</div></div>
         <div class="stat-tile"><div class="stat-tile-label">Needs follow-up</div><div class="stat-tile-value num">${needsFU}</div></div>
         <div class="stat-tile"><div class="stat-tile-label">Stalled 61+ days</div><div class="stat-tile-value num">${stalled}</div></div>
-        <div class="stat-tile"><div class="stat-tile-label">Pipeline value${priced<pool.length?` (${priced} priced)`:''}</div><div class="stat-tile-value num">${fmtMoney(pipeline)}</div></div>
       </div>
       <div class="viz-grid">
         <div class="viz-card"><h3>By stage</h3>${STAGE_ORDER.map(l=>[l,stageCounts.get(stageKey(l))||0]).filter(([,c])=>c>0).map(([l,c])=>bdVizBar(l,c,stageMax,STAGE_COLOR[stageKey(l)]||'#2285c7')).join('')||'<div class="viz-empty">No data.</div>'}</div>
