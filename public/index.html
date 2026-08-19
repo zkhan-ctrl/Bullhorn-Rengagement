@@ -447,6 +447,110 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 .cb-var-opt:hover { background:#f8faff; color:#2285c7; }
 .cb-var-opt code { background:#eef2ff; color:#1a6fa3; padding:1px 6px; border-radius:3px; font-size:11px; white-space:nowrap; }
 .cb-var-opt span { color:#94a3b8; font-size:11px; }
+
+/* ── BD Dashboard ── */
+.hidden { display: none !important; }
+.muted  { color: #64748b; font-size: 0.9em; }
+.num    { font-variant-numeric: tabular-nums; font-size: 0.93em; }
+
+#bdView {
+  --accent: #2285c7; --accent-dark: #1a6fa3;
+  --bg: #f0f4f8; --card: #ffffff; --border: #e2e8f0;
+  --text: #1e2a3a; --muted: #64748b;
+  --ok: #0ca30c; --warn: #fab219; --risk: #ec835a;
+  --danger: #d03b3b; --neutral: #898781;
+  --cat-1:#2a78d6; --cat-2:#eb6834; --cat-3:#1baf7a;
+  --cat-4:#eda100; --cat-5:#e87ba4; --cat-6:#008300;
+  --stage-1:#6da7ec; --stage-2:#2a78d6; --stage-3:#1c5cab; --stage-4:#104281;
+  padding: 28px 40px 40px;
+  max-width: 1200px;
+}
+#bdView .bd-top-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+#bdView .bd-top-actions { display: flex; align-items: center; gap: 10px; }
+#bdView .last-updated { color: var(--muted); font-size: 0.85em; }
+.bh-note { background: #eaf3fa; border: 1px solid #cfe3f0; color: #1c5c85; font-size: 0.82em; border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; }
+#bdView .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+#bdView .tab-btn { padding: 10px 18px; border: none; background: none; font-size: 0.95em; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; font-family: inherit; }
+#bdView .tab-btn.active { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
+#bdView .filter-row { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+#bdView .chip { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--card); cursor: pointer; font-size: 0.85em; color: var(--text); font-family: inherit; }
+#bdView .chip.active { background: var(--accent); color: white; border-color: var(--accent); }
+#bdView .count-badge { margin-left: auto; }
+#bdView .note { background: #fff9e6; border: 1px solid #f0e0a0; border-radius: 8px; padding: 10px 14px; font-size: 0.85em; color: #6b5900; margin-bottom: 16px; }
+#bdView .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: auto; }
+#bdView table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+#bdView th, #bdView td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+#bdView th { color: var(--muted); font-weight: 600; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.03em; }
+#bdView tbody tr:hover { background: #fafbfc; }
+#bdView tbody tr:last-child td { border-bottom: none; }
+#bdView .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 0.8em; font-weight: 600; color: white; }
+#bdView .badge.b-0-30 { background: var(--ok); }
+#bdView .badge.b-31-60 { background: var(--warn); }
+#bdView .badge.b-61-90 { background: var(--risk); }
+#bdView .badge.b-91\+ { background: var(--danger); }
+#bdView .badge.b-no-activity { background: var(--neutral); }
+#bdView .followup-badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 0.8em; font-weight: 600; background: #fbe9e6; color: var(--danger); }
+#bdView .empty-row td { text-align: center; color: var(--muted); padding: 30px; }
+#bdView tbody tr.clickable { cursor: pointer; }
+#bdView .bh-link { color: var(--accent); text-decoration: none; font-size: 0.9em; white-space: nowrap; }
+#bdView .bh-link:hover { text-decoration: underline; }
+#bdView .search-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+#bdView .search-row input[type="search"] { flex: 1; min-width: 200px; max-width: 340px; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 0.9em; font-family: inherit; }
+#bdView .date-filter { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+#bdView .date-filter label { font-size: 0.85em; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+#bdView .date-filter input[type="date"] { padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 0.85em; }
+#bdView .az-strip { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 14px; }
+#bdView .az-btn { min-width: 26px; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--card); color: var(--muted); font-size: 0.78em; cursor: pointer; text-align: center; font-family: inherit; }
+#bdView .az-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+#bdView .az-btn:disabled { opacity: 0.35; cursor: default; }
+#bdView .pagination { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 14px; }
+#bdView .pagination button { padding: 6px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--text); cursor: pointer; font-size: 0.85em; font-family: inherit; }
+#bdView .pagination button:disabled { opacity: 0.4; cursor: default; }
+#bdView .pagination span { font-size: 0.85em; color: var(--muted); }
+#bdView .link-btn { background: none; border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text); cursor: pointer; font-size: 0.85em; font-family: inherit; }
+#bdView .link-btn:hover { background: var(--bg); }
+#bdView .dropdown { position: relative; }
+#bdView .dropdown-btn { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--text); cursor: pointer; font-size: 0.88em; font-family: inherit; }
+#bdView .dropdown-btn.small { padding: 6px 12px; font-size: 0.85em; }
+#bdView .caret { font-size: 0.75em; }
+#bdView .dropdown-panel { position: absolute; top: calc(100% + 6px); right: 0; background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); padding: 10px; min-width: 220px; max-height: 320px; overflow-y: auto; z-index: 50; }
+#bdView #statusDropdownPanel, #bdView #stageDropdownPanel { right: auto; left: 0; }
+#bdView .dropdown-panel-actions { display: flex; gap: 8px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+#bdView .dropdown-panel-actions button { flex: 1; padding: 5px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); cursor: pointer; font-size: 0.8em; font-family: inherit; }
+#bdView .dropdown-panel label { display: flex; align-items: center; gap: 8px; padding: 5px 4px; font-size: 0.88em; cursor: pointer; }
+#bdView .dropdown-panel input[type="checkbox"] { cursor: pointer; }
+#bdView .dropdown-divider { height: 1px; background: var(--border); margin: 8px 0; }
+#bdView .other-bds-toggle { display: flex; align-items: center; gap: 8px; padding: 5px 4px; font-size: 0.88em; cursor: pointer; font-weight: 500; }
+#bdView .other-bds-status { padding: 2px 4px 4px; font-size: 0.78em; }
+#bdView .analytics { margin-bottom: 20px; }
+#bdView .stat-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 14px; }
+#bdView .stat-tile { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+#bdView .stat-tile-label { font-size: 0.78em; color: var(--muted); margin-bottom: 4px; }
+#bdView .stat-tile-value { font-size: 1.5em; font-weight: 600; }
+#bdView .viz-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+#bdView .viz-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+#bdView .viz-card h3 { margin: 0 0 12px; font-size: 0.9em; }
+#bdView .viz-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+#bdView .viz-label { width: 128px; flex-shrink: 0; font-size: 0.82em; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#bdView .viz-track { flex: 1; height: 20px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+#bdView .viz-fill { height: 100%; border-radius: 4px 0 0 4px; min-width: 4px; }
+#bdView .viz-value { width: 34px; flex-shrink: 0; text-align: right; font-size: 0.82em; color: var(--muted); }
+#bdView .viz-empty { color: var(--muted); font-size: 0.85em; padding: 8px 0; }
+/* BD Account detail modal */
+#bd-modal-overlay { position: fixed; inset: 0; background: rgba(15,17,21,0.55); display: flex; align-items: flex-start; justify-content: center; padding: 40px 20px; overflow-y: auto; z-index: 300; }
+#bd-modal-overlay .bd-modal { background: white; border-radius: 12px; padding: 28px; width: 100%; max-width: 640px; position: relative; box-shadow: 0 12px 40px rgba(0,0,0,0.25); }
+#bd-modal-overlay .bd-modal-close { position: absolute; top: 14px; right: 16px; background: none; border: none; font-size: 1.4em; color: #64748b; cursor: pointer; line-height: 1; }
+#bd-modal-overlay h2 { margin: 0 0 4px; font-size: 1.25em; }
+#bd-modal-overlay .modal-sub { color: #64748b; font-size: 0.9em; margin-bottom: 18px; }
+#bd-modal-overlay .stat-row { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 20px; }
+#bd-modal-overlay .stat-label { font-size: 0.75em; color: #64748b; text-transform: uppercase; letter-spacing: 0.03em; }
+#bd-modal-overlay .stat-value { font-size: 1.3em; font-weight: 600; }
+#bd-modal-overlay h3 { font-size: 0.95em; margin: 20px 0 8px; }
+#bd-modal-overlay .mini-list { list-style: none; padding: 0; margin: 0; }
+#bd-modal-overlay .mini-list li { padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-size: 0.88em; display: flex; justify-content: space-between; gap: 10px; }
+#bd-modal-overlay .mini-list li:last-child { border-bottom: none; }
+#bd-modal-overlay .mini-empty { color: #64748b; font-size: 0.85em; padding: 6px 0; }
+#bd-modal-overlay .note { background: #fff9e6; border: 1px solid #f0e0a0; border-radius: 8px; padding: 10px 14px; font-size: 0.82em; color: #6b5900; margin-bottom: 12px; }
 </style>
 </head>
 <body>
@@ -529,6 +633,12 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
         <span class="nav-label">Analytics</span>
       </button>
+      <div class="sb-divider"></div>
+      <div class="sb-section-label">CRM</div>
+      <button class="nav-item" data-section="bd" onclick="switchSection('bd')">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span class="nav-label">BD Dashboard</span>
+      </button>
     </div>
     <div class="sb-bottom">
       <div class="sb-user">
@@ -602,8 +712,152 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
     <div id="campaignView" style="display:none;"></div>
     <div id="queueView" style="display:none;"></div>
     <div id="analyticsView" style="display:none;"></div>
+    <div id="bdView" style="display:none;">
+      <div class="bd-top-bar">
+        <div class="bd-top-actions">
+          <div class="dropdown" id="bdmDropdown">
+            <button class="dropdown-btn" id="bdmDropdownBtn">BDs: All <span class="caret">&#9662;</span></button>
+            <div class="dropdown-panel hidden" id="bdmDropdownPanel">
+              <div class="dropdown-panel-actions">
+                <button data-action="all">Select all</button>
+                <button data-action="none">Clear</button>
+              </div>
+              <div id="bdmCheckboxList"></div>
+              <div class="dropdown-divider"></div>
+              <label class="other-bds-toggle">
+                <input type="checkbox" id="otherBdsCheckbox">
+                <span>Other BDs <span class="muted">(everyone else)</span></span>
+              </label>
+              <div id="otherBdsStatus" class="muted other-bds-status hidden">Loading…</div>
+            </div>
+          </div>
+          <button id="bd-refreshBtn" class="link-btn" title="Reload live data from Bullhorn">&#8635; Refresh</button>
+        </div>
+        <div id="bd-lastUpdated" class="muted last-updated"></div>
+      </div>
+      <p class="bh-note">"Open in Bullhorn" links use Bullhorn's own permalink format, which routes through any Bullhorn tab already open in this browser. If a link doesn't land on the right record, close other Bullhorn tabs first, then click it again.</p>
+      <nav class="tabs">
+        <button class="tab-btn active" data-tab="accounts">Accounts (A–Z)</button>
+        <button class="tab-btn" data-tab="proposals">Proposals Sent (Opportunities)</button>
+      </nav>
+
+      <section id="tab-accounts" class="tab-panel">
+        <div class="search-row">
+          <input id="accountSearch" type="search" placeholder="Search company name…">
+          <div class="date-filter">
+            <label>Last activity from <input type="date" id="accountsDateFrom"></label>
+            <label>to <input type="date" id="accountsDateTo"></label>
+            <button id="accountsDateClear" class="link-btn">Clear</button>
+          </div>
+        </div>
+        <div class="az-strip" id="azStrip"></div>
+        <div class="filter-row">
+          <span class="muted">Activity:</span>
+          <button class="chip active" data-bucket="all">All</button>
+          <button class="chip" data-bucket="0-30">0–30 days</button>
+          <button class="chip" data-bucket="31-60">31–60 days</button>
+          <button class="chip" data-bucket="61-90">61–90 days</button>
+          <button class="chip" data-bucket="91+">91+ days</button>
+          <button class="chip" data-bucket="no-activity">No activity</button>
+        </div>
+        <div class="filter-row">
+          <div class="dropdown" id="statusDropdown">
+            <button class="dropdown-btn small" id="statusDropdownBtn">Status: All <span class="caret">&#9662;</span></button>
+            <div class="dropdown-panel hidden" id="statusDropdownPanel">
+              <div class="dropdown-panel-actions">
+                <button data-action="all">Select all</button>
+                <button data-action="none">Clear</button>
+              </div>
+              <div id="statusCheckboxList"></div>
+            </div>
+          </div>
+          <span id="accountsCount" class="muted count-badge"></span>
+        </div>
+        <div class="table-wrap">
+          <table id="accountsTable">
+            <thead>
+              <tr>
+                <th>Company</th><th>BD</th><th>Status</th><th>Lead Source</th>
+                <th>Last Activity</th><th>Days Since</th><th>Bucket</th><th>Placements</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="pagination" id="accountsPagination"></div>
+      </section>
+
+      <section id="tab-proposals" class="tab-panel hidden">
+        <p class="note">"Proposal Sent" is tracked as the Bullhorn <strong>Contract Sent</strong> deal stage. Rows still at <strong>Contract Sent</strong> are flagged for follow-up until they move to Contract Signed / Converted / Closed-Won.</p>
+        <div class="analytics" id="proposalsAnalytics"></div>
+        <div class="search-row">
+          <input id="proposalSearch" type="search" placeholder="Search company name…">
+          <div class="date-filter">
+            <label>Last activity from <input type="date" id="proposalsActivityFrom"></label>
+            <label>to <input type="date" id="proposalsActivityTo"></label>
+            <button id="proposalsActivityClear" class="link-btn">Clear</button>
+          </div>
+        </div>
+        <div class="search-row">
+          <div class="date-filter">
+            <label>Sent from <input type="date" id="proposalsDateFrom"></label>
+            <label>to <input type="date" id="proposalsDateTo"></label>
+            <button id="proposalsDateClear" class="link-btn">Clear</button>
+          </div>
+        </div>
+        <div class="az-strip" id="proposalsAzStrip"></div>
+        <div class="filter-row">
+          <span class="muted">Activity:</span>
+          <button class="chip active" data-pbucket="all">All</button>
+          <button class="chip" data-pbucket="0-30">0–30 days</button>
+          <button class="chip" data-pbucket="31-60">31–60 days</button>
+          <button class="chip" data-pbucket="61-90">61–90 days</button>
+          <button class="chip" data-pbucket="91+">91+ days</button>
+          <button class="chip" data-pbucket="no-activity">No activity</button>
+        </div>
+        <div class="filter-row">
+          <span class="muted">Follow-up:</span>
+          <button class="chip active" data-follow="all">All</button>
+          <button class="chip" data-follow="pending">Needs follow-up</button>
+        </div>
+        <div class="filter-row">
+          <div class="dropdown" id="stageDropdown">
+            <button class="dropdown-btn small" id="stageDropdownBtn">Stage: All <span class="caret">&#9662;</span></button>
+            <div class="dropdown-panel hidden" id="stageDropdownPanel">
+              <div class="dropdown-panel-actions">
+                <button data-action="all">Select all</button>
+                <button data-action="none">Clear</button>
+              </div>
+              <div id="stageCheckboxList"></div>
+            </div>
+          </div>
+          <span id="proposalsCount" class="muted count-badge"></span>
+        </div>
+        <div class="table-wrap">
+          <table id="proposalsTable">
+            <thead>
+              <tr>
+                <th>Company</th><th>BD</th><th>Opportunity</th><th>Deal Value</th>
+                <th>Stage</th><th>Sent</th><th>Last Activity</th><th>Bucket</th>
+                <th>Expected Close</th><th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="pagination" id="proposalsPagination"></div>
+      </section>
+    </div>
   </div>
 
+</div>
+
+<!-- BD Account Detail Modal -->
+<div id="bd-modal-overlay" class="hidden" onclick="if(event.target.id==='bd-modal-overlay')document.getElementById('bd-modal-overlay').classList.add('hidden')">
+  <div class="bd-modal">
+    <button id="bd-modalClose" class="bd-modal-close">&times;</button>
+    <div id="bd-modalBody">Loading…</div>
+  </div>
 </div>
 
 <!-- OVERLOOP SEQUENCE PICKER MODAL -->
@@ -701,24 +955,26 @@ function switchSection(section) {
   document.querySelectorAll('.nav-item[data-section]').forEach(t =>
     t.classList.toggle('active', t.dataset.section === section)
   );
-  const titles = { dh: 'Direct Hire', ct: 'Contract Labor', stale: 'Stale Clients', campaign: 'Campaign Builder', queue: 'Campaign Queue', analytics: 'Re-engagement Analytics' };
+  const titles = { dh: 'Direct Hire', ct: 'Contract Labor', stale: 'Stale Clients', campaign: 'Campaign Builder', queue: 'Campaign Queue', analytics: 'Re-engagement Analytics', bd: 'BD Dashboard' };
   const titleEl = document.getElementById('topbarTitle');
   if (titleEl) titleEl.textContent = titles[section] || section;
   const statsEl = document.getElementById('topbarStats');
-  if (statsEl) statsEl.style.display = (section === 'stale' || section === 'campaign' || section === 'queue' || section === 'analytics') ? 'none' : '';
+  if (statsEl) statsEl.style.display = (section === 'stale' || section === 'campaign' || section === 'queue' || section === 'analytics' || section === 'bd') ? 'none' : '';
   const filtersEl = document.getElementById('topbarFilters');
-  if (filtersEl) filtersEl.style.display = (section === 'campaign' || section === 'queue' || section === 'analytics') ? 'none' : 'contents';
+  if (filtersEl) filtersEl.style.display = (section === 'campaign' || section === 'queue' || section === 'analytics' || section === 'bd') ? 'none' : 'contents';
 
   const companyList    = document.getElementById('companyList');
   const campaignView   = document.getElementById('campaignView');
   const queueView      = document.getElementById('queueView');
   const analyticsView  = document.getElementById('analyticsView');
+  const bdView         = document.getElementById('bdView');
 
   if (section === 'campaign') {
     if (companyList)   companyList.style.display   = 'none';
     if (campaignView)  campaignView.style.display  = 'block';
     if (queueView)     queueView.style.display     = 'none';
     if (analyticsView) analyticsView.style.display = 'none';
+    if (bdView)        bdView.style.display        = 'none';
     if (!cb.section) _cbInitTab();
     return;
   }
@@ -728,6 +984,7 @@ function switchSection(section) {
     if (campaignView)  campaignView.style.display  = 'none';
     if (queueView)     queueView.style.display     = 'block';
     if (analyticsView) analyticsView.style.display = 'none';
+    if (bdView)        bdView.style.display        = 'none';
     _renderQueueView();
     return;
   }
@@ -737,7 +994,18 @@ function switchSection(section) {
     if (campaignView)  campaignView.style.display  = 'none';
     if (queueView)     queueView.style.display     = 'none';
     if (analyticsView) analyticsView.style.display = 'block';
+    if (bdView)        bdView.style.display        = 'none';
     _renderAnalyticsView();
+    return;
+  }
+
+  if (section === 'bd') {
+    if (companyList)   companyList.style.display   = 'none';
+    if (campaignView)  campaignView.style.display  = 'none';
+    if (queueView)     queueView.style.display     = 'none';
+    if (analyticsView) analyticsView.style.display = 'none';
+    if (bdView)        bdView.style.display        = 'block';
+    _initBdDash();
     return;
   }
 
@@ -745,6 +1013,7 @@ function switchSection(section) {
   if (campaignView)  campaignView.style.display  = 'none';
   if (queueView)     queueView.style.display     = 'none';
   if (analyticsView) analyticsView.style.display = 'none';
+  if (bdView)        bdView.style.display        = 'none';
 
   renderList();
   updateHeaderStats();
@@ -3230,6 +3499,427 @@ document.getElementById('loginForm').addEventListener('submit', async e => {
     btn.textContent   = 'Sign In';
   }
 });
+
+// ─── BD Dashboard ─────────────────────────────────────────────────────────────
+let _bdDashInited = false;
+function _initBdDash() {
+  if (_bdDashInited) return;
+  _bdDashInited = true;
+
+  const PAGE_SIZE = 25;
+  const BH_BASE = 'https://cls32.bullhornstaffing.com/BullhornSTAFFING/OpenWindow.cfm';
+  const bhUrl = (entity, id) => `${BH_BASE}?Entity=${entity}&id=${id}`;
+  const fmtMoney = (v) => (v || v === 0) ? Number(v).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }) : '—';
+  const fmtDate  = (v) => v ? new Date(v).toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' }) : '—';
+  const fmtDT    = (v) => v ? new Date(v).toLocaleString('en-US', { year:'numeric', month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : '—';
+  const bktLabel = (b) => ({'0-30':'0–30','31-60':'31–60','61-90':'61–90','91+':'91+','no-activity':'No activity'}[b] || b);
+  const stageKey = (s) => (s || '').trim().toLowerCase();
+
+  let bdData = { bdms: [], accounts: [], proposals: [] };
+  let bdOther = null;
+  let bdIncludeOther = false;
+  let bdSelectedBdms = new Set();
+  let bdAllStatuses = [], bdAllStages = [];
+  let bdSelStatuses = new Set(), bdSelStages = new Set();
+  const accState  = { bucket:'all', letter:'all', search:'', page:1, dateFrom:'', dateTo:'' };
+  const propState = { follow:'all', bucket:'all', letter:'all', search:'', page:1, dateFrom:'', dateTo:'', actFrom:'', actTo:'' };
+
+  const STAGE_ORDER = ['Contract Sent','Contract Signed-Intake Call Needed','Converted','Closed-Won'];
+  const STAGE_COLOR = { 'contract sent':'#6da7ec','contract signed-intake call needed':'#2a78d6','converted':'#1c5cab','closed-won':'#104281' };
+  const BUCKET_ORDER = ['0-30','31-60','61-90','91+','no-activity'];
+  const BUCKET_COLOR = { '0-30':'#0ca30c','31-60':'#fab219','61-90':'#ec835a','91+':'#d03b3b','no-activity':'#898781' };
+  const CAT_COLORS   = ['#2a78d6','#eb6834','#1baf7a','#eda100','#e87ba4','#008300'];
+
+  async function bdLoad(force = false) {
+    document.getElementById('bd-lastUpdated').textContent = 'Loading live data from Bullhorn…';
+    try {
+      const data = await fetch(`/api/bd/dashboard${force ? '?refresh=1' : ''}`).then(r => r.json());
+      if (data.error) throw new Error(data.error);
+      bdData = data;
+      bdSelectedBdms = new Set(data.bdms);
+      bdAllStatuses = [...new Set(data.accounts.map(a => a.status).filter(Boolean))].sort();
+      bdSelStatuses  = new Set(bdAllStatuses);
+      bdAllStages    = [...new Set(data.proposals.map(p => p.dealStage).filter(Boolean))].sort();
+      bdSelStages    = new Set(bdAllStages);
+      document.getElementById('bd-lastUpdated').textContent = `Live data as of ${fmtDT(data.generatedAt)}`;
+      bdBuildBdmDrop(); bdBuildStatusDrop(); bdBuildStageDrop();
+      bdBuildAz(); bdBuildPropAz(); bdRenderAcc(); bdRenderProp();
+    } catch (e) {
+      document.getElementById('bd-lastUpdated').textContent = `Error loading data: ${e.message}`;
+    }
+  }
+
+  function bdBuildBdmDrop() {
+    const list = document.getElementById('bdmCheckboxList');
+    list.innerHTML = bdData.bdms.map(name =>
+      `<label><input type="checkbox" value="${name}" ${bdSelectedBdms.has(name)?'checked':''}> ${name}</label>`
+    ).join('');
+    list.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.addEventListener('change', () => {
+        if (cb.checked) bdSelectedBdms.add(cb.value); else bdSelectedBdms.delete(cb.value);
+        bdUpdateBdmLabel(); accState.page=1; propState.page=1; bdRenderAcc(); bdRenderProp();
+      });
+    });
+    bdUpdateBdmLabel();
+  }
+  function bdUpdateBdmLabel() {
+    const btn = document.getElementById('bdmDropdownBtn');
+    const n = bdSelectedBdms.size;
+    btn.innerHTML = (n === bdData.bdms.length ? 'BDs: All' : n === 0 ? 'BDs: None' : `BDs: ${n} selected`) + ' <span class="caret">&#9662;</span>';
+  }
+
+  function bdRefreshDerived() {
+    const oa = bdOther ? bdOther.accounts : [], op = bdOther ? bdOther.proposals : [];
+    const newS = [...new Set([...bdData.accounts,...oa].map(a=>a.status).filter(Boolean))].sort();
+    const newG = [...new Set([...bdData.proposals,...op].map(p=>p.dealStage).filter(Boolean))].sort();
+    newS.filter(s=>!bdAllStatuses.includes(s)).forEach(s=>bdSelStatuses.add(s));
+    newG.filter(g=>!bdAllStages.includes(g)).forEach(g=>bdSelStages.add(g));
+    bdAllStatuses = newS; bdAllStages = newG;
+    bdBuildStatusDrop(); bdBuildStageDrop();
+  }
+
+  const otherCb = document.getElementById('otherBdsCheckbox');
+  const otherSt = document.getElementById('otherBdsStatus');
+  otherCb.addEventListener('change', async () => {
+    bdIncludeOther = otherCb.checked;
+    if (bdIncludeOther && !bdOther) {
+      otherCb.disabled = true;
+      otherSt.textContent = 'Loading other BDs…';
+      otherSt.classList.remove('hidden');
+      try {
+        bdOther = await fetch('/api/bd/dashboard/other-bds').then(r => r.json());
+        if (bdOther.error) throw new Error(bdOther.error);
+        otherSt.textContent = `${bdOther.bdms.length} other BDs, ${bdOther.accounts.length} accounts loaded`;
+        bdRefreshDerived(); bdBuildAz(); bdBuildPropAz();
+      } catch (e) {
+        otherSt.textContent = 'Failed to load other BDs.';
+        bdIncludeOther = false; otherCb.checked = false;
+      }
+      otherCb.disabled = false;
+    } else if (!bdIncludeOther) otherSt.classList.add('hidden');
+    accState.page=1; propState.page=1; bdRenderAcc(); bdRenderProp();
+  });
+
+  function bdBuildStatusDrop() {
+    const list = document.getElementById('statusCheckboxList');
+    list.innerHTML = bdAllStatuses.map(s =>
+      `<label><input type="checkbox" value="${s}" ${bdSelStatuses.has(s)?'checked':''}> ${s}</label>`
+    ).join('');
+    list.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.addEventListener('change', () => {
+        if (cb.checked) bdSelStatuses.add(cb.value); else bdSelStatuses.delete(cb.value);
+        bdUpdateStatusLabel(); accState.page=1; bdRenderAcc();
+      });
+    });
+    bdUpdateStatusLabel();
+  }
+  function bdUpdateStatusLabel() {
+    const btn = document.getElementById('statusDropdownBtn');
+    const n = bdSelStatuses.size;
+    btn.innerHTML = (n === bdAllStatuses.length ? 'Status: All' : n === 0 ? 'Status: None' : `Status: ${n} selected`) + ' <span class="caret">&#9662;</span>';
+  }
+  function bdBuildStageDrop() {
+    const list = document.getElementById('stageCheckboxList');
+    list.innerHTML = bdAllStages.map(s =>
+      `<label><input type="checkbox" value="${s}" ${bdSelStages.has(s)?'checked':''}> ${s}</label>`
+    ).join('');
+    list.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.addEventListener('change', () => {
+        if (cb.checked) bdSelStages.add(cb.value); else bdSelStages.delete(cb.value);
+        bdUpdateStageLabel(); propState.page=1; bdRenderProp();
+      });
+    });
+    bdUpdateStageLabel();
+  }
+  function bdUpdateStageLabel() {
+    const btn = document.getElementById('stageDropdownBtn');
+    const n = bdSelStages.size;
+    btn.innerHTML = (n === bdAllStages.length ? 'Stage: All' : n === 0 ? 'Stage: None' : `Stage: ${n} selected`) + ' <span class="caret">&#9662;</span>';
+  }
+
+  function bdSetupDrop(btnId, panelId) {
+    const btn   = document.getElementById(btnId);
+    const panel = document.getElementById(panelId);
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      document.querySelectorAll('#bdView .dropdown-panel').forEach(p => { if (p !== panel) p.classList.add('hidden'); });
+      panel.classList.toggle('hidden');
+    });
+    panel.querySelectorAll('.dropdown-panel-actions button').forEach(ab => {
+      ab.addEventListener('click', () => {
+        panel.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = ab.dataset.action === 'all'; cb.dispatchEvent(new Event('change')); });
+      });
+    });
+  }
+  document.addEventListener('click', e => {
+    if (!document.getElementById('bdView').contains(e.target)) return;
+    document.querySelectorAll('#bdView .dropdown-panel').forEach(p => p.classList.add('hidden'));
+  });
+  bdSetupDrop('bdmDropdownBtn', 'bdmDropdownPanel');
+  bdSetupDrop('statusDropdownBtn', 'statusDropdownPanel');
+  bdSetupDrop('stageDropdownBtn', 'stageDropdownPanel');
+
+  document.getElementById('bd-refreshBtn').addEventListener('click', () => bdLoad(true));
+
+  function bdBuildAz() {
+    const present = new Set(bdData.accounts.map(a => (a.companyName||'?').trim()[0]?.toUpperCase()));
+    const strip = document.getElementById('azStrip');
+    strip.innerHTML = ['ALL',...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'].map(l => {
+      const v = l === 'ALL' ? 'all' : l;
+      return `<button class="az-btn ${v==='all'?'active':''}" data-letter="${v}" ${l!=='ALL'&&!present.has(l)?'disabled':''}>${l==='ALL'?'All':l}</button>`;
+    }).join('');
+    strip.querySelectorAll('.az-btn').forEach(b => b.addEventListener('click', () => {
+      strip.querySelectorAll('.az-btn').forEach(x=>x.classList.remove('active')); b.classList.add('active');
+      accState.letter=b.dataset.letter; accState.page=1; bdRenderAcc();
+    }));
+  }
+  function bdBuildPropAz() {
+    const present = new Set(bdData.proposals.map(p => (p.companyName||'?').trim()[0]?.toUpperCase()));
+    const strip = document.getElementById('proposalsAzStrip');
+    strip.innerHTML = ['ALL',...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'].map(l => {
+      const v = l === 'ALL' ? 'all' : l;
+      return `<button class="az-btn ${v==='all'?'active':''}" data-letter="${v}" ${l!=='ALL'&&!present.has(l)?'disabled':''}>${l==='ALL'?'All':l}</button>`;
+    }).join('');
+    strip.querySelectorAll('.az-btn').forEach(b => b.addEventListener('click', () => {
+      strip.querySelectorAll('.az-btn').forEach(x=>x.classList.remove('active')); b.classList.add('active');
+      propState.letter=b.dataset.letter; propState.page=1; bdRenderProp();
+    }));
+  }
+
+  function bdAccPool() {
+    const oth = bdIncludeOther && bdOther ? bdOther.accounts : [];
+    return [...bdData.accounts,...oth].filter(a => a.isOther ? bdIncludeOther : bdSelectedBdms.has(a.bdm));
+  }
+  function bdPropPool() {
+    const oth = bdIncludeOther && bdOther ? bdOther.proposals : [];
+    return [...bdData.proposals,...oth].filter(p => p.isOther ? bdIncludeOther : bdSelectedBdms.has(p.bdm));
+  }
+  function inRange(d, from, to) {
+    if (!from && !to) return true;
+    if (!d) return false;
+    const t = new Date(d).getTime();
+    if (from && t < new Date(from).getTime()) return false;
+    if (to   && t > new Date(to).getTime() + 86400000 - 1) return false;
+    return true;
+  }
+
+  function bdGetAccFiltered() {
+    return bdAccPool().filter(a => {
+      if (!bdSelStatuses.has(a.status)) return false;
+      if (accState.bucket !== 'all' && a.bucket !== accState.bucket) return false;
+      if (accState.letter !== 'all' && (a.companyName||'?').trim()[0]?.toUpperCase() !== accState.letter) return false;
+      if (accState.search && !(a.companyName||'').toLowerCase().includes(accState.search.toLowerCase())) return false;
+      if (!inRange(a.lastActivity, accState.dateFrom, accState.dateTo)) return false;
+      return true;
+    });
+  }
+  function bdRenderAcc() {
+    const filtered = bdGetAccFiltered();
+    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    accState.page = Math.min(accState.page, totalPages);
+    const rows = filtered.slice((accState.page-1)*PAGE_SIZE, accState.page*PAGE_SIZE);
+    document.getElementById('accountsCount').textContent = `${filtered.length} account${filtered.length===1?'':'s'}`;
+    const tbody = document.querySelector('#accountsTable tbody');
+    tbody.innerHTML = rows.length
+      ? rows.map(a => `
+          <tr class="clickable" data-id="${a.id}">
+            <td>${a.companyName||'—'} <a href="${bhUrl('ClientCorporation',a.id)}" class="bh-link" onclick="event.stopPropagation()">&#8599;</a></td>
+            <td>${a.bdm||'—'}</td><td>${a.status||'—'}</td><td>${a.leadSource||'—'}</td>
+            <td class="num">${fmtDate(a.lastActivity)}</td>
+            <td class="num">${a.daysSinceActivity===null?'—':a.daysSinceActivity}</td>
+            <td><span class="badge b-${a.bucket}">${bktLabel(a.bucket)}</span></td>
+            <td class="num">${a.placementsTotal}</td>
+          </tr>`).join('')
+      : '<tr class="empty-row"><td colspan="8">No accounts match this filter.</td></tr>';
+    tbody.querySelectorAll('tr.clickable').forEach(r => r.addEventListener('click', () => bdOpenModal(r.dataset.id)));
+    bdRenderAccPag(totalPages);
+  }
+  function bdRenderAccPag(total) {
+    const el = document.getElementById('accountsPagination');
+    if (total <= 1) { el.innerHTML = ''; return; }
+    el.innerHTML = `<button id="bdPrevAcc" ${accState.page===1?'disabled':''}>&larr; Prev</button><span>Page ${accState.page} of ${total}</span><button id="bdNextAcc" ${accState.page===total?'disabled':''}>Next &rarr;</button>`;
+    document.getElementById('bdPrevAcc')?.addEventListener('click', () => { accState.page--; bdRenderAcc(); });
+    document.getElementById('bdNextAcc')?.addEventListener('click', () => { accState.page++; bdRenderAcc(); });
+  }
+
+  document.getElementById('accountSearch').addEventListener('input', e => { accState.search=e.target.value; accState.page=1; bdRenderAcc(); });
+  document.getElementById('accountsDateFrom').addEventListener('change', e => { accState.dateFrom=e.target.value; accState.page=1; bdRenderAcc(); });
+  document.getElementById('accountsDateTo').addEventListener('change', e => { accState.dateTo=e.target.value; accState.page=1; bdRenderAcc(); });
+  document.getElementById('accountsDateClear').addEventListener('click', () => {
+    accState.dateFrom=''; accState.dateTo='';
+    document.getElementById('accountsDateFrom').value='';
+    document.getElementById('accountsDateTo').value='';
+    bdRenderAcc();
+  });
+
+  async function bdOpenModal(id) {
+    const overlay = document.getElementById('bd-modal-overlay');
+    const body    = document.getElementById('bd-modalBody');
+    overlay.classList.remove('hidden');
+    body.innerHTML = 'Loading…';
+    try {
+      const d = await fetch(`/api/bd/accounts/${id}`).then(r => r.json());
+      if (d.error) throw new Error(d.error);
+      const contactsHtml = d.contacts.length
+        ? `<ul class="mini-list">${d.contacts.map(c => `
+            <li>
+              <span>${c.name}${c.title?` — ${c.title}`:''}${c.email?`<br><span class="muted">${c.email}</span>`:''}</span>
+              <span class="muted">${c.lastNote?`Last note: <span class="num">${fmtDate(c.lastNote)}</span>`:'No notes'}<br><a href="${bhUrl('ClientContact',c.id)}" class="bh-link">Open &#8599;</a></span>
+            </li>`).join('')}</ul>`
+        : '<div class="mini-empty">No contacts on file.</div>';
+      const oppsHtml = d.opportunities.length
+        ? `<ul class="mini-list">${d.opportunities.map(o => `
+            <li>
+              <span>${o.title||'Untitled'}<br><span class="muted">${o.dealStage}</span></span>
+              <span class="muted"><span class="num">${fmtMoney(o.dealValue)}<br>${fmtDate(o.dateLastModified)}</span><br><a href="${bhUrl('Opportunity',o.id)}" class="bh-link">Open &#8599;</a></span>
+            </li>`).join('')}</ul>`
+        : '<div class="mini-empty">No opportunities on file.</div>';
+      body.innerHTML = `
+        <h2>${d.companyName} <a href="${bhUrl('ClientCorporation',d.id)}" class="bh-link">&#8599;</a></h2>
+        <div class="modal-sub">${d.status||'—'}${d.leadSource?` · ${d.leadSource}`:''}${d.website?` · ${d.website}`:''}${d.phone?` · ${d.phone}`:''}</div>
+        <p class="note">Real note/email content isn't reliably retrievable through this data connection. Use "Open in Bullhorn" to see full history.</p>
+        <div class="stat-row">
+          <div><div class="stat-label">Last Activity</div><div class="stat-value num">${fmtDate(d.lastActivity)}</div></div>
+          <div><div class="stat-label">Bucket</div><div class="stat-value"><span class="badge b-${d.bucket}">${bktLabel(d.bucket)}</span></div></div>
+          <div><div class="stat-label">Placements</div><div class="stat-value num">${d.placementsTotal}</div></div>
+        </div>
+        <h3>Contacts (${d.contacts.length})</h3>${contactsHtml}
+        <h3>Opportunities (${d.opportunities.length})</h3>${oppsHtml}`;
+    } catch (e) {
+      body.innerHTML = `<p class="mini-empty">Failed to load: ${e.message}</p>`;
+    }
+  }
+  document.getElementById('bd-modalClose').addEventListener('click', () => document.getElementById('bd-modal-overlay').classList.add('hidden'));
+
+  function bdVizBar(label, count, max, color) {
+    const pct = max > 0 ? Math.max((count/max)*100, count>0?4:0) : 0;
+    return `<div class="viz-row"><div class="viz-label" title="${label}">${label}</div><div class="viz-track"><div class="viz-fill" style="width:${pct}%;background:${color};"></div></div><div class="viz-value num">${count}</div></div>`;
+  }
+  function bdRenderPropAnalytics() {
+    const el = document.getElementById('proposalsAnalytics');
+    const pool = bdPropPool();
+    if (!pool.length) { el.innerHTML = '<div class="viz-empty">No proposals in scope.</div>'; return; }
+    const needsFU  = pool.filter(p=>p.needsFollowUp).length;
+    const stalled  = pool.filter(p=>p.bucket==='61-90'||p.bucket==='91+').length;
+    const pipeline = pool.reduce((s,p)=>s+(Number(p.dealValue)||0),0);
+    const priced   = pool.filter(p=>p.dealValue||p.dealValue===0).length;
+    const stageCounts = new Map();
+    pool.forEach(p => stageCounts.set(stageKey(p.dealStage), (stageCounts.get(stageKey(p.dealStage))||0)+1));
+    const stageMax = Math.max(...stageCounts.values(), 1);
+    const bucketCounts = new Map();
+    pool.forEach(p => bucketCounts.set(p.bucket, (bucketCounts.get(p.bucket)||0)+1));
+    const bucketMax = Math.max(...bucketCounts.values(), 1);
+    const bdCounts = new Map();
+    pool.forEach(p => { const k=p.isOther?'Other BDs':p.bdm; bdCounts.set(k,(bdCounts.get(k)||0)+1); });
+    const bdEntries = [...bdCounts.entries()].sort((a,b)=>b[1]-a[1]);
+    const bdMax = Math.max(...bdEntries.map(([,c])=>c), 1);
+    el.innerHTML = `
+      <div class="stat-tiles">
+        <div class="stat-tile"><div class="stat-tile-label">Total proposals</div><div class="stat-tile-value num">${pool.length}</div></div>
+        <div class="stat-tile"><div class="stat-tile-label">Needs follow-up</div><div class="stat-tile-value num">${needsFU}</div></div>
+        <div class="stat-tile"><div class="stat-tile-label">Stalled 61+ days</div><div class="stat-tile-value num">${stalled}</div></div>
+        <div class="stat-tile"><div class="stat-tile-label">Pipeline value${priced<pool.length?` (${priced} priced)`:''}</div><div class="stat-tile-value num">${fmtMoney(pipeline)}</div></div>
+      </div>
+      <div class="viz-grid">
+        <div class="viz-card"><h3>By stage</h3>${STAGE_ORDER.map(l=>[l,stageCounts.get(stageKey(l))||0]).filter(([,c])=>c>0).map(([l,c])=>bdVizBar(l,c,stageMax,STAGE_COLOR[stageKey(l)]||'#2285c7')).join('')||'<div class="viz-empty">No data.</div>'}</div>
+        <div class="viz-card"><h3>By last activity</h3>${BUCKET_ORDER.map(b=>[b,bucketCounts.get(b)||0]).filter(([,c])=>c>0).map(([b,c])=>bdVizBar(bktLabel(b),c,bucketMax,BUCKET_COLOR[b])).join('')||'<div class="viz-empty">No data.</div>'}</div>
+        <div class="viz-card"><h3>By BD</h3>${bdEntries.map(([n,c],i)=>bdVizBar(n,c,bdMax,n==='Other BDs'?'#898781':CAT_COLORS[i%CAT_COLORS.length])).join('')||'<div class="viz-empty">No data.</div>'}</div>
+      </div>`;
+  }
+
+  function bdGetPropFiltered() {
+    return bdPropPool().filter(p => {
+      if (!bdSelStages.has(p.dealStage)) return false;
+      if (propState.follow==='pending' && !p.needsFollowUp) return false;
+      if (propState.bucket!=='all' && p.bucket!==propState.bucket) return false;
+      if (propState.letter!=='all' && (p.companyName||'?').trim()[0]?.toUpperCase()!==propState.letter) return false;
+      if (propState.search && !(p.companyName||'').toLowerCase().includes(propState.search.toLowerCase())) return false;
+      if (!inRange(p.contractSentDate, propState.dateFrom, propState.dateTo)) return false;
+      if (!inRange(p.lastActivity, propState.actFrom, propState.actTo)) return false;
+      return true;
+    });
+  }
+  function bdRenderProp() {
+    bdRenderPropAnalytics();
+    const filtered = bdGetPropFiltered();
+    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    propState.page = Math.min(propState.page, totalPages);
+    const rows = filtered.slice((propState.page-1)*PAGE_SIZE, propState.page*PAGE_SIZE);
+    document.getElementById('proposalsCount').textContent = `${filtered.length} proposal${filtered.length===1?'':'s'}`;
+    const tbody = document.querySelector('#proposalsTable tbody');
+    tbody.innerHTML = rows.length
+      ? rows.map(p => `
+          <tr class="clickable" data-id="${p.companyId}">
+            <td>${p.companyName||'—'}</td><td>${p.bdm||'—'}</td>
+            <td>${p.title||'—'} <a href="${bhUrl('Opportunity',p.id)}" class="bh-link" onclick="event.stopPropagation()">&#8599;</a></td>
+            <td class="num">${fmtMoney(p.dealValue)}</td><td>${p.dealStage}</td>
+            <td class="num">${fmtDate(p.contractSentDate)}</td><td class="num">${fmtDate(p.lastActivity)}</td>
+            <td><span class="badge b-${p.bucket}">${bktLabel(p.bucket)}</span></td>
+            <td class="num">${fmtDate(p.expectedCloseDate)}</td>
+            <td>${p.needsFollowUp?'<span class="followup-badge">Follow up</span>':''}</td>
+          </tr>`).join('')
+      : '<tr class="empty-row"><td colspan="10">No proposals match this filter.</td></tr>';
+    tbody.querySelectorAll('tr.clickable').forEach(r => r.addEventListener('click', () => bdOpenModal(r.dataset.id)));
+    bdRenderPropPag(totalPages);
+  }
+  function bdRenderPropPag(total) {
+    const el = document.getElementById('proposalsPagination');
+    if (total <= 1) { el.innerHTML = ''; return; }
+    el.innerHTML = `<button id="bdPrevProp" ${propState.page===1?'disabled':''}>&larr; Prev</button><span>Page ${propState.page} of ${total}</span><button id="bdNextProp" ${propState.page===total?'disabled':''}>Next &rarr;</button>`;
+    document.getElementById('bdPrevProp')?.addEventListener('click', () => { propState.page--; bdRenderProp(); });
+    document.getElementById('bdNextProp')?.addEventListener('click', () => { propState.page++; bdRenderProp(); });
+  }
+
+  document.getElementById('proposalSearch').addEventListener('input', e => { propState.search=e.target.value; propState.page=1; bdRenderProp(); });
+  document.getElementById('proposalsDateFrom').addEventListener('change', e => { propState.dateFrom=e.target.value; propState.page=1; bdRenderProp(); });
+  document.getElementById('proposalsDateTo').addEventListener('change', e => { propState.dateTo=e.target.value; propState.page=1; bdRenderProp(); });
+  document.getElementById('proposalsDateClear').addEventListener('click', () => {
+    propState.dateFrom=''; propState.dateTo='';
+    document.getElementById('proposalsDateFrom').value='';
+    document.getElementById('proposalsDateTo').value='';
+    bdRenderProp();
+  });
+  document.getElementById('proposalsActivityFrom').addEventListener('change', e => { propState.actFrom=e.target.value; propState.page=1; bdRenderProp(); });
+  document.getElementById('proposalsActivityTo').addEventListener('change', e => { propState.actTo=e.target.value; propState.page=1; bdRenderProp(); });
+  document.getElementById('proposalsActivityClear').addEventListener('click', () => {
+    propState.actFrom=''; propState.actTo='';
+    document.getElementById('proposalsActivityFrom').value='';
+    document.getElementById('proposalsActivityTo').value='';
+    bdRenderProp();
+  });
+
+  document.querySelectorAll('#bdView .tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#bdView .tab-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('#bdView .tab-panel').forEach(p=>p.classList.add('hidden'));
+      document.getElementById(`tab-${btn.dataset.tab}`).classList.remove('hidden');
+    });
+  });
+  document.querySelectorAll('#tab-accounts .chip[data-bucket]').forEach(chip => {
+    chip.addEventListener('click', () => {
+      chip.closest('.filter-row').querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+      chip.classList.add('active');
+      accState.bucket=chip.dataset.bucket; accState.page=1; bdRenderAcc();
+    });
+  });
+  document.querySelectorAll('#tab-proposals .chip[data-pbucket]').forEach(chip => {
+    chip.addEventListener('click', () => {
+      chip.closest('.filter-row').querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+      chip.classList.add('active');
+      propState.bucket=chip.dataset.pbucket; propState.page=1; bdRenderProp();
+    });
+  });
+  document.querySelectorAll('#tab-proposals .chip[data-follow]').forEach(chip => {
+    chip.addEventListener('click', () => {
+      chip.closest('.filter-row').querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+      chip.classList.add('active');
+      propState.follow=chip.dataset.follow; propState.page=1; bdRenderProp();
+    });
+  });
+
+  bdLoad();
+}
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 checkAuth().then(authed => { if (authed) init(); });

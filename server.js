@@ -1103,8 +1103,44 @@ app.get('/api/company/:id/external-jobs', async (req, res) => {
   res.json(payload);
 });
 
+// ─── BD Dashboard routes ──────────────────────────────────────────────────────
+const { getDashboardData, getOtherBdsData, getAccountDetail } = require('./src/bd-queries');
+
+app.get('/api/bd/dashboard', async (req, res) => {
+  try {
+    const force = req.query.refresh === '1';
+    res.json(await getDashboardData({ force }));
+  } catch (err) {
+    console.error('BD dashboard:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/bd/dashboard/other-bds', async (req, res) => {
+  try {
+    const force = req.query.refresh === '1';
+    res.json(await getOtherBdsData({ force }));
+  } catch (err) {
+    console.error('BD other-bds:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/bd/accounts/:id', async (req, res) => {
+  try {
+    const detail = await getAccountDetail(req.params.id);
+    if (!detail) return res.status(404).json({ error: 'Account not found' });
+    res.json(detail);
+  } catch (err) {
+    console.error('BD account detail:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Start ─────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`\n✅ CGR Re-Engagement Tool → http://localhost:${PORT}\n`);
+  // Warm BD dashboard cache in background
+  getDashboardData().catch((e) => console.error('BD cache warm-up:', e.message));
 });
