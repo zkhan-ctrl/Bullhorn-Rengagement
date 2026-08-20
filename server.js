@@ -4,7 +4,9 @@ const axios          = require('axios');
 const path           = require('path');
 const { spawn }      = require('child_process');
 const fs             = require('fs');
+const crypto         = require('crypto');
 const session   = require('express-session');
+const helmet    = require('helmet');
 const {
   msalClient,
   REDIRECT_URI,
@@ -12,26 +14,14 @@ const {
   SCOPES,
   requireAuth,
 } = require('./src/auth');
+const { loadUsers, saveUsers, getUserMap } = require('./src/users-store');
 
 // ─── User config — authorization/config lookup by email, NOT authentication.
-// Identity is proven by Entra ID sign-in; this map only controls which
+// Identity is proven by Entra ID sign-in; this store only controls which
 // per-BD Overloop/Instantly keys and admin rights an authenticated user gets.
-// Same USERS env var shape as before, minus the password field.
-const USERS_MAP = new Map();
-try {
-  const rawUsers = JSON.parse(process.env.USERS || '[]');
-  for (const u of rawUsers) {
-    USERS_MAP.set(u.email.toLowerCase(), {
-      name:          u.name,
-      overloop_key:  u.overloop_key,
-      instantly_key: u.instantly_key,
-      admin:         !!u.admin,
-    });
-  }
-  console.log(`✅ Authorization config: ${USERS_MAP.size} users loaded`);
-} catch (e) {
-  console.error('❌ USERS env var parse error:', e.message);
-}
+// Backed by src/users-store.js (a JSON file) instead of the static USERS
+// env var, so admins can manage this from the in-app Settings panel
+// without a redeploy. Read fresh at login time — see /auth/callback below.
 
 const app = express();
 app.use(express.json());
@@ -55,16 +45,37 @@ app.use(
   })
 );
 
+app.use(helmet({
+  // The app's own inline <script> tags in public/index.html would be
+  // blocked by helmet's default (restrictive) Content-Security-Policy,
+  // so that sub-module is disabled here; frame-ancestors is set
+  // explicitly below instead, which is the one CSP directive that
+  // actually matters for this app's threat model (clickjacking).
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+}));
+
 app.use((req, res, next) => {
-  res.setHeader('Content-Security-Policy', "frame-ancestors *");
-  res.removeHeader('X-Frame-Options');
+  // Only this app's own pages may frame it — closes the clickjacking
+  // gap left by the previous "frame-ancestors *" override. helmet's
+  // frameguard() above already sends X-Frame-Options: SAMEORIGIN for
+  // older browsers; this CSP header is what modern browsers actually
+  // honor.
+  res.setHeader('Content-Security-Policy', "frame-ancestors 'self'");
   next();
 });
 
 // ─── Auth routes — reachable WITHOUT a session ─────────────────────────────
 app.get('/auth/login', async (req, res) => {
   try {
-    const authCodeUrlParameters = { scopes: SCOPES, redirectUri: REDIRECT_URI };
+    // A random, session-bound state value — checked on the way back in
+    // /auth/callback so a stray/attacker-supplied authorization code
+    // aimed at this callback can't be swapped in for a real login
+    // (authorization code injection protection).
+    const state = crypto.randomBytes(16).toString('hex');
+    req.session.oauthState = state;
+
+    const authCodeUrlParameters = { scopes: SCOPES, redirectUri: REDIRECT_URI, state };
     // ?switch=1 forces Microsoft's account picker instead of silently
     // reusing whatever Microsoft account is already signed in on this
     // browser (used by the "not provisioned" page's "try a different
@@ -85,6 +96,14 @@ app.get('/auth/callback', async (req, res) => {
     console.error('Entra returned an error:', req.query.error, req.query.error_description);
     return res.status(401).send('Sign-in failed or was cancelled.');
   }
+
+  const expectedState = req.session.oauthState;
+  delete req.session.oauthState;
+  if (!expectedState || req.query.state !== expectedState) {
+    console.warn('Auth callback rejected: state mismatch (possible CSRF/replay attempt)');
+    return res.status(401).send('Sign-in session expired or invalid. Please try signing in again.');
+  }
+
   try {
     const tokenResponse = await msalClient.acquireTokenByCode({
       code: req.query.code,
@@ -93,7 +112,7 @@ app.get('/auth/callback', async (req, res) => {
     });
 
     const email = tokenResponse.account.username.toLowerCase(); // UPN, e.g. user@cgrteam.com
-    const config = USERS_MAP.get(email);
+    const config = getUserMap().get(email);
     if (!config) {
       console.warn(`Blocked sign-in from ${email}: not provisioned in USERS`);
       return res.status(403).send(`
@@ -149,6 +168,85 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.get('/api/me', (req, res) => {
   const { email, name, admin } = req.session.user;
   res.json({ email, name, admin });
+});
+
+// ─── Admin: manage the USERS list from Settings — no redeploy needed ──────
+function requireAdmin(req, res, next) {
+  if (!req.session.user?.admin) return res.status(403).json({ error: 'Admin only' });
+  next();
+}
+
+// List all provisioned users (admin only). Full record, including keys,
+// is returned because only admins can reach this route — same visibility
+// they already had via the Railway USERS variable.
+app.get('/api/admin/users', requireAdmin, (req, res) => {
+  res.json(loadUsers());
+});
+
+app.post('/api/admin/users', requireAdmin, (req, res) => {
+  const { email, name, admin, overloop_key, instantly_key } = req.body || {};
+  if (!email || !email.includes('@')) {
+    return res.status(400).json({ error: 'A valid email is required' });
+  }
+  const users = loadUsers();
+  const normalizedEmail = email.trim().toLowerCase();
+  if (users.some((u) => u.email.toLowerCase() === normalizedEmail)) {
+    return res.status(409).json({ error: 'That email is already provisioned' });
+  }
+  users.push({
+    email: normalizedEmail,
+    name: name || '',
+    admin: !!admin,
+    overloop_key: overloop_key || undefined,
+    instantly_key: instantly_key || undefined,
+  });
+  saveUsers(users);
+  res.json({ ok: true });
+});
+
+app.put('/api/admin/users/:email', requireAdmin, (req, res) => {
+  const targetEmail = decodeURIComponent(req.params.email).toLowerCase();
+  const users = loadUsers();
+  const idx = users.findIndex((u) => u.email.toLowerCase() === targetEmail);
+  if (idx === -1) return res.status(404).json({ error: 'User not found' });
+
+  const { name, admin, overloop_key, instantly_key } = req.body || {};
+
+  // Guard: don't allow removing the last remaining admin (including
+  // demoting yourself if you're the only one), to prevent locking
+  // everyone out of the admin panel entirely.
+  const isDemotingLastAdmin =
+    users[idx].admin && admin === false && users.filter((u) => u.admin).length === 1;
+  if (isDemotingLastAdmin) {
+    return res.status(400).json({ error: 'Cannot remove the last remaining admin' });
+  }
+
+  users[idx] = {
+    ...users[idx],
+    ...(name !== undefined && { name }),
+    ...(admin !== undefined && { admin: !!admin }),
+    ...(overloop_key !== undefined && { overloop_key }),
+    ...(instantly_key !== undefined && { instantly_key }),
+  };
+  saveUsers(users);
+  res.json({ ok: true });
+});
+
+app.delete('/api/admin/users/:email', requireAdmin, (req, res) => {
+  const targetEmail = decodeURIComponent(req.params.email).toLowerCase();
+  const users = loadUsers();
+  const target = users.find((u) => u.email.toLowerCase() === targetEmail);
+  if (!target) return res.status(404).json({ error: 'User not found' });
+
+  if (target.admin && users.filter((u) => u.admin).length === 1) {
+    return res.status(400).json({ error: 'Cannot remove the last remaining admin' });
+  }
+  if (targetEmail === req.session.user.email.toLowerCase()) {
+    return res.status(400).json({ error: 'You cannot remove your own account while signed in' });
+  }
+
+  saveUsers(users.filter((u) => u.email.toLowerCase() !== targetEmail));
+  res.json({ ok: true });
 });
 
 // ─── Overloop outreach integration ────────────────────────────────────────────
@@ -773,7 +871,7 @@ app.get('/api/admin/score-fields', async (req, res) => {
 });
 
 // Debug — inspect any table: GET /api/debug?table=Placement
-app.get('/api/debug', async (req, res) => {
+app.get('/api/debug', requireAdmin, async (req, res) => {
   const auth  = Buffer.from(`${process.env.CDATA_USER}:${process.env.CDATA_PAT}`).toString('base64');
   const table = (req.query.table || 'ClientCorporation').replace(/[^a-zA-Z]/g, '');
   const sql   = `SELECT TOP 2 * FROM BullhornCRM1.BullhornCRM.${table}`;
@@ -796,7 +894,7 @@ app.get('/api/debug', async (req, res) => {
 });
 
 // Debug — show auto-detected field names + column lists for Placement & JobOrder
-app.get('/api/debug-fields', async (req, res) => {
+app.get('/api/debug-fields', requireAdmin, async (req, res) => {
   const auth = Buffer.from(`${process.env.CDATA_USER}:${process.env.CDATA_PAT}`).toString('base64');
   const result = { detected: FIELD };
   for (const table of ['Placement', 'JobOrder', 'ClientContact', 'ClientCorporation']) {
@@ -813,7 +911,7 @@ app.get('/api/debug-fields', async (req, res) => {
 });
 
 // Debug — run an arbitrary SELECT (read-only): GET /api/debug-sql?q=SELECT+TOP+5+ID,Title+FROM+JobOrder
-app.get('/api/debug-sql', async (req, res) => {
+app.get('/api/debug-sql', requireAdmin, async (req, res) => {
   const sql = (req.query.q || '').trim();
   if (!sql || !/^select\b/i.test(sql)) return res.status(400).json({ error: 'Only SELECT queries allowed' });
   try {
@@ -825,7 +923,7 @@ app.get('/api/debug-sql', async (req, res) => {
 });
 
 // Health check
-app.get('/api/status', async (req, res) => {
+app.get('/api/status', requireAdmin, async (req, res) => {
   const needed  = ['CDATA_USER', 'CDATA_PAT'];
   const missing = needed.filter(k => !process.env[k]);
   if (missing.length) return res.json({ ok: false, missing });
