@@ -1,0 +1,63 @@
+// Persistent store for the USERS list, so admins can add/edit/remove
+// people from inside Anchor's Settings panel instead of editing the
+// Railway `USERS` env var and waiting for a redeploy.
+//
+// IMPORTANT: this file lives on disk at DATA_PATH. Railway's filesystem
+// is ephemeral by default — anything written here is LOST on every
+// redeploy/restart unless a Railway Volume is mounted at that path.
+// See setup notes from Claude for how to add one; without it, this
+// still works, but resets to the USERS env var's contents on every deploy.
+
+const fs = require('fs');
+const path = require('path');
+
+const DATA_PATH = process.env.USERS_DATA_PATH || '/data/users.json';
+
+function ensureDataFile() {
+  const dir = path.dirname(DATA_PATH);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  if (!fs.existsSync(DATA_PATH)) {
+    // First run (or no volume yet): seed from the legacy USERS env var so
+    // existing access isn't lost during the transition.
+    let seed = [];
+    try {
+      seed = JSON.parse(process.env.USERS || '[]');
+    } catch (e) {
+      console.error('❌ USERS env var parse error while seeding store:', e.message);
+      seed = [];
+    }
+    // Defensively strip any leftover password fields from the old scheme.
+    seed = seed.map(({ password, ...rest }) => rest);
+    fs.writeFileSync(DATA_PATH, JSON.stringify(seed, null, 2));
+    console.log(`✅ Seeded ${DATA_PATH} with ${seed.length} user(s) from USERS env var`);
+  }
+}
+
+function loadUsers() {
+  ensureDataFile();
+  try {
+    const raw = fs.readFileSync(DATA_PATH, 'utf8');
+    const users = JSON.parse(raw);
+    return Array.isArray(users) ? users : [];
+  } catch (e) {
+    console.error('❌ Failed to read users store:', e.message);
+    return [];
+  }
+}
+
+function saveUsers(users) {
+  fs.writeFileSync(DATA_PATH, JSON.stringify(users, null, 2));
+}
+
+// Live lookup map, keyed by lowercased email — called fresh on every
+// login and every admin panel request rather than cached, since the
+// file is small and this keeps additions/edits effective immediately.
+function getUserMap() {
+  const map = new Map();
+  for (const u of loadUsers()) {
+    if (u && u.email) map.set(u.email.toLowerCase(), u);
+  }
+  return map;
+}
+
+module.exports = { loadUsers, saveUsers, getUserMap, DATA_PATH };
