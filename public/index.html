@@ -878,6 +878,11 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
       <div class="modal-label" style="margin-bottom:10px;">Manage Anchor users</div>
       <div id="usersError" style="display:none;color:#f87171;font-size:13px;margin-bottom:10px;"></div>
 
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <input id="usersSearch" type="text" placeholder="Search by name or email…" class="modal-input" style="flex:1;" oninput="applyUsersFilterSort()">
+        <button class="btn-cancel" style="white-space:nowrap;padding:8px 14px;font-size:13px;" onclick="toggleUsersSort()" id="usersSortBtn">Sort: A–Z</button>
+      </div>
+
       <div style="max-height:50vh;overflow-y:auto;border:1px solid rgba(255,255,255,0.1);border-radius:8px;">
         <table style="width:100%;border-collapse:collapse;font-size:13px;">
           <thead>
@@ -1673,7 +1678,14 @@ function openSettings() {
   const isAdmin = !!currentUser.admin;
   document.getElementById('settingsNonAdmin').style.display = isAdmin ? 'none' : 'block';
   document.getElementById('settingsAdmin').style.display = isAdmin ? 'block' : 'none';
-  if (isAdmin) loadUsersPanel();
+  if (isAdmin) {
+    // Always open fresh: A–Z sort, no leftover search text from a
+    // previous time the panel was open this session.
+    _usersSortAsc = true;
+    document.getElementById('usersSortBtn').textContent = 'Sort: A–Z';
+    document.getElementById('usersSearch').value = '';
+    loadUsersPanel();
+  }
 }
 function closeSettings() { document.getElementById('settingsModal').classList.remove('open'); }
 
@@ -1685,20 +1697,46 @@ function _usersErr(msg) {
   el.style.display = 'block';
 }
 
+let _allUsers = [];
+let _usersSortAsc = true;
+
 async function loadUsersPanel() {
   _usersErr('');
   try {
     const r = await fetch('/api/admin/users');
     if (!r.ok) { _usersErr((await r.json()).error || 'Failed to load users'); return; }
-    const users = await r.json();
-    renderUsersTable(users);
+    _allUsers = await r.json();
+    applyUsersFilterSort();
   } catch (e) {
     _usersErr('Network error loading users');
   }
 }
 
+function toggleUsersSort() {
+  _usersSortAsc = !_usersSortAsc;
+  document.getElementById('usersSortBtn').textContent = _usersSortAsc ? 'Sort: A–Z' : 'Sort: Z–A';
+  applyUsersFilterSort();
+}
+
+function applyUsersFilterSort() {
+  const q = (document.getElementById('usersSearch').value || '').trim().toLowerCase();
+  let list = _allUsers.filter(u =>
+    !q || (u.name || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q)
+  );
+  list = list.slice().sort((a, b) => {
+    const an = (a.name || a.email || '').toLowerCase();
+    const bn = (b.name || b.email || '').toLowerCase();
+    return _usersSortAsc ? an.localeCompare(bn) : bn.localeCompare(an);
+  });
+  renderUsersTable(list);
+}
+
 function renderUsersTable(users) {
   const tbody = document.getElementById('usersTableBody');
+  if (users.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--text-secondary,#94a3b8);">No matching users</td></tr>`;
+    return;
+  }
   tbody.innerHTML = users.map(u => `
     <tr style="border-bottom:1px solid rgba(255,255,255,0.06);" data-email="${u.email}">
       <td style="padding:8px;">${u.email}</td>
