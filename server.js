@@ -923,7 +923,12 @@ app.get('/api/debug-sql', requireAdmin, async (req, res) => {
 });
 
 // Health check
-app.get('/api/status', requireAdmin, async (req, res) => {
+// Note: NOT admin-gated — every signed-in user's browser calls this on
+// load to decide whether to show the "Setup Required" screen, so it
+// stays available to any authenticated (requireAuth already covers
+// that above) user. Only the actual debug/schema routes below are
+// admin-only.
+app.get('/api/status', async (req, res) => {
   const needed  = ['CDATA_USER', 'CDATA_PAT'];
   const missing = needed.filter(k => !process.env[k]);
   if (missing.length) return res.json({ ok: false, missing });
