@@ -866,12 +866,49 @@ body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Seg
 
 <!-- SETTINGS MODAL -->
 <div class="modal-overlay" id="settingsModal" onclick="if(event.target===this)closeSettings()">
-  <div class="modal">
+  <div class="modal" style="max-width:640px;">
     <div class="modal-title">⚙ Settings</div>
-    <div class="modal-field">
+
+    <div id="settingsNonAdmin" class="modal-field" style="display:none;">
       <div class="modal-label">No settings available yet</div>
       <div class="modal-hint">More options coming soon.</div>
     </div>
+
+    <div id="settingsAdmin" style="display:none;">
+      <div class="modal-label" style="margin-bottom:10px;">Manage Anchor users</div>
+      <div id="usersError" style="display:none;color:#f87171;font-size:13px;margin-bottom:10px;"></div>
+
+      <div style="max-height:320px;overflow-y:auto;border:1px solid rgba(255,255,255,0.1);border-radius:8px;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="text-align:left;border-bottom:1px solid rgba(255,255,255,0.1);">
+              <th style="padding:8px;">Email</th>
+              <th style="padding:8px;">Name</th>
+              <th style="padding:8px;">Admin</th>
+              <th style="padding:8px;">Overloop key</th>
+              <th style="padding:8px;">Instantly key</th>
+              <th style="padding:8px;"></th>
+            </tr>
+          </thead>
+          <tbody id="usersTableBody"></tbody>
+        </table>
+      </div>
+
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.1);">
+        <div class="modal-label" style="margin-bottom:8px;">Add a user</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <input id="newUserEmail" type="email" placeholder="email@cgrteam.com" class="modal-input">
+          <input id="newUserName" type="text" placeholder="Name" class="modal-input">
+          <input id="newUserOverloop" type="text" placeholder="Overloop key (optional)" class="modal-input">
+          <input id="newUserInstantly" type="text" placeholder="Instantly key (optional)" class="modal-input">
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:13px;">
+          <input id="newUserAdmin" type="checkbox"> Admin
+        </label>
+        <button class="btn-scan" style="margin-top:10px;" onclick="addUser()">Add user</button>
+      </div>
+    </div>
+
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeSettings()">Close</button>
     </div>
@@ -1631,8 +1668,115 @@ function applyFilters() {
 }
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
-function openSettings() { document.getElementById('settingsModal').classList.add('open'); }
+function openSettings() {
+  document.getElementById('settingsModal').classList.add('open');
+  const isAdmin = !!currentUser.admin;
+  document.getElementById('settingsNonAdmin').style.display = isAdmin ? 'none' : 'block';
+  document.getElementById('settingsAdmin').style.display = isAdmin ? 'block' : 'none';
+  if (isAdmin) loadUsersPanel();
+}
 function closeSettings() { document.getElementById('settingsModal').classList.remove('open'); }
+
+// ─── Admin: user management panel ──────────────────────────────────────────
+function _usersErr(msg) {
+  const el = document.getElementById('usersError');
+  if (!msg) { el.style.display = 'none'; el.textContent = ''; return; }
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+async function loadUsersPanel() {
+  _usersErr('');
+  try {
+    const r = await fetch('/api/admin/users');
+    if (!r.ok) { _usersErr((await r.json()).error || 'Failed to load users'); return; }
+    const users = await r.json();
+    renderUsersTable(users);
+  } catch (e) {
+    _usersErr('Network error loading users');
+  }
+}
+
+function renderUsersTable(users) {
+  const tbody = document.getElementById('usersTableBody');
+  tbody.innerHTML = users.map(u => `
+    <tr style="border-bottom:1px solid rgba(255,255,255,0.06);" data-email="${u.email}">
+      <td style="padding:8px;">${u.email}</td>
+      <td style="padding:8px;"><input class="modal-input" data-field="name" value="${u.name || ''}"></td>
+      <td style="padding:8px;text-align:center;"><input type="checkbox" data-field="admin" ${u.admin ? 'checked' : ''}></td>
+      <td style="padding:8px;"><input class="modal-input" data-field="overloop_key" value="${u.overloop_key || ''}" placeholder="—"></td>
+      <td style="padding:8px;"><input class="modal-input" data-field="instantly_key" value="${u.instantly_key || ''}" placeholder="—"></td>
+      <td style="padding:8px;white-space:nowrap;">
+        <button class="btn-scan" style="padding:5px 10px;font-size:12px;" onclick="saveUserRow('${u.email}')">Save</button>
+        <button class="btn-cancel" style="padding:5px 10px;font-size:12px;" onclick="removeUser('${u.email}')">Remove</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function saveUserRow(email) {
+  const row = document.querySelector(`#usersTableBody tr[data-email="${CSS.escape(email)}"]`);
+  const patch = {
+    name: row.querySelector('[data-field="name"]').value,
+    admin: row.querySelector('[data-field="admin"]').checked,
+    overloop_key: row.querySelector('[data-field="overloop_key"]').value,
+    instantly_key: row.querySelector('[data-field="instantly_key"]').value,
+  };
+  _usersErr('');
+  try {
+    const r = await fetch(`/api/admin/users/${encodeURIComponent(email)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    });
+    const data = await r.json();
+    if (!r.ok) { _usersErr(data.error || 'Failed to save'); return; }
+    loadUsersPanel();
+  } catch (e) {
+    _usersErr('Network error saving user');
+  }
+}
+
+async function removeUser(email) {
+  if (!confirm(`Remove ${email} from Anchor? They will lose access immediately on next sign-in.`)) return;
+  _usersErr('');
+  try {
+    const r = await fetch(`/api/admin/users/${encodeURIComponent(email)}`, { method: 'DELETE' });
+    const data = await r.json();
+    if (!r.ok) { _usersErr(data.error || 'Failed to remove'); return; }
+    loadUsersPanel();
+  } catch (e) {
+    _usersErr('Network error removing user');
+  }
+}
+
+async function addUser() {
+  const email = document.getElementById('newUserEmail').value.trim();
+  const name = document.getElementById('newUserName').value.trim();
+  const admin = document.getElementById('newUserAdmin').checked;
+  const overloop_key = document.getElementById('newUserOverloop').value.trim();
+  const instantly_key = document.getElementById('newUserInstantly').value.trim();
+
+  if (!email) { _usersErr('Email is required'); return; }
+  _usersErr('');
+  try {
+    const r = await fetch('/api/admin/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, name, admin, overloop_key, instantly_key }),
+    });
+    const data = await r.json();
+    if (!r.ok) { _usersErr(data.error || 'Failed to add user'); return; }
+    document.getElementById('newUserEmail').value = '';
+    document.getElementById('newUserName').value = '';
+    document.getElementById('newUserOverloop').value = '';
+    document.getElementById('newUserInstantly').value = '';
+    document.getElementById('newUserAdmin').checked = false;
+    loadUsersPanel();
+  } catch (e) {
+    _usersErr('Network error adding user');
+  }
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function setScanState(active) {
