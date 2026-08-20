@@ -64,7 +64,15 @@ app.use((req, res, next) => {
 // ─── Auth routes — reachable WITHOUT a session ─────────────────────────────
 app.get('/auth/login', async (req, res) => {
   try {
-    const authUrl = await msalClient.getAuthCodeUrl({ scopes: SCOPES, redirectUri: REDIRECT_URI });
+    const authCodeUrlParameters = { scopes: SCOPES, redirectUri: REDIRECT_URI };
+    // ?switch=1 forces Microsoft's account picker instead of silently
+    // reusing whatever Microsoft account is already signed in on this
+    // browser (used by the "not provisioned" page's "try a different
+    // account" link).
+    if (req.query.switch === '1') {
+      authCodeUrlParameters.prompt = 'select_account';
+    }
+    const authUrl = await msalClient.getAuthCodeUrl(authCodeUrlParameters);
     res.redirect(authUrl);
   } catch (err) {
     console.error('Login redirect error:', err);
@@ -88,7 +96,24 @@ app.get('/auth/callback', async (req, res) => {
     const config = USERS_MAP.get(email);
     if (!config) {
       console.warn(`Blocked sign-in from ${email}: not provisioned in USERS`);
-      return res.status(403).send('Your account signed in successfully but is not provisioned for Anchor. Contact IT to be added.');
+      return res.status(403).send(`
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="utf-8"><title>Anchor — Not provisioned</title></head>
+        <body style="font-family: -apple-system, Segoe UI, sans-serif; background:#0a0f1e; color:#e5e7eb; display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0;">
+          <div style="max-width:420px; text-align:center; padding:32px;">
+            <h1 style="font-size:20px; margin-bottom:12px;">Account not authorized</h1>
+            <p style="color:#9ca3af; line-height:1.5;">
+              You signed in successfully as <strong>${email}</strong>, but this account
+              isn't provisioned for Anchor. Contact IT to be added, or try a different account.
+            </p>
+            <a href="/auth/login?switch=1" style="display:inline-block; margin-top:20px; padding:10px 20px; background:#2563eb; color:white; border-radius:8px; text-decoration:none; font-weight:500;">
+              Try a different Microsoft account
+            </a>
+          </div>
+        </body>
+        </html>
+      `);
     }
 
     req.session.user = {
