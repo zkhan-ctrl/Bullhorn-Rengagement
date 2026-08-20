@@ -4,39 +4,56 @@ const axios          = require('axios');
 const path           = require('path');
 const { spawn }      = require('child_process');
 const fs             = require('fs');
-const bcrypt    = require('bcryptjs');
-const rateLimit = require('express-rate-limit');
-const crypto    = require('crypto');
+const session   = require('express-session');
+const {
+  msalClient,
+  REDIRECT_URI,
+  POST_LOGOUT_REDIRECT_URI,
+  SCOPES,
+  requireAuth,
+} = require('./src/auth');
 
-// ─── User store — parsed + hashed once at startup ─────────────────────────────
+// ─── User config — authorization/config lookup by email, NOT authentication.
+// Identity is proven by Entra ID sign-in; this map only controls which
+// per-BD Overloop/Instantly keys and admin rights an authenticated user gets.
+// Same USERS env var shape as before, minus the password field.
 const USERS_MAP = new Map();
 try {
   const rawUsers = JSON.parse(process.env.USERS || '[]');
   for (const u of rawUsers) {
     USERS_MAP.set(u.email.toLowerCase(), {
       name:          u.name,
-      hash:          bcrypt.hashSync(u.password, 10),
       overloop_key:  u.overloop_key,
       instantly_key: u.instantly_key,
       admin:         !!u.admin,
     });
   }
-  console.log(`✅ Auth: ${USERS_MAP.size} users loaded`);
+  console.log(`✅ Authorization config: ${USERS_MAP.size} users loaded`);
 } catch (e) {
   console.error('❌ USERS env var parse error:', e.message);
 }
 
-// ─── Token store — 30-day bearer tokens, no cookies needed ───────────────────
-// Using Authorization headers avoids all SameSite/proxy/iframe cookie issues.
-const AUTH_TOKENS = new Map(); // token → { user, expires }
-setInterval(() => {
-  const now = Date.now();
-  for (const [t, d] of AUTH_TOKENS) if (d.expires < now) AUTH_TOKENS.delete(t);
-}, 60 * 60 * 1000); // prune expired tokens hourly
-
 const app = express();
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+
+// Railway sits in front of this app behind a proxy — required for
+// secure:true cookies to be set correctly over HTTPS.
+app.set('trust proxy', 1);
+
+app.use(
+  session({
+    name: 'anchor_sid',
+    secret: process.env.AUTH_SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+      maxAge: 8 * 60 * 60 * 1000, // 8 hours
+    },
+  })
+);
 
 app.use((req, res, next) => {
   res.setHeader('Content-Security-Policy', "frame-ancestors *");
@@ -44,56 +61,68 @@ app.use((req, res, next) => {
   next();
 });
 
-// ─── Auth middleware — checks Bearer token on all /api/* except /api/login ────
-app.use('/api', (req, res, next) => {
-  if (req.path === '/login') return next();
-  const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
-  if (!token) return res.status(401).json({ error: 'Not authenticated' });
-  const record = AUTH_TOKENS.get(token);
-  if (!record || record.expires < Date.now()) {
-    AUTH_TOKENS.delete(token);
-    return res.status(401).json({ error: 'Not authenticated' });
+// ─── Auth routes — reachable WITHOUT a session ─────────────────────────────
+app.get('/auth/login', async (req, res) => {
+  try {
+    const authUrl = await msalClient.getAuthCodeUrl({ scopes: SCOPES, redirectUri: REDIRECT_URI });
+    res.redirect(authUrl);
+  } catch (err) {
+    console.error('Login redirect error:', err);
+    res.status(500).send('Sign-in is not configured correctly. Contact IT.');
   }
-  req.currentUser = record.user;
-  next();
 });
 
-// ─── Rate limiter — 5 attempts per 15 min per IP ──────────────────────────────
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, max: 5,
-  message: { error: 'Too many login attempts. Try again in 15 minutes.' },
-  standardHeaders: true, legacyHeaders: false,
+app.get('/auth/callback', async (req, res) => {
+  if (req.query.error) {
+    console.error('Entra returned an error:', req.query.error, req.query.error_description);
+    return res.status(401).send('Sign-in failed or was cancelled.');
+  }
+  try {
+    const tokenResponse = await msalClient.acquireTokenByCode({
+      code: req.query.code,
+      scopes: SCOPES,
+      redirectUri: REDIRECT_URI,
+    });
+
+    const email = tokenResponse.account.username.toLowerCase(); // UPN, e.g. user@cgrteam.com
+    const config = USERS_MAP.get(email);
+    if (!config) {
+      console.warn(`Blocked sign-in from ${email}: not provisioned in USERS`);
+      return res.status(403).send('Your account signed in successfully but is not provisioned for Anchor. Contact IT to be added.');
+    }
+
+    req.session.user = {
+      email,
+      name: config.name || tokenResponse.account.name,
+      admin: config.admin,
+      overloop_key: config.overloop_key,
+      instantly_key: config.instantly_key,
+    };
+    const dest = req.session.postLoginRedirect || '/';
+    delete req.session.postLoginRedirect;
+    res.redirect(dest);
+  } catch (err) {
+    console.error('Auth callback error:', err);
+    res.status(500).send('Sign-in failed. Please try again.');
+  }
 });
 
-// ─── Auth routes ──────────────────────────────────────────────────────────────
-app.post('/api/login', loginLimiter, async (req, res) => {
-  const { email, password } = req.body || {};
-  if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
-
-  const user = USERS_MAP.get(email.toLowerCase().trim());
-  if (!user) {
-    await bcrypt.compare(password, '$2b$10$invalidhashtopreventtimingattackxxxxxxxxxxxxxxxxxxxxxxx');
-    return res.status(401).json({ error: 'Invalid email or password' });
-  }
-  const match = await bcrypt.compare(password, user.hash);
-  if (!match) return res.status(401).json({ error: 'Invalid email or password' });
-
-  const token = crypto.randomBytes(32).toString('hex');
-  AUTH_TOKENS.set(token, {
-    user: { email: email.toLowerCase().trim(), name: user.name, admin: user.admin, overloop_key: user.overloop_key, instantly_key: user.instantly_key },
-    expires: Date.now() + 30 * 24 * 60 * 60 * 1000,
+app.get('/auth/logout', (req, res) => {
+  req.session.destroy(() => {
+    const logoutUrl =
+      `https://login.microsoftonline.com/${process.env.AZURE_TENANT_ID}/oauth2/v2.0/logout` +
+      `?post_logout_redirect_uri=${encodeURIComponent(POST_LOGOUT_REDIRECT_URI)}`;
+    res.redirect(logoutUrl);
   });
-  res.json({ ok: true, token, name: user.name, admin: user.admin });
 });
 
-app.post('/api/logout', (req, res) => {
-  const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
-  if (token) AUTH_TOKENS.delete(token);
-  res.json({ ok: true });
-});
+// ─── Everything below requires a signed-in, provisioned session ───────────
+app.use(requireAuth);
+
+app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/api/me', (req, res) => {
-  const { email, name, admin } = req.currentUser;
+  const { email, name, admin } = req.session.user;
   res.json({ email, name, admin });
 });
 
@@ -111,7 +140,7 @@ function overloopHeaders(key) {
 
 // Create prospect + enroll in a sequence (single or bulk contacts)
 app.post('/api/overloop/enroll', async (req, res) => {
-  const key = req.currentUser?.overloop_key;
+  const key = req.session.user?.overloop_key;
   if (!key) return res.status(400).json({ error: 'No Overloop API key configured for your account.' });
 
   const { contacts, sequenceId } = req.body || {};
@@ -174,7 +203,7 @@ app.post('/api/overloop/enroll', async (req, res) => {
 
 // Bulk enroll all contacts from multiple T3/T4 companies into a sequence
 app.post('/api/overloop/bulk-enroll', async (req, res) => {
-  const key = req.currentUser?.overloop_key;
+  const key = req.session.user?.overloop_key;
   if (!key) return res.status(400).json({ error: 'No Overloop API key configured for your account.' });
 
   const { companies, sequenceId, jobTitle, jobUrl } = req.body || {};
@@ -269,7 +298,7 @@ app.post('/api/overloop/bulk-enroll', async (req, res) => {
 
 // Campaign Builder enrollment — per-company job summaries pre-computed client-side
 app.post('/api/overloop/campaign-enroll', async (req, res) => {
-  const key = req.currentUser?.overloop_key;
+  const key = req.session.user?.overloop_key;
   if (!key) return res.status(400).json({ error: 'No Overloop API key configured for your account.' });
 
   const { companies, sequenceId } = req.body || {};
@@ -361,7 +390,7 @@ app.post('/api/overloop/campaign-enroll', async (req, res) => {
 // Test-enroll a single prospect into an Overloop list (for connection testing)
 // Enrollment in Overloop v2: add prospect with lists:[listName] → auto-enrolls in connected automation
 app.post('/api/overloop/test-enroll', async (req, res) => {
-  const key = req.currentUser?.overloop_key;
+  const key = req.session.user?.overloop_key;
   if (!key) return res.status(400).json({ error: 'No Overloop API key configured for your account.' });
 
   const { listName, email, firstName = '', lastName = '', companyName = '', jobTitle = '' } = req.body || {};
@@ -394,7 +423,7 @@ app.post('/api/overloop/test-enroll', async (req, res) => {
 
 // Enroll company contacts into an Overloop automation via list membership
 app.post('/api/overloop/create-and-enroll', async (req, res) => {
-  const key = req.currentUser?.overloop_key;
+  const key = req.session.user?.overloop_key;
   if (!key) return res.status(400).json({ error: 'No Overloop API key configured for your account.' });
 
   const { companies, campaignName, listName } = req.body || {};
@@ -485,7 +514,7 @@ function instantlyHeaders(key) {
 
 // List campaigns for dropdown
 app.get('/api/instantly/campaigns', async (req, res) => {
-  const key = req.currentUser?.instantly_key;
+  const key = req.session.user?.instantly_key;
   if (!key) return res.status(400).json({ error: 'No Instantly API key configured for your account.' });
   try {
     const r = await axios.get(`${INSTANTLY_BASE}/api/v2/campaigns`, {
@@ -502,7 +531,7 @@ app.get('/api/instantly/campaigns', async (req, res) => {
 
 // Test-enroll a single lead into an Instantly campaign
 app.post('/api/instantly/test-enroll', async (req, res) => {
-  const key = req.currentUser?.instantly_key;
+  const key = req.session.user?.instantly_key;
   if (!key) return res.status(400).json({ error: 'No Instantly API key configured for your account.' });
 
   const { campaignId, email, firstName = '', lastName = '', companyName = '', jobSummary = '' } = req.body || {};
@@ -525,7 +554,7 @@ app.post('/api/instantly/test-enroll', async (req, res) => {
 
 // Campaign Builder bulk-enroll into an Instantly campaign
 app.post('/api/instantly/create-and-enroll', async (req, res) => {
-  const key = req.currentUser?.instantly_key;
+  const key = req.session.user?.instantly_key;
   if (!key) return res.status(400).json({ error: 'No Instantly API key configured for your account.' });
 
   const { companies, campaignName, campaignId } = req.body || {};
@@ -598,7 +627,7 @@ app.post('/api/instantly/create-and-enroll', async (req, res) => {
 
 // Analytics overview + per-campaign breakdown
 app.get('/api/instantly/analytics', async (req, res) => {
-  const key = req.currentUser?.instantly_key;
+  const key = req.session.user?.instantly_key;
   if (!key) return res.status(400).json({ error: 'No Instantly API key configured for your account.' });
   try {
     const hdrs = instantlyHeaders(key);
@@ -696,7 +725,7 @@ function placementCorpSql_last() {
 // Admin-only: check which CData columns contain score data for a specific company
 // GET /api/admin/score-fields?id=47758
 app.get('/api/admin/score-fields', async (req, res) => {
-  if (!req.currentUser?.admin) return res.status(403).json({ error: 'Admin only' });
+  if (!req.session.user?.admin) return res.status(403).json({ error: 'Admin only' });
   const companyId = parseInt(req.query.id) || 47758;
   try {
     const rows = await cdataQuery(
